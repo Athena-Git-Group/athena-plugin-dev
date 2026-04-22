@@ -17,6 +17,34 @@
 
 ## 可替換的 Stage
 
+Stage 分為兩類：**Standard Stage**（fresh agent 執行）和 **Flow-Inline Stage**（flow agent 內聯執行）。
+
+---
+
+### pre-build（Flow-Inline）
+
+| 項目 | 說明 |
+|------|------|
+| **職責** | Build 前的準備操作（建立 Git 分支） |
+| **執行方式** | Flow agent 內聯執行（不開 fresh agent） |
+| **Plugin 預設** | `athena-pre-build`（團隊可替換） |
+| **輸入** | `points/<slug>.md` 中的 slug、verdict、任務性質 |
+| **必要輸出** | flow context 的 `git_context`（branch_name、base_branch、ticket） |
+| **交接方式** | Flow context（不產出 handoff artifact） |
+| **Gate 條件** | 無 gate — 分支建立成功即繼續 |
+
+#### Flow Context 輸出格式
+
+```yaml
+git_context:
+  branch_created: true
+  branch_name: "feature/main_hap3621_member_export"
+  base_branch: "main"
+  ticket: "3621"
+```
+
+---
+
 ### spec
 
 | 項目 | 說明 |
@@ -47,6 +75,41 @@
 | **Handoff** | `handoffs/<slug>-build.md`，包含變更檔案列表、建置狀態 |
 | **Gate 條件** | 建置成功（exit code 0） |
 
+---
+
+### post-build（Flow-Inline）
+
+| 項目 | 說明 |
+|------|------|
+| **職責** | Stage gate 通過後自動提交 Git commit |
+| **執行方式** | Flow agent 內聯執行（不開 fresh agent） |
+| **Plugin 預設** | `athena-post-build`（團隊可替換） |
+| **觸發時機** | build gate PASS 後 + verify gate PASS 後（各觸發一次） |
+| **輸入** | flow context 的 `git_context` + 對應的 handoff artifact + `triggering_stage` 參數 |
+| **必要輸出** | flow context 的 `git_context.commits` 陣列追加新 commit |
+| **交接方式** | Flow context（不產出 handoff artifact） |
+| **Gate 條件** | 無 gate — commit 成功或無變更皆繼續 |
+
+#### 觸發參數
+
+| 觸發點 | `triggering_stage` | 預設 commit type |
+|--------|---------------------|------------------|
+| build gate PASS 後 | `build` | `feat` / `fix` |
+| verify gate PASS 後 | `verify` | `test` |
+
+#### Flow Context 輸出格式
+
+```yaml
+git_context:
+  commits:
+    - hash: "abc1234"
+      stage: "build"
+      message: "[HAP-3621] feat(member): add member export API"
+      files_committed: 12
+```
+
+---
+
 ### verify
 
 | 項目 | 說明 |
@@ -72,14 +135,14 @@
 | 項目 | 說明 |
 |------|------|
 | **職責** | 部署、發布、收尾 |
-| **輸入** | `handoffs/<slug>-review.md` + 所有先前 artifacts |
+| **輸入** | `handoffs/<slug>-review.md` + 所有先前 artifacts + flow context 的 `git_context` |
 | **必要輸出** | 部署確認（commit hash、PR URL、部署狀態等） |
 | **Handoff** | `handoffs/<slug>-ship.md`，包含部署結果 |
 | **Gate 條件** | 部署成功 |
 
 ## Handoff 契約（通用）
 
-無論哪個 stage，handoff artifact 都必須包含以下欄位：
+無論哪個 standard stage，handoff artifact 都必須包含以下欄位：
 
 ```markdown
 # Handoff: <stage-name>
@@ -103,24 +166,35 @@
 <建議的下一個 stage>
 ```
 
+> **Flow-inline stage 不產出 handoff artifact**，改用 flow context 傳遞資訊。
+
 ## Agent 隔離原則
 
-**每個 stage 都由全新的 agent 執行，不共享上下文。**
+**Standard stage：每個 stage 都由全新的 agent 執行，不共享上下文。**
 
 - 你的 skill 會在一個乾淨的 agent 中被載入，沒有前一個 stage 的對話歷史
 - 所有前置資訊都必須從 handoff artifact 讀取，不得假設 agent 記得任何東西
 - 這是為了避免 context window 過大以及前一階段的推理污染
 
+**Flow-inline stage：在 flow agent 中內聯執行，共享 flow context。**
+
+- Flow-inline skill 被 flow agent 讀取後直接執行
+- 可存取 flow context（git_context 等），不需要 handoff artifact
+- 輕量級操作，不產生大量 context 污染
+
 因此，skill 的設計必須：
-1. 在「先讀哪些檔」明確列出所有需要的 artifact 路徑
-2. 不引用任何「上一步」的對話內容
-3. 所有判斷依據都來自檔案，不來自記憶
+1. Standard stage：在「先讀哪些檔」明確列出所有需要的 artifact 路徑
+2. Flow-inline stage：明確列出需要讀取的 reference 與 flow context 欄位
+3. 不引用任何「上一步」的對話內容
+4. 所有判斷依據都來自檔案或 flow context，不來自記憶
 
 ## 規則
 
 1. Skill 必須在 SKILL.md frontmatter 宣告 `stage` 欄位
 2. Skill 的輸出必須符合該 stage 契約的「必要輸出」
-3. Skill 必須產出 handoff artifact 到 `handoffs/` 目錄
-4. Handoff artifact 必須包含上述通用欄位
-5. **每個 stage 必須由全新的 agent 執行**——不得讓同一個 agent 處理多個 stage
-6. Skill 不得假設自己能存取前一個 stage 的對話脈絡——一切靠 artifact
+3. Standard stage 必須產出 handoff artifact 到 `handoffs/` 目錄
+4. Flow-inline stage 必須更新 flow context
+5. Handoff artifact 必須包含上述通用欄位
+6. **Standard stage 必須由全新的 agent 執行**——不得讓同一個 agent 處理多個 standard stage
+7. **Flow-inline stage 在 flow agent 中執行**——不開 fresh agent
+8. Skill 不得假設自己能存取前一個 stage 的對話脈絡——一切靠 artifact 或 flow context

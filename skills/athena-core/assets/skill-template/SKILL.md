@@ -2,7 +2,7 @@
 name: <team>-<stage>
 description: >
   <簡述這個 skill 做什麼、對應哪個 stage、使用什麼技術棧>
-stage: <spec | plan | build | verify | review | ship>
+stage: <pre-build | spec | plan | build | post-build | verify | review | ship>
 ---
 
 # <Skill 名稱>

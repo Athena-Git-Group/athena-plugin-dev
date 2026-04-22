@@ -3,7 +3,7 @@ name: <team>-<stage>-index
 description: >
   <team> 團隊 <stage> stage 的路由索引。
   根據需求特徵分派到不同的子 skill。
-stage: <spec | plan | build | verify | review | ship>
+stage: <pre-build | spec | plan | build | post-build | verify | review | ship>
 ---
 
 # <Stage> Index
