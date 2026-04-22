@@ -14,3 +14,11 @@ description: >
 | 檔案 | 說明 | 消費者 |
 |------|------|--------|
 | `references/reconciler-contract.md` | Desired-State Reconciliation 合約 | 所有 form skill（entity-spec, api-spec, bdd-analysis, feature-spec, activity-spec） |
+| `references/skill-metadata-spec.md` | SKILL.md frontmatter 欄位規格 | 下游團隊建立 skill 時參考 |
+
+## Assets（Skill 模板）
+
+| 模板 | 說明 |
+|------|------|
+| `assets/skill-template/SKILL.md` | 一般 stage skill 的起手模板 |
+| `assets/index-skill-template/SKILL.md` | Index skill（同 stage 多流程路由）的起手模板 |

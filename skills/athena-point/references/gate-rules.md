@@ -8,7 +8,7 @@
 
 - `points/<request-slug>.md`
 
-這份檔案是後續 `/spec`、`/build-backend`、`/build-frontend` 判斷能否進場的依據。
+這份檔案是後續 `/spec`、`/build` 判斷能否進場的依據。
 
 ## Required Fields
 
@@ -27,20 +27,18 @@
 ### `PASS-DIRECT-BUILD`
 
 允許：
-- `/build-backend`
-- `/build-frontend`
+- `/build`
 
 要求：
-- build 完成後至少要考慮是否進 `/verify`
+- build 完成後進 `/review` → `/ship`
 
 ### `PASS-BUILD-WITH-VERIFY`
 
 允許：
-- `/build-backend`
-- `/build-frontend`
+- `/build`
 
 要求：
-- 完成後必須進 `/verify`
+- 完成後必須進 `/verify` → `/review` → `/ship`
 
 ### `PASS-SPEC-FIRST`
 
@@ -64,6 +62,5 @@
 
 若沒有 point-report：
 
-- `/build-backend` 不得開始
-- `/build-frontend` 不得開始
+- `/build` 不得開始
 - `/spec` 應優先要求先補 `/point`，除非是明確的長期新專案啟動

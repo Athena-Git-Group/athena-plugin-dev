@@ -66,9 +66,7 @@ description: >
 - 沒有 schema / API contract 變更
 
 下一步：
-- 純後端問題 → `/build-backend`
-- 純前端問題 → `/build-frontend`
-- 橫跨前後端但變更仍小 → 先指出主戰場，再要求 build 後進 `/verify`
+- `/build`（後端/前端/全端由團隊的 build skill 自行判斷）
 
 gate verdict:
 - `PASS-DIRECT-BUILD`
@@ -80,7 +78,7 @@ gate verdict:
 - 規格雖不用重寫，但需要驗證一致性
 
 下一步：
-- `/build-backend` 或 `/build-frontend`
+- `/build`
 - 完成後強制進 `/verify`
 
 gate verdict:
@@ -122,7 +120,7 @@ Point Result
 - Knowledge base needed: yes/no
 - Route: Direct Build | Build With Verify | Spec First
 - Gate verdict: `PASS-DIRECT-BUILD` | `PASS-BUILD-WITH-VERIFY` | `PASS-SPEC-FIRST`
-- Next command: `/build-backend` | `/build-frontend` | `/spec`
+- Next command: `/build` | `/spec`
 
 Scorecard
 - Requirement clarity: X/5
