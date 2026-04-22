@@ -66,10 +66,25 @@ athena-dev-plugin（本 repo）              團隊專案
 
 ## 安裝
 
-在 Claude Code 中安裝此 plugin：
+### 方式 A：本地載入（單次 session）
+
+啟動 Claude Code 時指定 plugin 目錄：
 
 ```bash
-claude plugin add https://github.com/Athena-Git-Group/athena-dev-plugin.git
+claude --plugin-dir /path/to/athena-dev-plugin
+```
+
+### 方式 B：永久安裝（透過 marketplace）
+
+```bash
+# 1. 將本 repo 註冊為 marketplace
+claude plugin marketplace add https://github.com/Athena-Git-Group/athena-dev-plugin.git
+
+# 2. 安裝 plugin
+claude plugin install athena-dev-plugin
+
+# 3. 確認安裝
+claude plugin list
 ```
 
 ## 團隊如何上繳 Skill

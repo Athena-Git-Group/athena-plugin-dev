@@ -1,0 +1,24 @@
+{
+  "name": "athena-dev-plugin",
+  "owner": {
+    "name": "Athena-Git-Group"
+  },
+  "metadata": {
+    "description": "Athena development workflow plugin — spec, plan, build, review, ship pipeline for teams"
+  },
+  "plugins": [
+    {
+      "name": "athena-dev-plugin",
+      "description": "Athena 開發流程 Plugin — 提供 point → spec → plan → pre-build → build → post-build → verify → review → ship 全流程編排，含 Git 自動化（分支建立、auto-commit）",
+      "source": "./",
+      "category": "development",
+      "author": {
+        "name": "Athena-Git-Group"
+      },
+      "repository": "https://github.com/Athena-Git-Group/athena-dev-plugin",
+      "license": "MIT",
+      "keywords": ["athena", "workflow", "bdd", "spec-driven", "engineering-plan", "git-automation"],
+      "tags": ["pipeline", "orchestration", "git", "tdd", "bdd"]
+    }
+  ]
+}
