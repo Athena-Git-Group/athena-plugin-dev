@@ -1,0 +1,11 @@
+{
+  "name": "athena-dev-plugin",
+  "description": "Athena development workflow plugin — spec, plan, build, review, ship pipeline for teams",
+  "author": {
+    "name": "Athena-Git-Group"
+  },
+  "repository": "https://github.com/Athena-Git-Group/athena-dev-plugin",
+  "license": "MIT",
+  "keywords": ["athena", "workflow", "bdd", "spec-driven", "engineering-plan"],
+  "skills": "./skills"
+}
