@@ -88,6 +88,20 @@ stage: build
 
 詳見 `skills/athena-flow/references/index-skill-pattern.md`。
 
+## 團隊知識庫
+
+athena-point 在評分時會自動掃描 `.athena/knowledge/` 目錄，讀取團隊的業務規則、產品規格等知識文件來輔助判斷。
+
+```
+.athena/knowledge/
+├── domain-rules/        # 業務規則、政策、SOP
+├── product-specs/       # 產品規格、PRD、功能定義
+├── api-contracts/       # API 規格、schema 定義
+└── ...                  # 自由組織
+```
+
+目錄結構由團隊自行組織，沒有強制規範。若目錄不存在，不影響評分流程。
+
 ## 流程概覽
 
 ```

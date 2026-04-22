@@ -15,8 +15,9 @@ description: >
 ## 先讀哪些檔
 
 - Read `references/scoring-rubric.md` 取得評分維度、分數區間與分流規則
-- 若需求疑似受業務規則、政策、產品規格或知識庫約束，再 Read `references/knowledge-base-guidelines.md`
+- Read `references/knowledge-base-guidelines.md` 了解知識庫讀取規範
 - Read `references/gate-rules.md` 了解 point-report 的檔案契約與可進入的下一階段
+- 掃描 `.athena/knowledge/` 目錄，了解團隊知識庫有哪些內容可供查證
 
 ## 何時使用
 
@@ -50,11 +51,12 @@ description: >
 ## 評分流程
 
 1. 將需求重述成一個可判斷的變更敘述
-2. 用 rubric 對每個維度打分
-3. 若命中知識庫條件，先讀相關知識來源再修正分數
-4. 根據總分與硬性 gate 決定路由
-5. 明確指出下一步 command
-6. 用 `assets/point-report-template.md` 的格式寫出 point-report
+2. 掃描 `.athena/knowledge/` 目錄結構，掌握團隊有哪些知識文件
+3. 用 rubric 對每個維度打分
+4. 若命中知識庫條件，從 `.athena/knowledge/` 讀取相關文件再修正分數
+5. 根據總分與硬性 gate 決定路由
+6. 明確指出下一步 command
+7. 用 `assets/point-report-template.md` 的格式寫出 point-report
 
 ## 路由結果
 
@@ -118,6 +120,7 @@ Point Result
 - Report path: `points/<request-slug>.md`
 - Summary: ...
 - Knowledge base needed: yes/no
+- Knowledge sources consulted: <列出從 .athena/knowledge/ 讀取的檔案，若無則 none>
 - Route: Direct Build | Build With Verify | Spec First
 - Gate verdict: `PASS-DIRECT-BUILD` | `PASS-BUILD-WITH-VERIFY` | `PASS-SPEC-FIRST`
 - Next command: `/build` | `/spec`
