@@ -1,8 +1,9 @@
 # athena-dev-plugin
 
-Athena 開發團隊專用 Claude Code Plugin — 提供 spec → plan → build → review → ship 全流程骨架。
+Athena 開發團隊專用 Claude Code Plugin — 提供 point → spec → plan → build → review → ship 全流程骨架。
 
 Plugin 定義流水線的**流程契約**（每個 stage 的輸入/輸出規格），各團隊在自己的專案中提供 stage 的實際 skill 實作。
+流程會根據 point 評分自動分流為三種 weight class（Minimal / Lightweight / Full），避免小任務走過重的儀式。
 
 ## 架構
 
@@ -156,6 +157,21 @@ athena-point 在評分時會自動掃描 `.athena/knowledge/` 目錄，讀取團
 
 目錄結構由團隊自行組織，沒有強制規範。若目錄不存在，不影響評分流程。
 
+## Weight Class（三層分流）
+
+Flow 根據 point 評分自動決定流程重量，避免小任務走過重的儀式：
+
+| Verdict | Weight | 分數 | Agent 數 | 路線 |
+|---------|--------|------|---------|------|
+| `PASS-TRIVIAL` | **Minimal** | 0-4 | 2 | point → build(+self-review) → commit → done |
+| `PASS-DIRECT-BUILD` | **Lightweight** | 5-7 | 3 | point → build → review-ship |
+| `PASS-BUILD-WITH-VERIFY` | **Lightweight** | 8-14 | 4 | point → build → verify → review-ship |
+| `PASS-SPEC-FIRST` | **Full** | 15-30 | 7+N | point → spec → plan → build(phases) → verify → review → ship |
+
+- **Minimal**：build agent 結束前自帶 self-review checklist，不開 review/ship agent，由使用者自行 push
+- **Lightweight**：review + ship 合併為一個 agent
+- **Full**：完整流程，build 內部依 plan.md 拆分 phase loop
+
 ## 流程概覽
 
 ```
@@ -169,9 +185,10 @@ athena-point 在評分時會自動掃描 `.athena/knowledge/` 目錄，讀取團
   │     ↓
   │  (scoring gate)
   │     ↓
-  │  PASS-DIRECT-BUILD ─────────────→ [pre-build] → build → [post-build] ─────────────────────→ review → ship
-  │  PASS-BUILD-WITH-VERIFY ────────→ [pre-build] → build → [post-build] → verify → [post-build] → review → ship
-  │  PASS-SPEC-FIRST → spec → plan → [pre-build] → build → [post-build] → verify → [post-build] → review → ship
+  │  PASS-TRIVIAL ──────────────────→ [pre-build] → build(minimal) → [post-build] → done
+  │  PASS-DIRECT-BUILD ─────────────→ [pre-build] → build → [post-build] → review-ship
+  │  PASS-BUILD-WITH-VERIFY ────────→ [pre-build] → build → [post-build] → verify → [post-build] → review-ship
+  │  PASS-SPEC-FIRST → spec → plan → [pre-build] → build(phases) → [post-build] → verify → [post-build] → review → ship
   │
   │  [括號] = flow-inline stage（flow agent 內聯執行）
   │  其餘 = standard stage（fresh agent 執行）
@@ -181,12 +198,18 @@ athena-point 在評分時會自動掃描 `.athena/knowledge/` 目錄，讀取團
        [post-build] — gate PASS 後自動 commit，遵循 git-conventions 格式
 ```
 
+## 強制規則
+
+安裝本 plugin 後，**任何程式碼變更都必須先跑 `/athena-dev-plugin:athena-point`**。
+Agent 不得自行判斷複雜度而跳過 point 評分。唯一例外：使用者明確說「不要跑 point」或純文件改動。
+
 ## 參考文件
 
 > 以下路徑皆相對於 plugin 的 `skills/` 目錄。
 
 | 文件 | 位置 | 說明 |
 |------|------|------|
+| Stage 編排 | `athena-flow/references/stage-orchestration.md` | Weight Class 路由與 stage 順序定義 |
 | Stage 契約 | `athena-flow/references/stage-contracts.md` | 每個 stage 的輸入/輸出規格 |
 | Skill 元資料規格 | `athena-core/references/skill-metadata-spec.md` | SKILL.md frontmatter 欄位定義 |
 | Index Skill 模式 | `athena-flow/references/index-skill-pattern.md` | 同 stage 多 skill 的路由規範 |
