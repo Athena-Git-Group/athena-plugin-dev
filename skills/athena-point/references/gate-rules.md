@@ -24,29 +24,30 @@
 
 ## Gate Verdict Meanings
 
-### `PASS-DIRECT-BUILD`
+### `PASS-DIRECT-BUILD`（Lightweight）
 
 允許：
 - `/build`
 
 要求：
-- build 完成後進 `/review` → `/ship`
+- build 完成後進 `/review-ship`（Lightweight 合併 stage）
 
-### `PASS-BUILD-WITH-VERIFY`
+### `PASS-BUILD-WITH-VERIFY`（Lightweight）
 
 允許：
 - `/build`
 
 要求：
-- 完成後必須進 `/verify` → `/review` → `/ship`
+- 完成後必須進 `/verify` → `/review-ship`（Lightweight 合併 stage）
 
-### `PASS-SPEC-FIRST`
+### `PASS-SPEC-FIRST`（Full Weight）
 
 允許：
 - `/spec`
 
 要求：
 - spec 完成後再考慮 `/plan`
+- 完整流程：spec → plan → build(phase loop) → verify → review → ship
 
 ## Hard Stops
 

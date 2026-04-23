@@ -31,14 +31,51 @@
 ## 線性執行順序（建議）
 
 > 若無平行資源，依此順序逐一執行。
+> Phase 05 和 06 可平行（都只依賴 04）。
 
 1. 01-requirement-analysis
 2. 02-entity
 3. 03-bdd-analysis
 4. 04-api-contract
-5. 05-backend-tdd
-6. 06-frontend-build
+5. 05-backend-tdd（可與 06 平行）
+6. 06-frontend-build（可與 05 平行）
 7. 07-integration
+
+## Phase Card 欄位規格
+
+每個 implementation phase（05-07）的 phase card 必須包含以下欄位，供 flow 的 phase loop 使用：
+
+| 欄位 | 必要性 | 說明 |
+|------|--------|------|
+| **Depends On** | 必要 | 依賴的 phase 編號 |
+| **Spec Sections** | 必要 | 此 phase agent 只需讀的 spec section 編號（避免全讀 1100+ 行 spec） |
+| **Smoke Test** | 建議 | Phase 完成後的驗證指令（無則視為 PASS） |
+
+### Phase Card 範例
+
+```markdown
+## Phase 05: Backend TDD Track
+
+- **Depends On:** 04
+- **Spec Sections:** 1, 3, 4
+- **Smoke Test:** `cargo test && cargo clippy`
+```
+
+```markdown
+## Phase 06: Frontend Build Track
+
+- **Depends On:** 04
+- **Spec Sections:** 2, 6
+- **Smoke Test:** `npm run build && npm run test`
+```
+
+```markdown
+## Phase 07: Integration Validation
+
+- **Depends On:** 05, 06
+- **Spec Sections:** 7（或全部）
+- **Smoke Test:** `npm run test:e2e`
+```
 
 ## 品質框架
 
