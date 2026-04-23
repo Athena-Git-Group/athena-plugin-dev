@@ -60,10 +60,23 @@ description: >
 
 ## 路由結果
 
+### Route T: Trivial
+
+適用：
+- 總分 ≤ 4（所有維度幾乎都是 0-1）
+- 沒有命中任何 override rule
+- 改動極小，無需獨立 review
+
+下一步：
+- `/build`（Minimal 模式，含 self-review checklist）
+
+gate verdict:
+- `PASS-TRIVIAL`
+
 ### Route A: Direct Build
 
 適用：
-- 總分低
+- 總分 5-7
 - 沒有高風險 domain rule
 - 沒有 schema / API contract 變更
 
@@ -121,8 +134,8 @@ Point Result
 - Summary: ...
 - Knowledge base needed: yes/no
 - Knowledge sources consulted: <列出從 .athena/knowledge/ 讀取的檔案，若無則 none>
-- Route: Direct Build | Build With Verify | Spec First
-- Gate verdict: `PASS-DIRECT-BUILD` | `PASS-BUILD-WITH-VERIFY` | `PASS-SPEC-FIRST`
+- Route: Trivial | Direct Build | Build With Verify | Spec First
+- Gate verdict: `PASS-TRIVIAL` | `PASS-DIRECT-BUILD` | `PASS-BUILD-WITH-VERIFY` | `PASS-SPEC-FIRST`
 - Next command: `/build` | `/spec`
 
 Scorecard

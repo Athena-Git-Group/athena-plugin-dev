@@ -65,6 +65,69 @@ git_context:
 | **Handoff** | `handoffs/<slug>-plan.md`，包含計畫路徑、phase 列表 |
 | **Gate 條件** | plan.md 存在且 Dependency Graph 完整 |
 
+### build（Minimal — PASS-TRIVIAL）
+
+當路由為 `PASS-TRIVIAL`（Minimal Weight Class）時，
+Build 以 Minimal 模式執行——單一 fresh agent，不跑 phase loop，結束前自帶 self-review checklist。
+**不再開 review-ship agent**，由 flow 直接結束。
+
+| 項目 | 說明 |
+|------|------|
+| **職責** | 根據 point-report 完成所有實作，並執行 self-review checklist |
+| **執行方式** | 單一 fresh agent（不跑 phase loop） |
+| **輸入** | `points/<slug>.md`（point-report）+ 實際程式碼 |
+| **無需** | plan.md、phase card、mini-handoff |
+| **必要輸出** | `handoffs/<slug>-build.md`（Compact 格式，含 self-review 結果） |
+| **Smoke Test** | Agent 自行執行（從 point-report 推斷合理的驗證指令） |
+| **Self-Review** | Agent 在寫 handoff 前執行 self-review checklist（見下方） |
+| **Commit** | 單次 post-build commit（`triggering_stage: build-minimal`） |
+| **Gate 條件** | Smoke test 通過 + self-review 全部通過 |
+
+#### Minimal Build Agent Prompt
+
+```
+你正在以 Minimal 模式執行 Build。
+這是一個極低複雜度的任務，不需要 phase loop，也不會有後續的 review 或 ship agent。
+
+讀取：
+1. .athena/skills/<build-skill>/SKILL.md（你的 build skill）
+2. points/<slug>.md（需求描述與評分）
+
+完成後：
+1. 執行 smoke test（根據變更性質選擇合理的驗證指令）
+2. 執行 self-review checklist：
+   □ 改動範圍是否超出 point-report 描述？（是 → Gate FAIL）
+   □ 是否引入新的 import / dependency？
+   □ 是否有明顯的安全問題（hardcoded secrets、SQL injection、XSS）？
+   □ smoke test 是否通過？
+3. 寫 handoffs/<slug>-build.md（使用 Compact 格式，附 self-review 結果）
+```
+
+#### Minimal Build Handoff 格式
+
+```markdown
+# Handoff: build (minimal)
+
+## Gate Verdict
+PASS / FAIL + 原因
+
+## Files Changed
+- <file list with new/modified annotation>
+
+## Smoke Test Result
+- <command>: <result>
+
+## Self-Review
+- Scope within point-report: yes/no
+- New dependencies: none / <list>
+- Security concerns: none / <list>
+
+## Risks / Unresolved Issues
+<若無則 None>
+```
+
+---
+
 ### build（Lightweight — 無 plan 時）
 
 當路由為 `PASS-DIRECT-BUILD` 或 `PASS-BUILD-WITH-VERIFY`（Lightweight Weight Class）時，
@@ -171,6 +234,7 @@ Dependency Graph 中無相互依賴的 phase 可同時啟動。
 
 | 觸發點 | `triggering_stage` | 預設 commit type |
 |--------|---------------------|------------------|
+| Minimal build gate PASS 後 | `build-minimal` | `feat` / `fix` |
 | Lightweight build gate PASS 後 | `build-lightweight` | `feat` / `fix` |
 | 每個 build phase gate PASS 後（Full） | `build-phase-<NN>` | `feat` / `fix` |
 | verify gate PASS 後 | `verify` | `test` |

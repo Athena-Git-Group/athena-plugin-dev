@@ -46,7 +46,8 @@
 
 ## Route Thresholds
 
-- 0-7: `Direct Build`
+- 0-4: `Trivial`
+- 5-7: `Direct Build`
 - 8-14: `Build With Verify`
 - 15-30: `Spec First`
 

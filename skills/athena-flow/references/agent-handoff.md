@@ -89,6 +89,45 @@ handoffs/<slug>-build-phase-<NN>.md
 所有 phase 完成後，flow 自動合成最終的 `handoffs/<slug>-build.md`，
 彙整所有 phase 的 mini-handoff 資訊。格式見 `phase-orchestration.md`。
 
+## Minimal Handoff（PASS-TRIVIAL 路由）
+
+Minimal 路由（`PASS-TRIVIAL`）使用最精簡的 handoff 模式：
+
+- 只產出 **2 個 handoff 檔案**：point-report + compact build handoff（含 self-review）
+- **不產出** review-ship handoff — 流程在 build + commit 後直接結束
+- Build handoff 附帶 self-review 結果（取代獨立 review agent）
+
+### Minimal Build Handoff
+
+```markdown
+# Handoff: build (minimal)
+
+## Gate Verdict
+PASS / FAIL + 原因
+
+## Files Changed
+- <file list with new/modified annotation>
+
+## Smoke Test Result
+- <command>: <result>
+
+## Self-Review
+- Scope within point-report: yes/no
+- New dependencies: none / <list>
+- Security concerns: none / <list>
+
+## Risks / Unresolved Issues
+<若無則 None>
+```
+
+### 預期 Handoff 檔案數量（Minimal）
+
+| 路由 | Handoff 檔案 | 總數 |
+|------|-------------|------|
+| `PASS-TRIVIAL` | point + build(minimal) | **2** |
+
+---
+
 ## Compact Handoff（Lightweight 路由）
 
 Lightweight 路由（`PASS-DIRECT-BUILD`、`PASS-BUILD-WITH-VERIFY`）使用精簡的 Compact Handoff 模式，
@@ -153,6 +192,7 @@ PASS — reviewed, pushed and merged to <merge_target>
 
 | 路由 | Handoff 檔案 | 總數 |
 |------|-------------|------|
+| `PASS-TRIVIAL` | point + build(minimal) | **2** |
 | `PASS-DIRECT-BUILD` | point + build + review-ship | **3** |
 | `PASS-BUILD-WITH-VERIFY` | point + build + verify + review-ship | **4** |
 | `PASS-SPEC-FIRST` | point + spec + plan + N × mini-handoff + build(合成) + verify + review + ship | **7+N** |
@@ -168,3 +208,4 @@ PASS — reviewed, pushed and merged to <merge_target>
 5. 每個 stage 結束時必須寫入完整的 handoff artifact，不可省略
 6. 每個 build phase 結束時必須寫入 mini-handoff，不可省略（僅 Full Weight）
 7. **Lightweight 路由的 review-ship 可合併為一個 agent**——這是唯一允許同一 agent 處理多個 stage 的例外
+8. **Minimal 路由不產出 review-ship handoff**——build handoff 的 self-review 段落取代獨立 review

@@ -24,6 +24,15 @@
 
 ## Gate Verdict Meanings
 
+### `PASS-TRIVIAL`（Minimal）
+
+允許：
+- `/build`
+
+要求：
+- build agent 結束前執行 self-review checklist
+- 不進 review-ship，由 flow 直接提示 push 指令
+
 ### `PASS-DIRECT-BUILD`（Lightweight）
 
 允許：
