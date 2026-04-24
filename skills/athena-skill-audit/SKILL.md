@@ -29,7 +29,6 @@ user-invocable: true
 2. `references/l2-contract-checks.md` — L2 契約遵守檢查項目（依 stage 對照）
 3. `references/mentoring-style.md` — 輸出語氣指引
 4. `assets/audit-report-template.md` — 對話輸出模板
-5. （第一次跑時可選）`assets/eval-case-example.md` — 引導團隊未來建立 L4 eval
 
 ## 何時使用
 
@@ -100,9 +99,9 @@ user-invocable: true
 ### 6.（可選）邀請進入 L4
 
 若團隊尚未在 `.athena/evals/` 建立 test case，輸出一段引導：
-「想要更深的檢查？參考 `assets/eval-case-example.md` 建立你的第一個 eval case。」
+「想要更深的檢查？plugin 提供 `athena-skill-eval` 可以對 skill 跑動態 eval — 從複製 `skills/athena-skill-eval/assets/case-template.md` 建立你的第一個 case 開始。」
 
-> 本 skill **不實作 L4 runner**，僅給出範例引導。
+> 本 skill 只做靜態檢查（L1+L2）。動態執行（L4）由 `athena-skill-eval` 提供。
 
 ## 輸出
 

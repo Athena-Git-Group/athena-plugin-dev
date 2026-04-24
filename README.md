@@ -34,7 +34,8 @@ athena-dev-plugin（本 repo）              團隊專案
 | **athena-core** | 參考庫 | — | 共用參考庫（Reconciler Contract、Skill 模板等） |
 | **athena-pre-build** | flow-inline | 是（有預設） | Build 前自動建立 Git 分支 |
 | **athena-post-build** | flow-inline | 是（有預設） | Build/Verify 通過後自動 Git commit |
-| **athena-skill-audit** | 輔導工具 | — | 團隊主動觸發的 skill 品質健檢（獨立於 flow） |
+| **athena-skill-audit** | 輔導工具 | — | 團隊主動觸發的 skill 品質健檢（L1+L2 靜態，獨立於 flow） |
+| **athena-skill-eval** | 輔導工具 | — | L4 動態 eval runner — 對 skill 跑 case，捕捉真實行為（獨立於 flow） |
 | **git-conventions** | 參考庫 | — | Git 分支命名與 commit message 規範 |
 
 ## Stage 分類
@@ -181,7 +182,7 @@ athena-point 在評分時會自動掃描 `.athena/knowledge/` 目錄，讀取團
 | **L1 靜態結構** | frontmatter 必填欄位、`name` 命名規範、`stage` 值合法性、`description` 品質 | ✅ |
 | **L2 契約遵守** | 對照 `stage-contracts.md` 檢查 SKILL.md 是否提及讀寫對應 handoff | ✅ |
 | **L3 description 主觀評估** | 用 LLM 評估描述是否清楚 | ❌（未來） |
-| **L4 動態 eval** | 餵 test case 給 skill，檢查實際輸出 | ❌（僅提供範例引導，見 `assets/eval-case-example.md`） |
+| **L4 動態 eval** | 餵 test case 給 skill，檢查實際輸出 | ✅（由獨立 skill `athena-skill-eval` 提供，見下節） |
 
 ### 輸出風格
 
@@ -199,6 +200,68 @@ athena-point 在評分時會自動掃描 `.athena/knowledge/` 目錄，讀取團
 |---------|------|
 | `athena-point` | point 是流程閘門（評估「需求要走哪條路」），audit 是 skill 品質顧問（檢查 skill 寫得好不好） |
 | `athena-flow` | flow 編排執行，audit 與 flow 完全解耦，不被 stage discovery |
+| `athena-skill-eval` | audit 是**靜態**檢查（L1+L2），eval 是**動態**執行驗證（L4），兩者互補 |
+
+## L4 動態評估（athena-skill-eval）
+
+> 與本文件最後「強制規則」段的 `/athena-point` 不同 —— eval 是**團隊主動觸發**的離線回歸測試工具，**不是 plugin 強制執行的閘門**。
+
+對 skill 進行**行為測試** — 給 skill 一個具象 case → spawn fresh sub-agent 真實執行 → 評分。L1+L2 (audit) 看 skill 寫得好不好；L4 (eval) 看 skill 跑出來對不對。
+
+### 用法
+
+```bash
+/athena-dev-plugin:athena-skill-eval <target-skill> <case-name>
+```
+
+範例：
+
+```bash
+/athena-dev-plugin:athena-skill-eval crs-build-impl typo-fix
+```
+
+### Case 檔案位置
+
+```
+<project>/.athena/evals/
+├── spec-cases/
+├── plan-cases/
+├── build-cases/
+├── verify-cases/
+├── review-cases/
+└── ship-cases/
+```
+
+每個 case 一個 `.md`，依 `skills/athena-skill-eval/references/case-spec.md` 格式撰寫。
+起手請複製 `skills/athena-skill-eval/assets/case-template.md`。
+完整範例見 `skills/athena-skill-eval/assets/case-example-build.md`。
+
+### 評分機制
+
+每個 criterion 在 case 裡標記 `[mechanical]` 或 `[semantic]`：
+
+- **`[mechanical]`** — 純結構/字串/檔案存在性（grep / Read 機械比對，便宜穩定）
+- **`[semantic]`** — 需要意圖判斷（spawn 第二個 sub-agent 用 LLM rubric 判定）
+
+判別小測驗：「這條 criterion 需要看內容判斷意圖嗎？需要 → semantic；不需要 → mechanical」
+
+### 執行流程
+
+```
+case file → mock env (temp dir) → spawn fresh sub-agent (Executor) →
+  capture output → grade per-criterion → cleanup → 三段式報告
+```
+
+### 與 audit 的分工
+
+| | audit | eval |
+|---|------|------|
+| 層級 | L1+L2 靜態 | L4 動態 |
+| 看什麼 | SKILL.md 文字結構 | skill 真實執行行為 |
+| 成本 | 低（純 grep） | 高（spawn agent + LLM grading） |
+| 何時用 | 隨手檢查、定期掃 | 改 skill 後驗證、regression test |
+
+兩者互補：先用 audit 確認結構合規，再用 eval 確認行為符合期望。
 
 ## Weight Class（三層分流）
 
