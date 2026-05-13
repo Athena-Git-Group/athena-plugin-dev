@@ -1,0 +1,33 @@
+name: Plugin lint
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run plugin lint
+        run: bash scripts/lint-plugin.sh
+
+      - name: Note about semantic eval
+        if: always()
+        run: |
+          echo ""
+          echo "Note: this workflow runs static lint only (frontmatter,"
+          echo "JSON validity, shell syntax). Semantic L4 eval cases under"
+          echo ".athena/evals/ are NOT run here because they require"
+          echo "spawning Claude sub-agents (cost + API key)."
+          echo ""
+          echo "To run semantic eval locally:"
+          echo "  /athena-dev-plugin:athena-skill-eval athena-point example-trivial"
