@@ -7,5 +7,7 @@
   "repository": "https://github.com/Athena-Git-Group/athena-plugin-dev",
   "license": "MIT",
   "keywords": ["athena", "workflow", "bdd", "spec-driven", "engineering-plan"],
-  "skills": "./skills"
+  "skills": "./skills",
+  "commands": "./commands",
+  "hooks": "./hooks/hooks.json"
 }

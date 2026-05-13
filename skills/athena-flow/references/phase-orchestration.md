@@ -170,24 +170,47 @@ Phase A 和 Phase B 可平行，當且僅當：
 - 兩者的所有前置依賴都已完成
 ```
 
-### 執行方式
+### 執行模式
+
+Flow 依「同時可啟動的 phase 數量」與「預估執行時間落差」選擇兩種平行模式：
+
+| 模式 | 觸發條件 | Agent 呼叫方式 | 等待方式 |
+|------|---------|---------------|----------|
+| **Foreground 平行** | ≤ 2 個可平行 phase，且預估時間相近 | 單一回應中送出多個 `Agent` tool calls（foreground） | 等所有 Agent 同步回傳 |
+| **Background 平行** | ≥ 3 個可平行 phase，或時間落差大，或需要「先完成的 phase 提早觸發下游」 | 對每個 phase 呼叫 `Agent(run_in_background: true)` | 透過 harness 完成通知，先完成者先處理 |
+
+兩種模式共同的要求：
+
+1. **同一次回應啟動所有可平行 phase**——不要序列化「先送一個 Agent、等回來再送下一個」，否則喪失平行
+2. **完成順序與啟動順序解耦**——讀 mini-handoff 才是判定依據，不靠回傳順序
+3. **不在 flow agent 內 `sleep` 輪詢**——background 模式靠 harness 主動通知，foreground 模式靠 tool result 同步返回
+
+### Background 平行的執行流程
 
 ```
-# 範例：Phase 05 和 06 可平行（都只依賴 04）
-04 完成
+04 完成 → flow 識別 {05, 06} 為可平行 phase set
     ↓
-同時啟動 Phase 05 agent + Phase 06 agent（parallel Agent calls）
+flow 在單一回應中送出：
+  Agent(run_in_background=true, prompt=phase-05 …)
+  Agent(run_in_background=true, prompt=phase-06 …)
     ↓
-各自獨立執行 → 各自寫 mini-handoff → 各自 gate
+flow 進入 "wait & merge" 心智模式：
+  - 完成通知抵達 → 讀對應 mini-handoff → 暫存結果
+  - 任一 phase Gate FAIL → 立即停 phase loop，不再啟動下游
+  - 全部 PASS → 進入 Conflict Detection
     ↓
-兩者都 PASS
+Conflict Detection（同下節）
     ↓
-Conflict Detection：比對兩個 mini-handoff 的 Files Changed
-  - 無重疊 → 各自 commit → 繼續
-  - 有重疊 → 停止，通知使用者處理衝突
-    ↓
-Phase 07（依賴 05 + 06）可以開始
+全部安全 → 各自 commit → 觸發下游 phase（07 依賴 05 + 06）
 ```
+
+### Progress Tracking（搭配 TaskCreate）
+
+平行 phase 數量多時，flow 在啟動前**先用 `TaskCreate` 建立對應 task**，把 phase 編號寫進 `subject`，並在 background Agent 完成通知抵達時 `TaskUpdate` 標記。
+
+- 目的：使用者可從 task list 看到「現在哪些 phase 進行中、哪些已完成、哪些 fail」，而不是等 flow agent 主動回報
+- mini-handoff 仍然是真相來源；TaskCreate 只是 UX 投影
+- 不要把 mini-handoff 的內容塞進 task description，避免重複
 
 ### Conflict Detection
 
@@ -198,6 +221,8 @@ Phase 07（依賴 05 + 06）可以開始
 | 無重疊檔案 | 各自 commit，繼續 |
 | 有重疊但都是新增（不同檔案名的 new） | 各自 commit，繼續 |
 | 有重疊且修改同一檔案 | 停止流程，報告衝突檔案，交給使用者 |
+
+Background 模式下，conflict detection 在「全部完成通知抵達後」才執行；不可在第一個完成的 phase 就 commit，否則衝突檔案會被先 commit 的版本覆寫，後到者得做 merge。
 
 ## Verification Phase Dedup
 
@@ -269,3 +294,6 @@ verify
 6. **Gate 沒過不繼續** — FAIL 停止 phase loop
 7. **Phase retry 最多 2 輪** — 超過交給使用者
 8. **平行 phase 完成後必須 conflict detection** — 有衝突就停
+9. **可平行的 phase 必須同一次回應送出** — 不可序列化呼叫，否則喪失平行
+10. **不在 flow agent 內 sleep 輪詢** — background 模式靠 harness 主動通知，foreground 模式靠 tool result 同步返回
+11. **TaskCreate 只做 UX 投影** — mini-handoff 仍是 gate 判定的唯一真相來源
