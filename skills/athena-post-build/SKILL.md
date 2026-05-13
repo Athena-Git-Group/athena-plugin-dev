@@ -13,6 +13,12 @@ user-invocable: false
 
 你在 flow agent 中被內聯執行。你的職責是在 stage gate 通過後自動提交 Git commit。
 
+> **Coexist with `auto-commit.sh` hook**：本 plugin 同時提供 SubagentStop hook
+> `hooks/auto-commit.sh` 作為替代路徑。若 flow agent 在 spawn subagent 前
+> 把 `.athena/.flow-context.json` 設為 `mode: hook`，commit 由 hook 完成；
+> 本 skill 不執行。若 marker 不存在或為 `mode: inline`，仍由本 skill 處理。
+> Marker schema 詳見 `../athena-flow/references/flow-context.md`。
+
 你會在以下時間點被呼叫：
 1. **Lightweight build gate 通過後** — `triggering_stage: build-lightweight`
 2. **每個 build phase gate 通過後（Full Weight）** — `triggering_stage: build-phase-<NN>`

@@ -28,6 +28,7 @@ description: >
 - Read `references/git-lifecycle-hooks.md` — Git 操作的觸發時機
 - Read `references/phase-orchestration.md` — Build 內部的 phase loop 編排
 - Read `references/verify-retry.md` — Verify 失敗的回退流程
+- Read `references/flow-context.md` — Hook 模式的 marker file schema
 
 ## 核心原則
 
