@@ -40,6 +40,15 @@ description: >
 
 每個 standard stage 必須由全新的 agent 執行，不沿用上一個 stage 的 agent。
 
+> **Named subagent**: Plugin 在 `agents/` 提供 per-stage subagent 殼
+> （`athena-point`、`athena-stage-spec`、`athena-stage-plan`、`athena-stage-build`、
+> `athena-stage-verify`、`athena-stage-review`、`athena-stage-ship`），每個都帶
+> 階段化的 tool scope。Flow 啟動 standard stage 時應呼叫
+> `Agent(subagent_type: "athena-stage-<stage>")` 取代 generic Agent，讓 harness
+> 替你強制工具邊界。團隊 skill 仍是邏輯來源，subagent 只是權限殼。
+> 若 subagent 因 tool scope 擋掉合理操作，回報給使用者並擴充殼的 `tools`
+> 欄位，不要繞道。
+
 ### Flow-Inline Stage
 
 flow-inline stage（pre-build、post-build）在 flow agent 中直接執行，不開 fresh agent。
