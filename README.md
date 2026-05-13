@@ -208,173 +208,19 @@ athena-point 在評分時會自動掃描 `.athena/knowledge/` 目錄，讀取團
 
 目錄結構由團隊自行組織，沒有強制規範。若目錄不存在，不影響評分流程。
 
-## Skill 品質輔導（athena-skill-audit）
+## 輔導工具（獨立於 flow，團隊主動觸發）
 
-> 與本文件最後「強制規則」段的 `/athena-point` 不同 —— audit 是**團隊主動觸發**的健檢工具，**不是 plugin 強制執行的閘門**。沒跑 audit 不會阻擋任何上繳、build 或合併動作。
+Plugin 內建三個與 `/flow` 完全解耦的輔導工具，**都不寫機器 verdict、不阻擋任何流程**。每個工具的完整說明在獨立檔案：
 
-獨立於 flow 的 **skill 健檢工具**，協助團隊檢查上繳到 `.athena/skills/` 的 skill 是否符合契約與命名規範。**輔導風格**，不阻擋任何 flow / CI。
+| 工具 | 看什麼 | 觸發者 | 完整文件 |
+|------|--------|--------|----------|
+| `/athena-skill-audit` | SKILL.md 靜態結構（L1+L2） | RD | [docs/tools/skill-audit.md](docs/tools/skill-audit.md) |
+| `/athena-skill-eval` | Skill 真實執行行為（L4） | RD | [docs/tools/skill-eval.md](docs/tools/skill-eval.md) |
+| `/athena-audit-requirement-{backend,frontend}` | PM 需求單可譯性 | PM / TL | [docs/tools/audit-requirement.md](docs/tools/audit-requirement.md) |
 
-### 用法
+三者全部走 ✅ / 🟡 / 💡 三段式建議格式，**不使用 PASS / FAIL**，避免被誤用為 CI gate。
 
-```bash
-# 全掃 .athena/skills/ 下所有 skill
-/athena-dev-plugin:athena-skill-audit
-
-# 只檢查單一 skill
-/athena-dev-plugin:athena-skill-audit my-team-build
-```
-
-### 檢查層級
-
-| Tier | 內容 | 第一版實作 |
-|------|------|-----------|
-| **L1 靜態結構** | frontmatter 必填欄位、`name` 命名規範、`stage` 值合法性、`description` 品質 | ✅ |
-| **L2 契約遵守** | 對照 `stage-contracts.md` 檢查 SKILL.md 是否提及讀寫對應 handoff | ✅ |
-| **L3 description 主觀評估** | 用 LLM 評估描述是否清楚 | ❌（未來） |
-| **L4 動態 eval** | 餵 test case 給 skill，檢查實際輸出 | ✅（由獨立 skill `athena-skill-eval` 提供，見下節） |
-
-### 輸出風格
-
-採三段式建議格式（**不使用 PASS / FAIL**）：
-
-- ✅ **做得好的地方** — 通過所有客觀規則
-- 🟡 **可以更好的地方** — 命中規則但不影響運作，附 Why / What / How 改寫範例
-- 💡 **進階建議** — 未來可考慮的強化（如建立 L4 eval cases）
-
-純對話輸出，**不寫入任何檔案**，不輸出機器可解析的 verdict（避免被誤用為 CI gate）。
-
-### 與其他 skill 的邊界
-
-| 比較對象 | 差別 |
-|---------|------|
-| `athena-point` | point 是流程閘門（評估「需求要走哪條路」），audit 是 skill 品質顧問（檢查 skill 寫得好不好） |
-| `athena-flow` | flow 編排執行，audit 與 flow 完全解耦，不被 stage discovery |
-| `athena-skill-eval` | audit 是**靜態**檢查（L1+L2），eval 是**動態**執行驗證（L4），兩者互補 |
-
-## L4 動態評估（athena-skill-eval）
-
-> 與本文件最後「強制規則」段的 `/athena-point` 不同 —— eval 是**團隊主動觸發**的離線回歸測試工具，**不是 plugin 強制執行的閘門**。
-
-對 skill 進行**行為測試** — 給 skill 一個具象 case → spawn fresh sub-agent 真實執行 → 評分。L1+L2 (audit) 看 skill 寫得好不好；L4 (eval) 看 skill 跑出來對不對。
-
-### 用法
-
-```bash
-/athena-dev-plugin:athena-skill-eval <target-skill> <case-name>
-```
-
-範例：
-
-```bash
-/athena-dev-plugin:athena-skill-eval crs-build-impl typo-fix
-```
-
-### Case 檔案位置
-
-```
-<project>/.athena/evals/
-├── spec-cases/
-├── plan-cases/
-├── build-cases/
-├── verify-cases/
-├── review-cases/
-└── ship-cases/
-```
-
-每個 case 一個 `.md`，依 `skills/athena-skill-eval/references/case-spec.md` 格式撰寫。
-起手請複製 `skills/athena-skill-eval/assets/case-template.md`。
-完整範例見 `skills/athena-skill-eval/assets/case-example-build.md`。
-
-### 評分機制
-
-每個 criterion 在 case 裡標記 `[mechanical]` 或 `[semantic]`：
-
-- **`[mechanical]`** — 純結構/字串/檔案存在性（grep / Read 機械比對，便宜穩定）
-- **`[semantic]`** — 需要意圖判斷（spawn 第二個 sub-agent 用 LLM rubric 判定）
-
-判別小測驗：「這條 criterion 需要看內容判斷意圖嗎？需要 → semantic；不需要 → mechanical」
-
-### 執行流程
-
-```
-case file → mock env (temp dir) → spawn fresh sub-agent (Executor) →
-  capture output → grade per-criterion → cleanup → 三段式報告
-```
-
-### 與 audit 的分工
-
-| | audit | eval |
-|---|------|------|
-| 層級 | L1+L2 靜態 | L4 動態 |
-| 看什麼 | SKILL.md 文字結構 | skill 真實執行行為 |
-| 成本 | 低（純 grep） | 高（spawn agent + LLM grading） |
-| 何時用 | 隨手檢查、定期掃 | 改 skill 後驗證、regression test |
-
-兩者互補：先用 audit 確認結構合規，再用 eval 確認行為符合期望。
-
-## PM 需求驗收（athena-audit-requirement-{frontend,backend}）
-
-> 與本文件最後「強制規則」段的 `/athena-point` 不同 —— 這對工具是**團隊主動觸發**的「PM 需求單可譯性審計工具」，**不是 plugin 強制執行的閘門**。沒跑 audit-requirement 不會阻擋任何 build 或合併動作。
-
-對 **PM 寫的需求單**做「可譯性審計」 — 檢查 RD 看完能否機械萃取出工程原料。
-低分結果是**退回 PM 補資訊**，不是阻擋 RD 工程流程。
-
-雙產出：
-1. 對話中三段式建議報告（✅ / 🟡 / 💡，**無 PASS/FAIL**）
-2. 寫入 `requirement-feedback/<slug>-{frontend|backend}.md` 的 PM-friendly 澄清問題清單（可逐題補答後重跑 audit）
-
-### 用法
-
-```bash
-# 後端視角 — 看資料 / API / 業務規則 / 驗證 / 整合點
-/athena-dev-plugin:athena-audit-requirement-backend <path-to-prd.md>
-/athena-dev-plugin:athena-audit-requirement-backend <path-to-prd.md> --slug=收藏功能
-
-# 前端視角 — 看角色 / 畫面 / 互動 / 視覺驗收 / 導航
-/athena-dev-plugin:athena-audit-requirement-frontend <path-to-prd.md>
-/athena-dev-plugin:athena-audit-requirement-frontend <path-to-prd.md> --slug=收藏功能
-```
-
-也支援直接貼文字（無檔案路徑時）。Slug 推斷規則：使用者 `--slug` > PM 文件 H1 > 檔名 > `untitled-<timestamp>`。
-
-### 後端 vs 前端視角
-
-兩個工具獨立可用，同份需求各跑一次無衝突，互補產出兩份 feedback doc。
-
-| 維度 | 後端視角看的 | 前端視角看的 |
-|------|------------|------------|
-| 「使用者」 | 帳號資料屬性 / 權限 | 角色 / 畫面差異 / 訪客行為 |
-| 「流程」 | command/query 邊界 / 觸發者 | 畫面跳轉 / 互動順序 / entry 點 |
-| 「資料」 | 實體可辨識性 / 屬性 / 關聯 | 畫面要顯示哪些資訊 |
-| 「狀態」 | 資料狀態（草稿/已送出/已取消） | UI 狀態（loading/empty/error） |
-| 「規則」 | 業務規則完整度（happy/unhappy/edge） | 互動細節 / 禁用條件 |
-| 「驗證」 | 後端格式 / 範圍 / 唯一性 | 輸入時的 UI 提示與訊息文案 |
-| 「失敗」 | 例外處理 / 重試 / 回滾 | 錯誤訊息畫面 / 文案 |
-| 「整合」 | 外部系統 / side effects | 重新整理 / 返回 / 網址分享 |
-
-### PM Feedback 文件範例路徑
-
-```
-<project>/requirement-feedback/
-├── 收藏功能-backend.md
-├── 收藏功能-frontend.md
-├── 訂單退款流程-backend.md
-└── ...
-```
-
-文件採 PM-friendly 業務語言（禁用 RD 術語如 endpoint / schema / component / state），每份含「整體觀察 → ✅ 已給足 → 🟡 需補完 → 💡 進階建議 → 逐題澄清清單（含 PM 補答區）」。
-
-### 與其他 skill 的邊界
-
-| 比較對象 | 差別 |
-|---------|------|
-| `athena-point` | point 對 **RD** 做工程分流（決定要不要 spec），audit-requirement 對 **PM** 做需求驗收（決定 PM 要不要補資訊）；point 寫機器 verdict 給 flow gate 用，audit-requirement 純對話 + PM-friendly 文字，無 verdict |
-| `athena-skill-audit` | 那個 audit 看 **SKILL.md** 結構（給 RD 寫 skill 用），audit-requirement 看 **PM 需求文件**（給 PM 寫 PRD 用） |
-| `athena-skill-eval` | eval 看 **skill 跑出來行為對不對**，audit-requirement 看 **PM 需求文件本身寫得夠不夠** |
-| `/flow` | flow 是 RD 工程編排，audit-requirement 在 flow **之前**由 PM/TL 主動使用 |
-| `athena-audit-requirement-backend` vs `-frontend` | 同類工具的兩個視角，並列、互補；同需求各跑一次無衝突 |
-
-> **與 `athena-point` 的更深劃線**：兩者都看「需求清不清楚」，但 point 的 Requirement Clarity 維度服務 **RD 工程分流**（低分 → 走 spec 重寫），audit-requirement 服務 **PM 需求驗收**（低分 → 退回 PM 補資訊，可重跑）。一次需求週期可同時用兩個工具：先給 PM 跑 audit-requirement 補完需求，再給 RD 跑 point 決定走哪條工程路線。
+> **與 `athena-point` 的劃線**：point 是 flow 閘門（決定要不要走 spec），輔導工具不影響 flow。其中 audit-requirement 與 point 的 Requirement Clarity 看似重疊，但 point 服務 RD 工程分流（低分 → 走 spec 重寫），audit-requirement 服務 PM 需求驗收（低分 → 退回 PM 補資訊，可重跑）。同一需求週期可同時用兩個工具。
 
 ## Weight Class（三層分流）
 
@@ -483,63 +329,9 @@ Marker schema 與 mode 選擇建議詳見 `skills/athena-flow/references/flow-co
 
 > v1 限制：平行 phase 共用單一 marker，無法區分。Full Weight 平行 phase 想用 hook 模式時建議拆 per-phase marker；目前的 reference impl 預設仍用 inline post-build skill。
 
-## Plugin 自身工程（給 contributor）
+## 給 Contributor
 
-本段給想要修改 plugin 本體的開發者。一般使用者不必看。
-
-### Claude 設定分層
-
-Plugin repo 的 `.claude/` 下有兩份 settings，職責分開：
-
-| 檔案 | 是否 commit | 內容 |
-|------|-----------|------|
-| `.claude/settings.json` | ✅ tracked，共享 baseline | 具體 git verb allowlist（status/diff/log/add/commit/checkout/branch/fetch/push/…）+ deny destructive ops（`push --force`、`reset --hard`、`config`、`filter-branch` 等） |
-| `.claude/settings.local.json` | ❌ gitignored | 個別 contributor 的 Read 白名單與個人偏好；harness 自動往這裡加新規則時不會污染共享 baseline |
-
-避免把 `Bash(git *)` 這類過寬規則放進 baseline——deny list 才是收斂危險動作的正路。
-
-### Runtime artifacts 不進 git
-
-Plugin 自己會 dogfood `/athena-flow`，所以 `points/`、`handoffs/`、`requirement-feedback/`、`plans/` 在 disk 上會出現，但全部在 `.gitignore` 內、**不應該 commit**。若有特定 report 想當示範，搬到 `examples/` 並明確標註。
-
-> 例外：require-point.sh hook 仍然會看磁碟上的 `points/*.md` 來決定要不要放行；untrack 不影響 hook 偵測。
-
-### 本地 lint
-
-```bash
-bash scripts/lint-plugin.sh
-```
-
-檢查項目：
-
-- JSON manifest 合法（`plugin.json` / `marketplace.json` / `hooks/hooks.json` / `.claude/settings.json`）
-- `plugin.json` 宣告的 `skills` / `commands` / `agents` / `hooks` 路徑都實際存在
-- 所有 `SKILL.md` / `commands/*.md` / `agents/*.md` 帶合法 frontmatter
-- SKILL.md `name` 欄位與資料夾同名
-- `stage` 值在允許清單內
-- `hooks/*.sh` 與 `scripts/*.sh` 通過 `bash -n` 與 executable bit
-
-完全靜態，不打 Anthropic API，不 spawn subagent。
-
-### CI
-
-`.github/workflows/lint.yml` 在每個 PR 跑上面的 lint。Semantic / L4 eval **不在 CI 跑**——需要 spawn subagent + API key，目前留給手動或 nightly。
-
-### Eval cases（dogfood）
-
-`.athena/evals/` 是 plugin 自己的 eval case 目錄，**不會**被 plugin 安裝程序拷貝到 consumer 專案——consumer 自己的 `.athena/evals/` 是另一份。目前提供一個 reference case：
-
-```
-.athena/evals/point-cases/example-trivial.md
-```
-
-包含 4 條 `[mechanical]` 條件 + 1 條 `[semantic]` 條件（mechanical 條件適合放進未來的 CI eval runner；semantic 條件保留給手動執行）。
-
-執行（手動）：
-
-```bash
-/athena-dev-plugin:athena-skill-eval athena-point example-trivial
-```
+修改 plugin 本體的開發者請看 [CONTRIBUTING.md](CONTRIBUTING.md)，內含：Claude 設定分層（baseline vs local）、runtime artifacts gitignore 規則、`scripts/lint-plugin.sh` 本地 lint、CI workflow、dogfood eval cases，以及提交流程的注意事項。
 
 ## 參考文件
 
