@@ -83,7 +83,7 @@ claude --plugin-dir /path/to/athena-dev-plugin
 
 ```bash
 # 1. 將本 repo 註冊為 marketplace
-claude plugin marketplace add https://github.com/Athena-Git-Group/athena-dev-plugin.git
+claude plugin marketplace add https://github.com/Athena-Git-Group/athena-plugin-dev.git
 
 # 2. 安裝 plugin
 claude plugin install athena-dev-plugin
