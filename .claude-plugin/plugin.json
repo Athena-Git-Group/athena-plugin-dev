@@ -9,6 +9,5 @@
   "keywords": ["athena", "workflow", "bdd", "spec-driven", "engineering-plan"],
   "skills": "./skills",
   "commands": "./commands",
-  "agents": "./agents",
   "hooks": "./hooks/hooks.json"
 }
