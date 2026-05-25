@@ -16,6 +16,10 @@ __pycache__/
 /requirement-feedback/
 /plans/
 
+# /codemap (graphify) runtime artifacts — per-user knowledge graph cache.
+# Each consumer regenerates locally; never commit.
+/graphify-out/
+
 # Per-author Claude Code overrides. settings.json (without .local) is the
 # committed baseline shared by all plugin authors.
 .claude/settings.local.json
