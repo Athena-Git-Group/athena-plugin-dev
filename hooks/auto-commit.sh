@@ -34,56 +34,6 @@
 
 set -euo pipefail
 
-# Best-effort codemap refresh after a successful commit.
-#
-# Mirrors the inline path documented in
-#   skills/athena-post-build/SKILL.md (step 8 "Refresh codemap")
-#   skills/athena-post-build/references/codemap-refresh-policy.md
-#
-# Contract (dual-path symmetry — verify checks this):
-#   - Three guards must all be true to actually run:
-#       1. <repo-root>/graphify-out/graph.json exists
-#       2. graphify CLI on PATH
-#       3. graphify-out/ is gitignored (so --update won't dirty working tree)
-#     Plus implementation guard:
-#       4. timeout binary on PATH (don't risk hanging the hook)
-#   - Skip / failure / timeout: log a single line to stderr, return 0.
-#     This function MUST NOT propagate any non-zero exit up to the hook —
-#     SubagentStop hook is on the critical path and must not be blocked
-#     by a best-effort codemap refresh.
-#
-# Args:
-#   $1  repo root (absolute path; usually $CWD from the hook)
-refresh_codemap() {
-  local repo_root="$1"
-
-  if [ ! -f "$repo_root/graphify-out/graph.json" ]; then
-    echo "codemap_refresh: skipped (no graphify-out)" >&2
-    return 0
-  fi
-  if ! command -v graphify >/dev/null 2>&1; then
-    echo "codemap_refresh: skipped (cli missing)" >&2
-    return 0
-  fi
-  if ! git -C "$repo_root" check-ignore -q graphify-out/ 2>/dev/null; then
-    echo "codemap_refresh: skipped (graphify-out tracked)" >&2
-    return 0
-  fi
-  if ! command -v timeout >/dev/null 2>&1; then
-    echo "codemap_refresh: skipped (no timeout binary)" >&2
-    return 0
-  fi
-
-  local rc=0
-  timeout 90 graphify "$repo_root" --update >/dev/null 2>&1 || rc=$?
-  if [ "$rc" -eq 0 ]; then
-    echo "codemap_refresh: done" >&2
-  else
-    echo "codemap_refresh: failed (exit=$rc)" >&2
-  fi
-  return 0
-}
-
 INPUT="$(cat 2>/dev/null || true)"
 
 # Degrade to no-op if jq is unavailable.
@@ -175,14 +125,7 @@ MSG_HEAD="${PREFIX}${TYPE}: ${DESC}"
 # Stage everything currently modified — flow guarantees that the
 # subagent's edits are the only diff at this point.
 git -C "$CWD" add -A
-COMMIT_RC=0
-git -C "$CWD" commit -m "$MSG_HEAD" -m "auto-commit via athena post-build hook (${TRIGGERING_STAGE})" >/dev/null 2>&1 || COMMIT_RC=$?
-
-# Best-effort codemap refresh — only after commit succeeded.
-# refresh_codemap always returns 0; it MUST NOT block hook exit.
-if [ "$COMMIT_RC" -eq 0 ]; then
-  refresh_codemap "$CWD"
-fi
+git -C "$CWD" commit -m "$MSG_HEAD" -m "auto-commit via athena post-build hook (${TRIGGERING_STAGE})" >/dev/null 2>&1 || true
 
 # Consume the marker so a re-fire on the same stop event cannot
 # produce a duplicate commit.
