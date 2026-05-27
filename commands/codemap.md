@@ -61,11 +61,36 @@ esac
 
 > 註：其他 AI 平台（Codex、Cursor、Gemini CLI、OpenCode、Copilot CLI 等）有各自的 `graphify install --platform <name>` 旗標；本指令鎖定 Claude Code，不自動切換。
 
+### Step 3. 檢查 graphify git hook 是否已安裝（自動更新 codemap）
+
+graphify 內建 `post-commit` / `post-checkout` git hook。裝好後，每次 commit 或切分支都會用純 AST（不呼叫 LLM）增量更新 `graphify-out/graph.json`，codemap 不會走樣。
+
+判定步驟：
+
+```bash
+graphify hook status
+```
+
+預期輸出包含 `post-commit: installed` 與 `post-checkout: installed`。若任一行為 `not installed`：
+
+1. **先得到使用者同意**（會寫入當前 repo 的 `.git/hooks/post-commit` 與 `.git/hooks/post-checkout`，是 repo-local 變更，不影響其他 repo）。
+2. 同意後執行：
+   ```bash
+   graphify hook install
+   ```
+3. 再跑一次 `graphify hook status` 確認兩個 hook 都是 `installed`。
+
+不需要重啟 session；hook 是 repo 層級檔案，安裝後下次 commit 立刻生效。
+
+> **冪等**：`graphify hook install` 偵測到已存在 graphify marker 就會跳過、不會重覆寫入。  
+> **取消**：使用者要關掉自動更新時，引導他跑 `graphify hook uninstall`（不要主動執行）。  
+> **與 `--update` 的關係**：hook 走的是 AST-only 快速路徑（等同 `graphify update`）；若要重跑語意分析，使用者仍可手動 `/graphify . --update` 或讓 Phase B 重新走一次。
+
 ---
 
 ## Phase B — Generate（每次都跑）
 
-### Step 3. Delegate 給 `/graphify` skill，實際產生 codemap
+### Step 4. Delegate 給 `/graphify` skill，實際產生 codemap
 
 **不要**從 shell 直接呼叫 `graphify <path>`（那會嘗試 spawn 外部 LLM，需要 API key）。
 **改為**用 Skill 工具呼叫已註冊的 `graphify` skill，將 `$ARGUMENTS` 原封不動傳入（若為空則傳 `.`）：
@@ -78,7 +103,7 @@ Skill(skill="graphify", args="${ARGUMENTS:-.}")
 
 > 這步是核心：**安裝完不執行 `/graphify .`，是不會有任何產出的**。`/codemap` 的價值就是把這步幫使用者跑掉。
 
-### Step 4. 回報產出位置
+### Step 5. 回報產出位置
 
 完成後告知使用者：
 
@@ -100,7 +125,8 @@ graphify-out/
 
 - 此指令不修改 codebase（只產生 `graphify-out/`），**不需走 `/athena-point`**。
 - 若使用者真的要在 shell / CI 直跑 `graphify <path>`，才需要設定 `ANTHROPIC_API_KEY` 等 LLM key — 但這不是 `/codemap` 的預設路徑。
-- Phase A 是冪等的：CLI 已裝、skill 已註冊，會自動跳過，直接進 Phase B。
+- Phase A 是冪等的：CLI 已裝、skill 已註冊、git hook 已安裝，都會自動跳過，直接進 Phase B。
+- git hook 裝好後，後續一般 commit 即可保持 `graphify-out/` 新鮮，不一定要每次手動 `/codemap` 或 `/graphify . --update`。
 
 Request:
 
