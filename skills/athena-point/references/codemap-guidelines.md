@@ -5,6 +5,11 @@
 用以輔助 Impact Radius / Contract-Schema / Regression Risk 的評分，
 **取代**對 `src/` 做大範圍 Read / Grep 掃描以節省 token。
 
+> 本文件規範 **read-side**（point 階段如何「消費」codemap）。
+> 對應的 **write-side**（post-build commit 後如何自動執行 `--update`，
+> 在什麼 guard 下會跳過 / 失敗 / 不阻斷 flow）請見
+> `../../athena-post-build/references/codemap-refresh-policy.md`。
+
 ## 什麼是 `graphify-out/`
 
 `graphify-out/` 是 `/codemap`（或 `/graphify`）產生的輸出資料夾，固定位於專案根目錄。
