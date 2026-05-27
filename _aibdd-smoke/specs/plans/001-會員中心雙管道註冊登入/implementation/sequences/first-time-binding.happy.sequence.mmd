@@ -1,0 +1,49 @@
+%% Trace: features/01-首次綁定Email建立帳號.feature + 02-首次綁定手機發送OTP + 03-首次綁定手機完成綁定.feature
+sequenceDiagram
+    actor User
+    participant FE as Frontend
+    participant CheckCtrl as LoginController
+    participant Ctrl as BindingController
+    participant Svc as FirstTimeBindingService
+    participant OtpSvc as OtpService
+    participant SMS as ItSmsGateway
+    participant CRM as CrmCustomerGateway
+    participant Repo as MemberAuthRepository
+    participant OtpRepo as OtpRecordRepository
+
+    User->>FE: 輸入聯絡方式（Email 或手機）
+    FE->>CheckCtrl: POST /check-contact-identity
+    CheckCtrl-->>FE: 200 {result: BIND, masked_existing_email: "u***@example.com" (CLARIFY-05)}
+    FE-->>User: 顯示「我們找到您的資料，請設定密碼以綁定」
+
+    alt Email 路徑
+        User->>FE: 輸入密碼 + 密碼確認 (CLARIFY-01)
+        FE->>Ctrl: POST /bind/first-time/email (email, password, password_confirm)
+        Ctrl->>Svc: bindEmail(email, password, password_confirm)
+        Svc->>Svc: assertPasswordsMatch(password, password_confirm)
+        Svc->>CRM: lookupCustomer(emailHash)
+        CRM-->>Svc: customer_id + member_id (BIND verified)
+        Svc->>Repo: insert MemberAuth(customer_id, email, password_hash)
+        Svc-->>Ctrl: bound
+        Ctrl-->>FE: 201 Created
+    else 手機路徑
+        User->>FE: 輸入手機 → 發送驗證碼
+        FE->>Ctrl: POST /bind/first-time/mobile/send-otp (mobile)
+        Ctrl->>OtpSvc: issue(contact=mobile, purpose=REGISTER, channel=sms)
+        OtpSvc->>OtpRepo: insert OtpRecord
+        OtpSvc->>SMS: enqueue OTP
+        OtpSvc-->>Ctrl: otp_uuid
+        Ctrl-->>FE: 200 {otp_uuid}
+
+        User->>FE: 輸入 OTP + 密碼 + 密碼確認
+        FE->>Ctrl: POST /bind/first-time/mobile (otp_uuid, otp_code, password, password_confirm)
+        Ctrl->>Svc: bindMobile(otp_uuid, otp_code, password, password_confirm)
+        Svc->>OtpSvc: verify(otp_uuid, otp_code)
+        OtpSvc-->>Svc: ok
+        Svc->>CRM: lookupCustomer(mobileHash)
+        CRM-->>Svc: customer_id + member_id
+        Svc->>Repo: insert MemberAuth(customer_id, mobile, password_hash)
+        Svc-->>Ctrl: bound
+        Ctrl-->>FE: 201 Created
+    end
+    FE-->>User: 綁定成功，導向登入

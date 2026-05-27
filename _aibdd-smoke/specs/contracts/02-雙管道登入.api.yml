@@ -1,0 +1,248 @@
+openapi: 3.0.3
+info:
+  title: 雙管道登入 — OpenAPI Slice
+  version: 0.1.0-discovery
+  description: |
+    Slice for function package `packages/02-雙管道登入`.
+    7 endpoints: check-contact-identity, password login, OTP login send/verify, biometric enable/login/disable.
+tags:
+  - name: login
+  - name: biometric
+paths:
+  /check-contact-identity:
+    post:
+      tags: [login]
+      operationId: checkContactIdentity
+      summary: 對輸入的 Email 或手機號碼進行聯絡身分檢查（PRD §4）
+      description: |
+        Maps to feature `packages/02-雙管道登入/features/01-聯絡身分檢查.feature`.
+        Returns NEW / BIND / LOGIN trichotomy. Mobile must be normalized per BR-27.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contact]
+              properties:
+                contact:
+                  $ref: 'common.api.yml#/components/schemas/ContactIdentity'
+      responses:
+        '200':
+          description: Identity resolved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [result]
+                properties:
+                  result:
+                    $ref: 'common.api.yml#/components/schemas/ContactIdentityResult'
+                  masked_existing_email:
+                    type: string
+                    nullable: true
+                    description: When result=BIND and same-customer Email exists (CLARIFY-05), masked form e.g. `u***r@example.com`.
+        '400':
+          $ref: 'common.api.yml#/components/responses/BadRequest'
+  /login:
+    post:
+      tags: [login]
+      operationId: passwordLogin
+      summary: 以聯絡方式 + 密碼完成會員中心登入（第二階段）
+      description: |
+        Maps to feature `packages/02-雙管道登入/features/02-密碼登入.feature`.
+        Requires successful first-stage check-contact-identity (result=LOGIN).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contact, password, captcha]
+              properties:
+                contact:
+                  $ref: 'common.api.yml#/components/schemas/ContactIdentity'
+                password:
+                  $ref: 'common.api.yml#/components/schemas/Password'
+                captcha:
+                  $ref: 'common.api.yml#/components/schemas/CaptchaToken'
+      responses:
+        '200':
+          description: Session established.
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/SessionToken'
+        '401':
+          description: Password mismatch (T-22 / T-26) or not registered (T-23 / T-27 / T-33 / T-34).
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+        '429':
+          description: Login throttle triggered (BR-10 / T-24 / T-29). `code=LOGIN_THROTTLED`.
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+  /login/send-otp:
+    post:
+      tags: [login]
+      operationId: sendLoginOtp
+      summary: 為 OTP 登入發送 Email 或 SMS 驗證碼
+      description: |
+        Maps to feature `packages/02-雙管道登入/features/03-OTP登入發送驗證碼.feature`.
+        Per CLARIFY-02 entry is only via second-stage "改用驗證碼登入" link.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contact, captcha]
+              properties:
+                contact:
+                  $ref: 'common.api.yml#/components/schemas/ContactIdentity'
+                captcha:
+                  $ref: 'common.api.yml#/components/schemas/CaptchaToken'
+      responses:
+        '200':
+          description: OTP dispatched (SMS or Email per account channel, BR-51/BR-56).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [otp_uuid]
+                properties:
+                  otp_uuid:
+                    $ref: 'common.api.yml#/components/schemas/OtpUuid'
+        '429':
+          $ref: 'common.api.yml#/components/responses/TooManyRequests'
+  /login/verify-otp:
+    post:
+      tags: [login]
+      operationId: verifyLoginOtp
+      summary: 以 OTP 驗證碼完成 OTP 登入
+      description: |
+        Maps to feature `packages/02-雙管道登入/features/04-OTP登入完成驗證.feature`.
+        Purpose=LOGIN must match channel of issued OTP (BR-52, T-115).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otp_uuid, otp_code]
+              properties:
+                otp_uuid:
+                  $ref: 'common.api.yml#/components/schemas/OtpUuid'
+                otp_code:
+                  type: string
+      responses:
+        '200':
+          description: Session established.
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/SessionToken'
+        '422':
+          description: OTP invalid / expired / wrong purpose (BR-52, T-109~T-111, T-115).
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+  /biometric/enable:
+    post:
+      tags: [biometric]
+      operationId: enableBiometric
+      summary: 在 App 端啟用生物辨識登入
+      description: |
+        Maps to feature `packages/02-雙管道登入/features/05-App生物辨識啟用.feature`.
+        Requires existing session (BR-58); App must have already passed device biometric prompt.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id, platform]
+              properties:
+                device_id:
+                  type: string
+                platform:
+                  type: string
+                  enum: [ios, android]
+                biometric_attestation:
+                  type: string
+                  description: Optional device attestation blob.
+      responses:
+        '201':
+          description: Biometric refresh token issued for this device.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [refresh_token]
+                properties:
+                  refresh_token:
+                    type: string
+        '401':
+          $ref: 'common.api.yml#/components/responses/Unauthorized'
+  /biometric/login:
+    post:
+      tags: [biometric]
+      operationId: biometricLogin
+      summary: 在 App 端以生物辨識快速登入
+      description: |
+        Maps to feature `packages/02-雙管道登入/features/06-App生物辨識登入.feature`.
+        App presents device-stored refresh token after passing local biometric prompt.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token, device_id]
+              properties:
+                refresh_token:
+                  type: string
+                device_id:
+                  type: string
+      responses:
+        '200':
+          description: Session established.
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/SessionToken'
+        '401':
+          description: Refresh token invalid / revoked (e.g. password changed, account deleted; BR-62 / T-122 / CLARIFY-06). `code=BIOMETRIC_TOKEN_INVALID`.
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+  /biometric/disable:
+    post:
+      tags: [biometric]
+      operationId: disableBiometric
+      summary: 在 App 端停用生物辨識登入
+      description: |
+        Maps to feature `packages/02-雙管道登入/features/07-App生物辨識停用.feature`.
+        Backend revokes this device's refresh token; other devices unaffected (T-126).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id]
+              properties:
+                device_id:
+                  type: string
+      responses:
+        '204':
+          description: Disabled.
+        '401':
+          $ref: 'common.api.yml#/components/responses/Unauthorized'

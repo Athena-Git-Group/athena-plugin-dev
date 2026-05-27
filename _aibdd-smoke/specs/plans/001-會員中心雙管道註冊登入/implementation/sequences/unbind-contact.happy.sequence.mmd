@@ -1,0 +1,25 @@
+%% Trace: features/04-解除綁定Email.feature + 05-解除綁定手機.feature
+sequenceDiagram
+    actor User
+    participant FE as Frontend
+    participant Ctrl as AccountContactController
+    participant Auth as JwtAuthGuard
+    participant Svc as ContactUnbindService
+    participant Repo as MemberAuthRepository
+    participant CRM as CrmCustomerGateway
+
+    Note over User,FE: 使用者已登入且已綁定 Email + 手機（BR-47 前提）
+    User->>FE: 帳號設定 → 點擊「解除綁定 Email/手機」
+    FE-->>User: 顯示二次確認彈窗 (BR-48 v1.7 不需密碼)
+    User->>FE: 確認
+    FE->>Ctrl: DELETE /account/bindings/email 或 /mobile [Bearer]
+    Ctrl->>Auth: validateJwt
+    Ctrl->>Svc: unbind(currentUserId, channel)
+    Svc->>Repo: findById(currentUserId)
+    Repo-->>Svc: member_auth
+    Svc->>Svc: assertBothBound(member_auth) - BR-47
+    Svc->>Repo: UPDATE member_auths SET email=null OR mobile_phone=null (依 channel)
+    Svc->>CRM: clearCustomerEmailOrMobile(customer_id, channel)
+    Svc-->>Ctrl: unbound
+    Ctrl-->>FE: 204 No Content
+    FE-->>User: 該聯絡方式改為「綁定」按鈕；另一種仍可登入

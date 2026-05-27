@@ -1,0 +1,119 @@
+openapi: 3.0.3
+info:
+  title: Member Center Dual-Channel Registration & Login — Shared Schemas
+  version: 0.1.0-discovery
+  description: |
+    Shared components for plan package `001-會員中心雙管道註冊登入`.
+    Authored by /aibdd-plan via aibdd-form-api-spec specifier; downstream
+    /aibdd-spec-by-example-analyze will bind paths to Gherkin Examples.
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [message, code]
+      properties:
+        code:
+          type: string
+          description: Backend-defined error code (e.g. EMAIL_TAKEN, OTP_EXPIRED, RATE_LIMIT_EXCEEDED).
+        message:
+          type: string
+          description: Localized error message; frontend renders verbatim per BR-33.
+    Email:
+      type: string
+      format: email
+      description: Email address (case-insensitive per T-05).
+    TaiwanMobile:
+      type: string
+      pattern: '^\+886[0-9]{9}$'
+      description: Taiwan mobile in `+886` + 9 digits, post frontend normalization (BR-27/BR-29).
+    ContactIdentity:
+      oneOf:
+        - $ref: '#/components/schemas/Email'
+        - $ref: '#/components/schemas/TaiwanMobile'
+      description: Unified contact identity used by /check-contact-identity and login first stage.
+    Password:
+      type: string
+      minLength: 8
+      description: Member password (BR-04).
+    CaptchaToken:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+        provider:
+          type: string
+          description: Captcha provider id (sourced from existing infra; BR-31).
+    OtpPurpose:
+      type: string
+      enum: [REGISTER, LOGIN, FORGOT_PASSWORD]
+      description: OTP purpose; REGISTER/LOGIN/FORGOT_PASSWORD are not interchangeable (BR-52).
+    OtpUuid:
+      type: string
+      format: uuid
+      description: OTP correlation id issued by send endpoints, consumed by verify-otp.
+    OtpToken:
+      type: string
+      description: Single-use forgot-password token issued after verify-otp success; sourced from legacy OTP uuid mechanism per PRD §B.Q-07.
+    ContactIdentityResult:
+      type: string
+      enum: [NEW, BIND, LOGIN]
+      description: check-contact-identity result trichotomy (PRD §4.2).
+    BindingState:
+      type: object
+      description: Member binding state shown in account-settings.
+      properties:
+        email:
+          type: string
+          nullable: true
+          description: Masked email when bound (e.g. `u***r@example.com`, T-76); null otherwise.
+        mobile:
+          type: string
+          nullable: true
+          description: Masked mobile when bound (e.g. `09****5678`, T-75); null otherwise.
+        biometric_enabled_devices:
+          type: integer
+          description: Count of devices with biometric login enabled (BR-58).
+    SessionToken:
+      type: object
+      required: [access_token, token_type]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          format: int32
+  responses:
+    BadRequest:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Missing or invalid authentication.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    TooManyRequests:
+      description: Rate-limit triggered (OTP resend cooldown / daily cap / login throttle).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Uniqueness violation (email/mobile taken, account exists, etc.).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT bearer issued by /login or /verify-otp (LOGIN/biometric).

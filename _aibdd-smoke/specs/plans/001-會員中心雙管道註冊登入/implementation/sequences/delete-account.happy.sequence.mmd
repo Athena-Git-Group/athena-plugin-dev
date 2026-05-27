@@ -1,0 +1,31 @@
+%% Trace: features/01-刪除帳戶.feature
+sequenceDiagram
+    actor User
+    participant FE as Frontend
+    participant Ctrl as AccountLifecycleController
+    participant Auth as JwtAuthGuard
+    participant Svc as AccountDeletionService
+    participant BioRepo as BiometricDeviceTokenRepository
+    participant Repo as MemberAuthRepository
+    participant DB as PostgreSQL
+
+    Note over User,FE: 使用者已登入 (Bearer token)
+    User->>FE: 帳號設定 → 刪除帳戶
+    FE-->>User: 警告彈窗「刪除後無法恢復」(BR-43)
+    User->>FE: 確認 + 輸入密碼
+    FE->>Ctrl: DELETE /account (password, confirmation_acknowledged=true) [Bearer]
+    Ctrl->>Auth: validateJwt
+    Auth-->>Ctrl: currentUserId
+    Ctrl->>Svc: deleteSelf(currentUserId, password, confirmation_acknowledged)
+    Svc->>Svc: assertConfirmed(confirmation_acknowledged)
+    Svc->>Repo: findById(currentUserId)
+    Repo-->>Svc: member_auth
+    Svc->>Svc: verifyHash(password, password_hash) - BR-38
+    Svc->>Repo: UPDATE member_auths SET is_deleted=true, deleted_at=now()
+    Svc->>BioRepo: revokeAllByMemberAuthId(currentUserId, reason='account_deleted')
+    BioRepo->>DB: UPDATE biometric_device_tokens SET is_revoked=true (CLARIFY-06)
+    Note over Svc: CRM Customer/積分/優惠券保留不刪 (BR-40)
+    Svc-->>Ctrl: deleted
+    Ctrl-->>FE: 204 No Content
+    FE->>FE: 清除 access_token (BR-41)
+    FE-->>User: 導向登入頁

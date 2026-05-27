@@ -1,0 +1,96 @@
+dsl_steps:
+  - format: "已存在客戶 id {客戶ID}"
+    name: customers.state-builder
+    handler: state-builder
+    target_part_path: specs/data/domain.dbml#customers
+    param_bindings:
+      客戶ID:
+        target: specs/data/domain.dbml#customers.id
+    datatable_bindings: {}
+
+  - format: "客戶 id 應為 {客戶ID}"
+    name: customers.state-verifier
+    handler: state-verifier
+    target_part_path: specs/data/domain.dbml#customers
+    param_bindings:
+      客戶ID:
+        target: specs/data/domain.dbml#customers.id
+    datatable_bindings: {}
+
+  - format: "已存在會員 id {會員ID} 對應客戶 {客戶ID}"
+    name: members.state-builder
+    handler: state-builder
+    target_part_path: specs/data/domain.dbml#members
+    param_bindings:
+      會員ID:
+        target: specs/data/domain.dbml#members.id
+      客戶ID:
+        target: specs/data/domain.dbml#members.customer_id
+    datatable_bindings: {}
+
+  - format: "會員 id 應為 {會員ID} 且對應客戶 {客戶ID}"
+    name: members.state-verifier
+    handler: state-verifier
+    target_part_path: specs/data/domain.dbml#members
+    param_bindings:
+      會員ID:
+        target: specs/data/domain.dbml#members.id
+      客戶ID:
+        target: specs/data/domain.dbml#members.customer_id
+    datatable_bindings: {}
+
+  - format: "會員之客戶外鍵 {會員客戶外鍵} 應對應客戶 id {客戶ID}"
+    name: members_customer_id_to_customers_id.state-verifier
+    handler: state-verifier
+    target_part_path: specs/data/domain.dbml#ref:members.customer_id>customers.id
+    param_bindings:
+      會員客戶外鍵:
+        target: specs/data/domain.dbml#members.customer_id
+      客戶ID:
+        target: specs/data/domain.dbml#customers.id
+    datatable_bindings: {}
+
+  - format: "已存在會員中心檔案 id {檔案ID} 對應 MemberAuth {認證ID}"
+    name: member_center_profiles.state-builder
+    handler: state-builder
+    target_part_path: specs/data/domain.dbml#member_center_profiles
+    param_bindings:
+      檔案ID:
+        target: specs/data/domain.dbml#member_center_profiles.id
+      認證ID:
+        target: specs/data/domain.dbml#member_center_profiles.member_auth_id
+    datatable_bindings: {}
+
+  - format: "會員中心檔案 id 應為 {檔案ID} 對應 MemberAuth {認證ID}"
+    name: member_center_profiles.state-verifier
+    handler: state-verifier
+    target_part_path: specs/data/domain.dbml#member_center_profiles
+    param_bindings:
+      檔案ID:
+        target: specs/data/domain.dbml#member_center_profiles.id
+      認證ID:
+        target: specs/data/domain.dbml#member_center_profiles.member_auth_id
+    datatable_bindings: {}
+
+  - format: "檔案之 MemberAuth 外鍵 {檔案認證外鍵} 應對應 MemberAuth id {認證ID}"
+    name: member_center_profiles_member_auth_id_link_member_auths_id.state-verifier
+    handler: state-verifier
+    target_part_path: specs/data/domain.dbml#ref:member_center_profiles.member_auth_id-member_auths.id
+    param_bindings:
+      檔案認證外鍵:
+        target: specs/data/domain.dbml#member_center_profiles.member_auth_id
+      認證ID:
+        target: specs/data/domain.dbml#member_auths.id
+    datatable_bindings: {}
+
+  - format: "檔案之會員外鍵 {檔案會員外鍵} 應對應會員 id {會員ID}"
+    name: member_center_profiles_member_id_to_members_id.state-verifier
+    handler: state-verifier
+    target_part_path: specs/data/domain.dbml#ref:member_center_profiles.member_id>members.id
+    param_bindings:
+      檔案會員外鍵:
+        target: specs/data/domain.dbml#member_center_profiles.member_id
+      會員ID:
+        target: specs/data/domain.dbml#members.id
+    datatable_bindings: {}
+

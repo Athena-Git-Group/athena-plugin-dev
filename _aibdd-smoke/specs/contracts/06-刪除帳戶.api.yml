@@ -1,0 +1,48 @@
+openapi: 3.0.3
+info:
+  title: 刪除帳戶 — OpenAPI Slice
+  version: 0.1.0-discovery
+  description: |
+    Slice for function package `packages/06-刪除帳戶`.
+    1 endpoint: soft-delete MemberAuth with password confirmation.
+tags:
+  - name: account-lifecycle
+paths:
+  /account:
+    delete:
+      tags: [account-lifecycle]
+      operationId: deleteAccount
+      summary: 已登入會員以密碼確認後刪除會員中心帳戶
+      description: |
+        Maps to feature `packages/06-刪除帳戶/features/01-刪除帳戶.feature`.
+        Soft-deletes MemberAuth; CRM Customer + 消費紀錄/積分/優惠券 preserved (BR-40).
+        Per CLARIFY-06 all biometric refresh tokens for this account are revoked across devices.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password, confirmation_acknowledged]
+              properties:
+                password:
+                  $ref: 'common.api.yml#/components/schemas/Password'
+                confirmation_acknowledged:
+                  type: boolean
+                  description: True after frontend dual confirmation dialog accepted (BR-43 / T-88).
+      responses:
+        '204':
+          description: Account deleted; frontend should clear token and redirect to login (BR-41 / T-80).
+        '400':
+          description: Confirmation flag missing or false. `code=CONFIRMATION_REQUIRED`.
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+        '401':
+          description: Password mismatch (BR-38 / T-81). `code=PASSWORD_INVALID`.
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'

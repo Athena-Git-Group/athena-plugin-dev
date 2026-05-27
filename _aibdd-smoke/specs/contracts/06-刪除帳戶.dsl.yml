@@ -1,0 +1,19 @@
+dsl_steps:
+  - format: "已登入會員以密碼 {密碼} 與確認 {刪除確認} 刪除會員中心帳戶"
+    name: deleteAccount.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/06-刪除帳戶.api.yml#/paths/~1account/delete
+    param_bindings:
+      密碼:
+        target: specs/contracts/06-刪除帳戶.api.yml#/paths/~1account/delete/requestBody/content/application~1json/schema/properties/password
+      刪除確認:
+        target: specs/contracts/06-刪除帳戶.api.yml#/paths/~1account/delete/requestBody/content/application~1json/schema/properties/confirmation_acknowledged
+    datatable_bindings: {}
+
+  - format: "刪除帳戶應依預期成功或失敗"
+    name: deleteAccount.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/06-刪除帳戶.api.yml#/paths/~1account/delete/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+

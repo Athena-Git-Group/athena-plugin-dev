@@ -1,0 +1,89 @@
+dsl_steps:
+  - format: "使用者以 Email {電子郵件} 與新密碼 {新密碼} 重設密碼"
+    name: forgotPasswordByEmail.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1mail/post
+    param_bindings:
+      電子郵件:
+        target: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1mail/post/requestBody/content/application~1json/schema/properties/email
+      新密碼:
+        target: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1mail/post/requestBody/content/application~1json/schema/properties/new_password
+    datatable_bindings: {}
+
+  - format: "Email 忘記密碼應依預期成功或失敗"
+    name: forgotPasswordByEmail.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1mail/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "使用者以手機 {手機號碼} 請求發送忘記密碼 SMS OTP"
+    name: sendForgotPasswordMobileOtp.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1mobile/post
+    param_bindings:
+      手機號碼:
+        target: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1mobile/post/requestBody/content/application~1json/schema/properties/mobile
+    datatable_bindings: {}
+
+  - format: "忘記密碼 OTP 發送應依預期成功或失敗"
+    name: sendForgotPasswordMobileOtp.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1mobile/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "忘記密碼 OTP 回應應包含對應碼 {OTP對應碼}"
+    name: sendForgotPasswordMobileOtp.operation-response-success-readmodel
+    handler: operation-response-success-readmodel
+    target_part_path: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1mobile/post/responses/200/content/application~1json/schema
+    param_bindings:
+      OTP對應碼:
+        target: response:$.otp_uuid
+    datatable_bindings: {}
+
+  - format: "使用者以 OTP {OTP對應碼} 與驗證碼 {驗證碼} 完成 FORGOT_PASSWORD 用途驗證"
+    name: verifyForgotPasswordOtp.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1verify-otp/post
+    param_bindings:
+      OTP對應碼:
+        target: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1verify-otp/post/requestBody/content/application~1json/schema/properties/otp_uuid
+      驗證碼:
+        target: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1verify-otp/post/requestBody/content/application~1json/schema/properties/otp_code
+    datatable_bindings: {}
+
+  - format: "忘記密碼驗證應依預期成功或失敗"
+    name: verifyForgotPasswordOtp.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1verify-otp/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "忘記密碼驗證回應應包含重設權杖 {重設權杖}"
+    name: verifyForgotPasswordOtp.operation-response-success-readmodel
+    handler: operation-response-success-readmodel
+    target_part_path: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1verify-otp/post/responses/200/content/application~1json/schema
+    param_bindings:
+      重設權杖:
+        target: response:$.otp_token
+    datatable_bindings: {}
+
+  - format: "使用者以重設權杖 {重設權杖} 與新密碼 {新密碼} 完成密碼重設"
+    name: resetForgottenPassword.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1reset/post
+    param_bindings:
+      重設權杖:
+        target: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1reset/post/requestBody/content/application~1json/schema/properties/otp_token
+      新密碼:
+        target: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1reset/post/requestBody/content/application~1json/schema/properties/new_password
+    datatable_bindings: {}
+
+  - format: "手機忘記密碼重設應依預期成功或失敗"
+    name: resetForgottenPassword.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/05-忘記密碼.api.yml#/paths/~1forgot~1reset/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+

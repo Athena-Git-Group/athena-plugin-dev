@@ -1,0 +1,88 @@
+dsl_steps:
+  - format: "已登入會員以新 Email {新電子郵件} 修改已綁定 Email"
+    name: editEmailBinding.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/04-編輯與解除綁定.api.yml#/paths/~1account~1bindings~1email/put
+    param_bindings:
+      新電子郵件:
+        target: specs/contracts/04-編輯與解除綁定.api.yml#/paths/~1account~1bindings~1email/put/requestBody/content/application~1json/schema/properties/new_email
+    datatable_bindings: {}
+
+  - format: "編輯 Email 應依預期成功或失敗"
+    name: editEmailBinding.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/04-編輯與解除綁定.api.yml#/paths/~1account~1bindings~1email/put/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "已登入會員解除綁定 Email"
+    name: removeEmailBinding.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/04-編輯與解除綁定.api.yml#/paths/~1account~1bindings~1email/delete
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "解除綁定 Email 應依預期成功或失敗"
+    name: removeEmailBinding.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/04-編輯與解除綁定.api.yml#/paths/~1account~1bindings~1email/delete/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "已登入會員以 OTP {OTP對應碼} 與驗證碼 {驗證碼} 完成編輯已綁定手機"
+    name: editMobileBinding.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/04-編輯與解除綁定.api.yml#/paths/~1account~1bindings~1mobile/put
+    param_bindings:
+      OTP對應碼:
+        target: specs/contracts/04-編輯與解除綁定.api.yml#/paths/~1account~1bindings~1mobile/put/requestBody/content/application~1json/schema/properties/otp_uuid
+      驗證碼:
+        target: specs/contracts/04-編輯與解除綁定.api.yml#/paths/~1account~1bindings~1mobile/put/requestBody/content/application~1json/schema/properties/otp_code
+    datatable_bindings: {}
+
+  - format: "編輯手機應依預期成功或失敗"
+    name: editMobileBinding.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/04-編輯與解除綁定.api.yml#/paths/~1account~1bindings~1mobile/put/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "已登入會員解除綁定手機"
+    name: removeMobileBinding.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/04-編輯與解除綁定.api.yml#/paths/~1account~1bindings~1mobile/delete
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "解除綁定手機應依預期成功或失敗"
+    name: removeMobileBinding.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/04-編輯與解除綁定.api.yml#/paths/~1account~1bindings~1mobile/delete/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "已登入會員以新手機 {新手機號碼} 請求發送編輯 SMS OTP"
+    name: sendEditMobileOtp.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/04-編輯與解除綁定.api.yml#/paths/~1account~1bindings~1mobile~1edit-send-otp/post
+    param_bindings:
+      新手機號碼:
+        target: specs/contracts/04-編輯與解除綁定.api.yml#/paths/~1account~1bindings~1mobile~1edit-send-otp/post/requestBody/content/application~1json/schema/properties/new_mobile
+    datatable_bindings: {}
+
+  - format: "編輯手機 OTP 發送應依預期成功或失敗"
+    name: sendEditMobileOtp.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/04-編輯與解除綁定.api.yml#/paths/~1account~1bindings~1mobile~1edit-send-otp/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "編輯手機 OTP 回應應包含對應碼 {OTP對應碼}"
+    name: sendEditMobileOtp.operation-response-success-readmodel
+    handler: operation-response-success-readmodel
+    target_part_path: specs/contracts/04-編輯與解除綁定.api.yml#/paths/~1account~1bindings~1mobile~1edit-send-otp/post/responses/200/content/application~1json/schema
+    param_bindings:
+      OTP對應碼:
+        target: response:$.otp_uuid
+    datatable_bindings: {}
+

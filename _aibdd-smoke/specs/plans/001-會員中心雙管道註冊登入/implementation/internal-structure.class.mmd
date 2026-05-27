@@ -1,0 +1,238 @@
+%% Internal structure (class union) for plan package 001-會員中心雙管道註冊登入
+%% Authored by /aibdd-plan sub-SOP 03 per rules/internal-structure-union.md
+%% Layer convention (per .aibdd/dev-constitution.md): controller → service → repository → model
+%% Cross-cutting: JwtTokenFilter / CurrentUser are starter infra; not re-declared here.
+
+classDiagram
+    direction LR
+
+    %% ===== Controllers (HTTP entry, per OpenAPI tags) =====
+    class SignUpController {
+      +signUpByMail(req) ResponseEntity
+      +sendRegisterMobileOtp(req) ResponseEntity
+      +verifyOtpForRegister(req) ResponseEntity
+    }
+    class LoginController {
+      +checkContactIdentity(req) ResponseEntity
+      +passwordLogin(req) ResponseEntity
+      +sendLoginOtp(req) ResponseEntity
+      +verifyLoginOtp(req) ResponseEntity
+    }
+    class BiometricController {
+      +enableBiometric(req) ResponseEntity
+      +biometricLogin(req) ResponseEntity
+      +disableBiometric(req) ResponseEntity
+    }
+    class BindingController {
+      +firstTimeBindEmail(req) ResponseEntity
+      +sendFirstTimeBindMobileOtp(req) ResponseEntity
+      +firstTimeBindMobile(req) ResponseEntity
+    }
+    class AccountBindingController {
+      +addEmailBinding(req) ResponseEntity
+      +sendAddMobileBindingOtp(req) ResponseEntity
+      +addMobileBinding(req) ResponseEntity
+    }
+    class AccountContactController {
+      +editEmailBinding(req) ResponseEntity
+      +sendEditMobileOtp(req) ResponseEntity
+      +editMobileBinding(req) ResponseEntity
+      +removeEmailBinding(req) ResponseEntity
+      +removeMobileBinding(req) ResponseEntity
+    }
+    class PasswordRecoveryController {
+      +forgotPasswordByEmail(req) ResponseEntity
+      +sendForgotPasswordMobileOtp(req) ResponseEntity
+      +verifyForgotPasswordOtp(req) ResponseEntity
+      +resetForgottenPassword(req) ResponseEntity
+    }
+    class AccountLifecycleController {
+      +deleteAccount(req) ResponseEntity
+    }
+
+    %% ===== Services (use case orchestration) =====
+    class MemberRegistrationService {
+      +register(email, password)
+      +requestRegisterOtp(mobile)
+      +completeMobileRegistration(otp_uuid, code)
+    }
+    class ContactIdentityService {
+      +classify(contact) Result
+    }
+    class PasswordLoginService {
+      +authenticate(contact, password) SessionToken
+    }
+    class OtpLoginService {
+      +requestLoginOtp(contact) otp_uuid
+      +completeOtpLogin(otp_uuid, code) SessionToken
+    }
+    class BiometricEnrollmentService {
+      +enable(memberAuthId, device_id, platform) refreshToken
+      +disable(memberAuthId, device_id)
+    }
+    class BiometricLoginService {
+      +login(refresh_token, device_id) SessionToken
+    }
+    class FirstTimeBindingService {
+      +bindEmail(email, password, confirm)
+      +bindMobile(otp_uuid, otp_code, password, confirm)
+    }
+    class SupplementaryBindingService {
+      +bindEmail(memberAuthId, email)
+      +prepareMobileBind(memberAuthId, mobile)
+      +bindMobile(memberAuthId, otp_uuid, otp_code)
+    }
+    class ContactEditService {
+      +updateEmail(memberAuthId, new_email)
+      +prepareEditMobile(memberAuthId, new_mobile)
+      +updateMobile(memberAuthId, otp_uuid, otp_code)
+    }
+    class ContactUnbindService {
+      +unbind(memberAuthId, channel)
+    }
+    class ForgotPasswordService {
+      +resetByEmail(email, new_password)
+      +requestMobileForgotOtp(mobile)
+      +verifyForgotOtp(otp_uuid, code) otp_token
+      +resetMobile(otp_token, new_password)
+    }
+    class AccountDeletionService {
+      +deleteSelf(memberAuthId, password, confirmed)
+    }
+
+    %% ===== Cross-cutting domain services =====
+    class OtpService {
+      +issue(contact, purpose, channel) otp_uuid
+      +verify(otp_uuid, code, purpose) ContactHash
+    }
+    class LoginThrottleService {
+      +isAccountThrottled(contact) boolean
+      +recordFailure(contact)
+    }
+    class JwtTokenService {
+      +issue(subject) accessToken
+      +verify(token) Claims
+    }
+
+    %% ===== Repositories =====
+    class MemberAuthRepository {
+      +findById(id) MemberAuth
+      +findByEmailHash(hash) MemberAuth
+      +findByMobileHash(hash) MemberAuth
+      +insert(MemberAuth)
+      +updateContact(id, email?, mobile?)
+      +updatePassword(id, hash)
+      +softDelete(id)
+    }
+    class MemberCenterProfileRepository {
+      +insert(profile)
+      +updateRememberInput(memberAuthId, raw)
+    }
+    class OtpRecordRepository {
+      +insert(record)
+      +findActive(otp_uuid, purpose) OtpRecord
+      +markUsed(otp_uuid)
+    }
+    class BiometricDeviceTokenRepository {
+      +upsert(token)
+      +findActive(member_auth_id, device_id, hash) DeviceToken
+      +revokeByDevice(device_id)
+      +revokeAllByMemberAuthId(id, reason)
+    }
+
+    %% ===== External gateways (third-party adapters) =====
+    class CrmCustomerGateway {
+      +lookupCustomer(hash) Customer?
+      +createCustomer(contact) customer_id
+      +updateCustomerEmail(customer_id, email)
+      +updateCustomerMobile(customer_id, mobile)
+      +clearCustomerEmailOrMobile(customer_id, channel)
+    }
+    class ItSmsGateway {
+      +enqueue(mobile, message)
+    }
+    class MailGateway {
+      +send(to, subject, body)
+    }
+
+    %% ===== Models (Java records / DTOs) =====
+    class MemberAuth {
+      <<aggregate_root>>
+      +id : Long
+      +customer_id : Long
+      +email : String?
+      +mobile_phone : String?
+      +password_hash : String
+      +is_deleted : Boolean
+    }
+    class OtpRecord {
+      <<aggregate_root>>
+      +otp_uuid : UUID
+      +purpose : OtpPurpose
+      +channel : Channel
+      +contact_hash : String
+    }
+    class BiometricDeviceToken {
+      <<aggregate_root>>
+      +member_auth_id : Long
+      +device_id : String
+      +refresh_token_hash : String
+      +is_revoked : Boolean
+    }
+
+    %% ===== Wiring =====
+    SignUpController --> MemberRegistrationService
+    LoginController --> ContactIdentityService
+    LoginController --> PasswordLoginService
+    LoginController --> OtpLoginService
+    BiometricController --> BiometricEnrollmentService
+    BiometricController --> BiometricLoginService
+    BindingController --> FirstTimeBindingService
+    BindingController --> OtpService
+    AccountBindingController --> SupplementaryBindingService
+    AccountContactController --> ContactEditService
+    AccountContactController --> ContactUnbindService
+    PasswordRecoveryController --> ForgotPasswordService
+    AccountLifecycleController --> AccountDeletionService
+
+    MemberRegistrationService --> OtpService
+    MemberRegistrationService --> CrmCustomerGateway
+    MemberRegistrationService --> MemberAuthRepository
+    MemberRegistrationService --> MemberCenterProfileRepository
+    ContactIdentityService --> MemberAuthRepository
+    ContactIdentityService --> CrmCustomerGateway
+    PasswordLoginService --> LoginThrottleService
+    PasswordLoginService --> MemberAuthRepository
+    PasswordLoginService --> JwtTokenService
+    OtpLoginService --> OtpService
+    OtpLoginService --> MemberAuthRepository
+    OtpLoginService --> JwtTokenService
+    BiometricEnrollmentService --> BiometricDeviceTokenRepository
+    BiometricLoginService --> BiometricDeviceTokenRepository
+    BiometricLoginService --> JwtTokenService
+    FirstTimeBindingService --> OtpService
+    FirstTimeBindingService --> CrmCustomerGateway
+    FirstTimeBindingService --> MemberAuthRepository
+    SupplementaryBindingService --> OtpService
+    SupplementaryBindingService --> MemberAuthRepository
+    SupplementaryBindingService --> CrmCustomerGateway
+    ContactEditService --> OtpService
+    ContactEditService --> MemberAuthRepository
+    ContactEditService --> CrmCustomerGateway
+    ContactEditService --> MailGateway
+    ContactEditService --> ItSmsGateway
+    ContactUnbindService --> MemberAuthRepository
+    ContactUnbindService --> CrmCustomerGateway
+    ForgotPasswordService --> OtpService
+    ForgotPasswordService --> MemberAuthRepository
+    AccountDeletionService --> MemberAuthRepository
+    AccountDeletionService --> BiometricDeviceTokenRepository
+
+    OtpService --> OtpRecordRepository
+    OtpService --> ItSmsGateway
+    OtpService --> MailGateway
+
+    MemberAuthRepository --> MemberAuth
+    MemberCenterProfileRepository --> MemberAuth
+    OtpRecordRepository --> OtpRecord
+    BiometricDeviceTokenRepository --> BiometricDeviceToken

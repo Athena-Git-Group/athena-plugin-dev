@@ -1,0 +1,147 @@
+openapi: 3.0.3
+info:
+  title: 忘記密碼 — OpenAPI Slice
+  version: 0.1.0-discovery
+  description: |
+    Slice for function package `packages/05-忘記密碼`.
+    4 endpoints: Email reset (existing legacy flow), mobile OTP send/verify, mobile password reset with otpToken.
+tags:
+  - name: password-recovery
+paths:
+  /forgot/mail:
+    post:
+      tags: [password-recovery]
+      operationId: forgotPasswordByEmail
+      summary: 透過 Email 忘記密碼流程重設密碼（沿用既有流程，不需 OTP）
+      description: |
+        Maps to feature `packages/05-忘記密碼/features/01-Email忘記密碼.feature`.
+        BR-20: Email forgot password reuses legacy reset path; this is the consolidated entry point.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, new_password, captcha]
+              properties:
+                email:
+                  $ref: 'common.api.yml#/components/schemas/Email'
+                new_password:
+                  $ref: 'common.api.yml#/components/schemas/Password'
+                captcha:
+                  $ref: 'common.api.yml#/components/schemas/CaptchaToken'
+      responses:
+        '200':
+          description: Password reset.
+        '404':
+          description: Email not registered (T-45). `code=ACCOUNT_NOT_FOUND`.
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+  /forgot/mobile:
+    post:
+      tags: [password-recovery]
+      operationId: sendForgotPasswordMobileOtp
+      summary: 為手機忘記密碼流程發送 SMS OTP 驗證碼
+      description: Maps to feature `packages/05-忘記密碼/features/02-手機忘記密碼發送OTP.feature`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mobile, captcha]
+              properties:
+                mobile:
+                  $ref: 'common.api.yml#/components/schemas/TaiwanMobile'
+                captcha:
+                  $ref: 'common.api.yml#/components/schemas/CaptchaToken'
+      responses:
+        '200':
+          description: OTP dispatched via SMS.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [otp_uuid]
+                properties:
+                  otp_uuid:
+                    $ref: 'common.api.yml#/components/schemas/OtpUuid'
+        '404':
+          description: Mobile not registered (T-49). `code=ACCOUNT_NOT_FOUND`.
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+        '429':
+          $ref: 'common.api.yml#/components/responses/TooManyRequests'
+  /forgot/verify-otp:
+    post:
+      tags: [password-recovery]
+      operationId: verifyForgotPasswordOtp
+      summary: 以 SMS OTP 完成手機忘記密碼身份驗證
+      description: |
+        Maps to feature `packages/05-忘記密碼/features/03-手機忘記密碼完成驗證.feature`.
+        Purpose=FORGOT_PASSWORD; non-interoperable with REGISTER/LOGIN OTPs (BR-52 / T-58).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otp_uuid, otp_code]
+              properties:
+                otp_uuid:
+                  $ref: 'common.api.yml#/components/schemas/OtpUuid'
+                otp_code:
+                  type: string
+      responses:
+        '200':
+          description: OTP verified; otpToken issued for reset.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [otp_token, expires_in]
+                properties:
+                  otp_token:
+                    $ref: 'common.api.yml#/components/schemas/OtpToken'
+                  expires_in:
+                    type: integer
+                    description: Seconds until otpToken expires (default `wrs_otp_token_expiry_sec` = 600).
+        '422':
+          description: OTP invalid / expired / wrong purpose (T-47 / T-48 / T-58).
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+  /forgot/reset:
+    post:
+      tags: [password-recovery]
+      operationId: resetForgottenPassword
+      summary: 以 otpToken 完成手機忘記密碼之重設密碼
+      description: |
+        Maps to feature `packages/05-忘記密碼/features/04-手機忘記密碼重設.feature`.
+        Consumes single-use otpToken; updates MemberAuth password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otp_token, new_password]
+              properties:
+                otp_token:
+                  $ref: 'common.api.yml#/components/schemas/OtpToken'
+                new_password:
+                  $ref: 'common.api.yml#/components/schemas/Password'
+      responses:
+        '200':
+          description: Password reset; old password no longer valid (T-50).
+        '401':
+          description: otpToken invalid / expired / already used (T-74).
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'

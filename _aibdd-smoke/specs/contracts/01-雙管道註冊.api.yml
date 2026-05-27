@@ -1,0 +1,120 @@
+openapi: 3.0.3
+info:
+  title: 雙管道註冊 — OpenAPI Slice
+  version: 0.1.0-discovery
+  description: |
+    Slice for function package `packages/01-雙管道註冊`.
+    3 endpoints covering Email sign-up, mobile sign-up OTP send, and verify-otp completing mobile registration.
+tags:
+  - name: register
+paths:
+  /sign-up/mail:
+    post:
+      tags: [register]
+      operationId: signUpByMail
+      summary: 以 Email 與密碼完成會員中心帳號註冊
+      description: |
+        Maps to feature `packages/01-雙管道註冊/features/01-Email註冊.feature`.
+        Does NOT use check-contact-identity (BR-35); backend resolves duplicate detection.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, captcha]
+              properties:
+                email:
+                  $ref: 'common.api.yml#/components/schemas/Email'
+                password:
+                  $ref: 'common.api.yml#/components/schemas/Password'
+                captcha:
+                  $ref: 'common.api.yml#/components/schemas/CaptchaToken'
+      responses:
+        '201':
+          description: Registration succeeded; member entities created.
+        '400':
+          $ref: 'common.api.yml#/components/responses/BadRequest'
+        '409':
+          description: Email already registered (BR-16 / T-04). `code=EMAIL_TAKEN`.
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+  /sign-up/mobile:
+    post:
+      tags: [register]
+      operationId: sendRegisterMobileOtp
+      summary: 為手機號碼註冊發送 SMS OTP 驗證碼
+      description: |
+        Maps to feature `packages/01-雙管道註冊/features/02-手機註冊發送OTP.feature`.
+        Mobile must be normalized (+886 + 9 digits) by frontend per BR-27.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mobile, password, captcha]
+              properties:
+                mobile:
+                  $ref: 'common.api.yml#/components/schemas/TaiwanMobile'
+                password:
+                  $ref: 'common.api.yml#/components/schemas/Password'
+                captcha:
+                  $ref: 'common.api.yml#/components/schemas/CaptchaToken'
+      responses:
+        '200':
+          description: OTP dispatched via SMS (BR-37).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [otp_uuid]
+                properties:
+                  otp_uuid:
+                    $ref: 'common.api.yml#/components/schemas/OtpUuid'
+        '400':
+          $ref: 'common.api.yml#/components/responses/BadRequest'
+        '429':
+          $ref: 'common.api.yml#/components/responses/TooManyRequests'
+  /verify-otp:
+    post:
+      tags: [register]
+      operationId: verifyOtpForRegister
+      summary: 以 SMS OTP 驗證並完成手機號碼註冊（purpose=REGISTER）
+      description: |
+        Maps to feature `packages/01-雙管道註冊/features/03-手機註冊完成驗證.feature`.
+        Same endpoint is reused by LOGIN / FORGOT_PASSWORD purposes — but OTP usage is not interchangeable (BR-52).
+        On REGISTER success the backend creates Customer + Member + MemberAuth + Profile.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otp_uuid, otp_code, purpose]
+              properties:
+                otp_uuid:
+                  $ref: 'common.api.yml#/components/schemas/OtpUuid'
+                otp_code:
+                  type: string
+                purpose:
+                  $ref: 'common.api.yml#/components/schemas/OtpPurpose'
+      responses:
+        '201':
+          description: Registration completed; new MemberAuth issued.
+        '400':
+          $ref: 'common.api.yml#/components/responses/BadRequest'
+        '409':
+          description: CRM has Email/mobile already (data conflict, BR-18 / T-19). `code=DATA_CONFLICT`.
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+        '422':
+          description: OTP invalid / expired / wrong purpose (BR-52, T-09/T-10/T-58).
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'

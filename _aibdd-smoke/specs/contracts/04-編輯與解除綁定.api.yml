@@ -1,0 +1,145 @@
+openapi: 3.0.3
+info:
+  title: 編輯與解除綁定 — OpenAPI Slice
+  version: 0.1.0-discovery
+  description: |
+    Slice for function package `packages/04-編輯與解除綁定`.
+    5 endpoints covering edit Email/mobile and unbind Email/mobile.
+tags:
+  - name: account-contact
+paths:
+  /account/bindings/email:
+    put:
+      tags: [account-contact]
+      operationId: editEmailBinding
+      summary: 已登入會員修改已綁定的 Email
+      description: |
+        Maps to feature `packages/04-編輯與解除綁定/features/01-編輯Email.feature`.
+        Per CLARIFY-04 a confirmation notification is sent to the new Email.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_email]
+              properties:
+                new_email:
+                  $ref: 'common.api.yml#/components/schemas/Email'
+      responses:
+        '200':
+          description: Email updated; confirmation notification queued.
+        '409':
+          description: Email already in use (BR-46 / T-92).
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+        '422':
+          description: Member has no bound Email to edit.
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+    delete:
+      tags: [account-contact]
+      operationId: removeEmailBinding
+      summary: 已登入會員解除綁定 Email
+      description: |
+        Maps to feature `packages/04-編輯與解除綁定/features/04-解除綁定Email.feature`.
+        Requires both contacts bound (BR-47). Password NOT required (BR-48 v1.7).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204':
+          description: Email unbound.
+        '422':
+          description: Cannot unbind — only one contact bound or member not in dual-bound state (BR-47 / T-100).
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+  /account/bindings/mobile:
+    put:
+      tags: [account-contact]
+      operationId: editMobileBinding
+      summary: 以 SMS OTP 完成編輯已綁定手機
+      description: |
+        Maps to feature `packages/04-編輯與解除綁定/features/03-編輯手機完成更新.feature`.
+        Two-step UX: client first calls /account/bindings/mobile/edit-send-otp then this endpoint with otp_uuid.
+        Per CLARIFY-04 a confirmation SMS is sent to the new mobile.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otp_uuid, otp_code]
+              properties:
+                otp_uuid:
+                  $ref: 'common.api.yml#/components/schemas/OtpUuid'
+                otp_code:
+                  type: string
+      responses:
+        '200':
+          description: Mobile updated; confirmation SMS queued.
+        '422':
+          description: OTP invalid / expired (T-94) or member has no bound mobile.
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+    delete:
+      tags: [account-contact]
+      operationId: removeMobileBinding
+      summary: 已登入會員解除綁定手機
+      description: |
+        Maps to feature `packages/04-編輯與解除綁定/features/05-解除綁定手機.feature`.
+        Requires both contacts bound (BR-47). Password NOT required (BR-48 v1.7).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204':
+          description: Mobile unbound.
+        '422':
+          description: Cannot unbind — only one contact bound (BR-47).
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+  /account/bindings/mobile/edit-send-otp:
+    post:
+      tags: [account-contact]
+      operationId: sendEditMobileOtp
+      summary: 為已綁定手機之編輯流程發送 SMS OTP 驗證碼
+      description: |
+        Maps to feature `packages/04-編輯與解除綁定/features/02-編輯手機發送OTP.feature`.
+        Uniqueness check (BR-46) applied before dispatch.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_mobile]
+              properties:
+                new_mobile:
+                  $ref: 'common.api.yml#/components/schemas/TaiwanMobile'
+      responses:
+        '200':
+          description: OTP dispatched via SMS.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [otp_uuid]
+                properties:
+                  otp_uuid:
+                    $ref: 'common.api.yml#/components/schemas/OtpUuid'
+        '409':
+          description: New mobile already in use (BR-46 / T-93).
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'

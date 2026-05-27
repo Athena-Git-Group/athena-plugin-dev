@@ -1,0 +1,45 @@
+%% Trace: features/03-OTP登入發送驗證碼.feature + features/04-OTP登入完成驗證.feature
+sequenceDiagram
+    actor User
+    participant FE as Frontend
+    participant Ctrl as LoginController
+    participant Svc as OtpLoginService
+    participant OtpSvc as OtpService
+    participant SMS as ItSmsGateway
+    participant Mail as MailGateway
+    participant Repo as MemberAuthRepository
+    participant OtpRepo as OtpRecordRepository
+    participant JwtIssuer as JwtTokenService
+
+    %% Pre: stage-1 LOGIN result already, user clicked "改用驗證碼登入" (CLARIFY-02)
+    %% --- Send OTP ---
+    User->>FE: 點擊「改用驗證碼登入」+ Captcha + 發送
+    FE->>Ctrl: POST /login/send-otp (contact, captcha)
+    Ctrl->>Svc: requestLoginOtp(contact)
+    Svc->>Repo: findByContact(contact)
+    Repo-->>Svc: member_auth
+    Svc->>OtpSvc: issue(contact, purpose=LOGIN, channel=mail|sms)
+    alt 手機帳號
+        OtpSvc->>SMS: enqueue SMS OTP
+    else Email 帳號
+        OtpSvc->>Mail: send Email OTP
+    end
+    OtpSvc->>OtpRepo: insert OtpRecord(purpose=LOGIN)
+    OtpSvc-->>Svc: otp_uuid
+    Svc-->>Ctrl: otp_uuid
+    Ctrl-->>FE: 200 {otp_uuid}
+
+    %% --- Verify OTP → session ---
+    User->>FE: 輸入 OTP
+    FE->>Ctrl: POST /login/verify-otp (otp_uuid, otp_code)
+    Ctrl->>Svc: completeOtpLogin(otp_uuid, otp_code)
+    Svc->>OtpSvc: verify(otp_uuid, otp_code, purpose=LOGIN)
+    OtpSvc->>OtpRepo: SELECT + UPDATE used_at
+    OtpSvc-->>Svc: ok (contact_hash)
+    Svc->>Repo: findByContactHash
+    Repo-->>Svc: member_auth
+    Svc->>JwtIssuer: issue(subject=member_auth.id)
+    JwtIssuer-->>Svc: access_token
+    Svc-->>Ctrl: SessionToken
+    Ctrl-->>FE: 200 {access_token}
+    FE-->>User: 進入會員中心 (BR-53 不需密碼)

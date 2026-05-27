@@ -1,0 +1,15 @@
+# Runtime deps are declared in ../run_dsl_cli.py (PEP 723 metadata).
+# Install for local dev without uv:
+#   python3 -m pip install ruamel.yaml>=0.18 prance>=25.4.8,<26 openapi-spec-validator>=0.7.1
+#
+# Preferred runtime entry:
+#   uv run .athena/skills/aibdd-core/scripts/run_dsl_cli.py <subcommand> ...
+#
+# Behave BDD tests:
+#   python3 -m pip install -r requirements-test.txt
+#   cd tests && PYTHONPATH=..:../.. python3 -m behave
+
+-r requirements-test.txt
+ruamel.yaml>=0.18,<0.19
+prance>=25.4.8,<26
+openapi-spec-validator>=0.7.1

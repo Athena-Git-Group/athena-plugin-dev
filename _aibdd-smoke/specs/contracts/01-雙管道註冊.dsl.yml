@@ -1,0 +1,64 @@
+dsl_steps:
+  - format: "註冊者以 Email {電子郵件} 與密碼 {密碼} 完成註冊"
+    name: signUpByMail.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/01-雙管道註冊.api.yml#/paths/~1sign-up~1mail/post
+    param_bindings:
+      電子郵件:
+        target: specs/contracts/01-雙管道註冊.api.yml#/paths/~1sign-up~1mail/post/requestBody/content/application~1json/schema/properties/email
+      密碼:
+        target: specs/contracts/01-雙管道註冊.api.yml#/paths/~1sign-up~1mail/post/requestBody/content/application~1json/schema/properties/password
+    datatable_bindings: {}
+
+  - format: "Email 註冊應依預期成功或失敗"
+    name: signUpByMail.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/01-雙管道註冊.api.yml#/paths/~1sign-up~1mail/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "註冊者以手機 {手機號碼} 與密碼 {密碼} 請求發送 SMS 驗證碼"
+    name: sendRegisterMobileOtp.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/01-雙管道註冊.api.yml#/paths/~1sign-up~1mobile/post
+    param_bindings:
+      手機號碼:
+        target: specs/contracts/01-雙管道註冊.api.yml#/paths/~1sign-up~1mobile/post/requestBody/content/application~1json/schema/properties/mobile
+      密碼:
+        target: specs/contracts/01-雙管道註冊.api.yml#/paths/~1sign-up~1mobile/post/requestBody/content/application~1json/schema/properties/password
+    datatable_bindings: {}
+
+  - format: "手機註冊 OTP 發送應依預期成功或失敗"
+    name: sendRegisterMobileOtp.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/01-雙管道註冊.api.yml#/paths/~1sign-up~1mobile/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "OTP 發送回應應包含對應碼 {OTP對應碼}"
+    name: sendRegisterMobileOtp.operation-response-success-readmodel
+    handler: operation-response-success-readmodel
+    target_part_path: specs/contracts/01-雙管道註冊.api.yml#/paths/~1sign-up~1mobile/post/responses/200/content/application~1json/schema
+    param_bindings:
+      OTP對應碼:
+        target: response:$.otp_uuid
+    datatable_bindings: {}
+
+  - format: "註冊者以 OTP 對應碼 {OTP對應碼} 與驗證碼 {驗證碼} 完成 REGISTER 用途驗證"
+    name: verifyOtpForRegister.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/01-雙管道註冊.api.yml#/paths/~1verify-otp/post
+    param_bindings:
+      OTP對應碼:
+        target: specs/contracts/01-雙管道註冊.api.yml#/paths/~1verify-otp/post/requestBody/content/application~1json/schema/properties/otp_uuid
+      驗證碼:
+        target: specs/contracts/01-雙管道註冊.api.yml#/paths/~1verify-otp/post/requestBody/content/application~1json/schema/properties/otp_code
+    datatable_bindings: {}
+
+  - format: "手機註冊驗證應依預期成功或失敗"
+    name: verifyOtpForRegister.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/01-雙管道註冊.api.yml#/paths/~1verify-otp/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+

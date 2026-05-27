@@ -1,0 +1,175 @@
+dsl_steps:
+  - format: "登入者以聯絡身分 {聯絡身分} 觸發 check-contact-identity 預檢查"
+    name: checkContactIdentity.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1check-contact-identity/post
+    param_bindings:
+      聯絡身分:
+        target: specs/contracts/02-雙管道登入.api.yml#/paths/~1check-contact-identity/post/requestBody/content/application~1json/schema/properties/contact
+    datatable_bindings: {}
+
+  - format: "聯絡身分檢查應依預期成功或失敗"
+    name: checkContactIdentity.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1check-contact-identity/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "聯絡身分檢查回應應包含結果 {識別結果}"
+    name: checkContactIdentity.operation-response-success-readmodel
+    handler: operation-response-success-readmodel
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1check-contact-identity/post/responses/200/content/application~1json/schema
+    param_bindings:
+      識別結果:
+        target: response:$.result
+    datatable_bindings: {}
+
+  - format: "登入者以 {聯絡身分} 與密碼 {密碼} 完成密碼登入"
+    name: passwordLogin.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1login/post
+    param_bindings:
+      聯絡身分:
+        target: specs/contracts/02-雙管道登入.api.yml#/paths/~1login/post/requestBody/content/application~1json/schema/properties/contact
+      密碼:
+        target: specs/contracts/02-雙管道登入.api.yml#/paths/~1login/post/requestBody/content/application~1json/schema/properties/password
+    datatable_bindings: {}
+
+  - format: "密碼登入應依預期成功或失敗"
+    name: passwordLogin.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1login/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "密碼登入回應應包含存取憑證 {存取憑證}"
+    name: passwordLogin.operation-response-success-readmodel
+    handler: operation-response-success-readmodel
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1login/post/responses/200/content/application~1json/schema
+    param_bindings:
+      存取憑證:
+        target: response:$.access_token
+    datatable_bindings: {}
+
+  - format: "登入者以聯絡身分 {聯絡身分} 請求發送 LOGIN 用途 OTP"
+    name: sendLoginOtp.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1login~1send-otp/post
+    param_bindings:
+      聯絡身分:
+        target: specs/contracts/02-雙管道登入.api.yml#/paths/~1login~1send-otp/post/requestBody/content/application~1json/schema/properties/contact
+    datatable_bindings: {}
+
+  - format: "LOGIN 用途 OTP 發送應依預期成功或失敗"
+    name: sendLoginOtp.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1login~1send-otp/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "LOGIN OTP 發送回應應包含對應碼 {OTP對應碼}"
+    name: sendLoginOtp.operation-response-success-readmodel
+    handler: operation-response-success-readmodel
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1login~1send-otp/post/responses/200/content/application~1json/schema
+    param_bindings:
+      OTP對應碼:
+        target: response:$.otp_uuid
+    datatable_bindings: {}
+
+  - format: "登入者以 OTP 對應碼 {OTP對應碼} 與驗證碼 {驗證碼} 完成 OTP 登入"
+    name: verifyLoginOtp.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1login~1verify-otp/post
+    param_bindings:
+      OTP對應碼:
+        target: specs/contracts/02-雙管道登入.api.yml#/paths/~1login~1verify-otp/post/requestBody/content/application~1json/schema/properties/otp_uuid
+      驗證碼:
+        target: specs/contracts/02-雙管道登入.api.yml#/paths/~1login~1verify-otp/post/requestBody/content/application~1json/schema/properties/otp_code
+    datatable_bindings: {}
+
+  - format: "OTP 登入應依預期成功或失敗"
+    name: verifyLoginOtp.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1login~1verify-otp/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "OTP 登入回應應包含存取憑證 {存取憑證}"
+    name: verifyLoginOtp.operation-response-success-readmodel
+    handler: operation-response-success-readmodel
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1login~1verify-otp/post/responses/200/content/application~1json/schema
+    param_bindings:
+      存取憑證:
+        target: response:$.access_token
+    datatable_bindings: {}
+
+  - format: "會員於裝置 {裝置代號} 啟用 {平台} 生物辨識登入"
+    name: enableBiometric.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1biometric~1enable/post
+    param_bindings:
+      裝置代號:
+        target: specs/contracts/02-雙管道登入.api.yml#/paths/~1biometric~1enable/post/requestBody/content/application~1json/schema/properties/device_id
+      平台:
+        target: specs/contracts/02-雙管道登入.api.yml#/paths/~1biometric~1enable/post/requestBody/content/application~1json/schema/properties/platform
+    datatable_bindings: {}
+
+  - format: "生物辨識啟用應依預期成功或失敗"
+    name: enableBiometric.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1biometric~1enable/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "生物辨識啟用回應應包含重新整理憑證 {重新整理憑證}"
+    name: enableBiometric.operation-response-success-readmodel
+    handler: operation-response-success-readmodel
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1biometric~1enable/post/responses/200/content/application~1json/schema
+    param_bindings:
+      重新整理憑證:
+        target: response:$.refresh_token
+    datatable_bindings: {}
+
+  - format: "會員於裝置 {裝置代號} 以重新整理憑證 {重新整理憑證} 完成生物辨識登入"
+    name: biometricLogin.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1biometric~1login/post
+    param_bindings:
+      裝置代號:
+        target: specs/contracts/02-雙管道登入.api.yml#/paths/~1biometric~1login/post/requestBody/content/application~1json/schema/properties/device_id
+      重新整理憑證:
+        target: specs/contracts/02-雙管道登入.api.yml#/paths/~1biometric~1login/post/requestBody/content/application~1json/schema/properties/refresh_token
+    datatable_bindings: {}
+
+  - format: "生物辨識登入應依預期成功或失敗"
+    name: biometricLogin.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1biometric~1login/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "生物辨識登入回應應包含存取憑證 {存取憑證}"
+    name: biometricLogin.operation-response-success-readmodel
+    handler: operation-response-success-readmodel
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1biometric~1login/post/responses/200/content/application~1json/schema
+    param_bindings:
+      存取憑證:
+        target: response:$.access_token
+    datatable_bindings: {}
+
+  - format: "會員停用裝置 {裝置代號} 的生物辨識登入"
+    name: disableBiometric.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1biometric~1disable/post
+    param_bindings:
+      裝置代號:
+        target: specs/contracts/02-雙管道登入.api.yml#/paths/~1biometric~1disable/post/requestBody/content/application~1json/schema/properties/device_id
+    datatable_bindings: {}
+
+  - format: "生物辨識停用應依預期成功或失敗"
+    name: disableBiometric.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/02-雙管道登入.api.yml#/paths/~1biometric~1disable/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+

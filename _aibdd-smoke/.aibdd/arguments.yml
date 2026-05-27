@@ -1,0 +1,154 @@
+# =============================================================================
+# Path binding — invariant 部分（跨 stack 完全一致）
+#
+# 本檔由 /aibdd-kickoff `02-execute-layout/` 從 shared/ tree 複製到
+# ${BOUNDARY_CODEBASE_ROOT}/.aibdd/arguments.yml，再由同 SOP append
+# per-stack/<stack>/arguments.tail.yml 至檔末，然後 Edit 填入 placeholder。
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 0. TEMPLATE_META（invariant 鍵；STARTER_VARIANT 與 stack 專屬鍵在 tail）
+# -----------------------------------------------------------------------------
+
+# DSL_KEY_LOCALE — DSL key 使用的自然語言。
+DSL_KEY_LOCALE: prefer_spec_language
+
+# PROJECT_SPEC_LANGUAGE — 專案規格主要撰寫語言（值域：zh-hant / zh-hans / en-us / ja-jp / ko-kr）。
+PROJECT_SPEC_LANGUAGE: zh-hant
+
+# BOUNDARY_CODEBASE_SUBDIR — 後端／前端根目錄相對 repo 的路徑段；空字串表示根。
+BOUNDARY_CODEBASE_SUBDIR: ''
+
+# MAX_QUESTIONS_PER_ROUND — clarify 每輪最多提問數。
+MAX_QUESTIONS_PER_ROUND: 10
+
+# ACTIVITY_EXT — Activity DSL 檔副檔名。
+ACTIVITY_EXT: .activity
+
+# AIBDD_CONFIG_DIR — 專案層 AIBDD config root。
+AIBDD_CONFIG_DIR: .aibdd
+
+# AIBDD_ARGUMENTS_PATH — arguments.yml 的 SSOT 路徑。
+AIBDD_ARGUMENTS_PATH: ${AIBDD_CONFIG_DIR}/arguments.yml
+
+# -----------------------------------------------------------------------------
+# 1. PROJECT_ROOTS
+# -----------------------------------------------------------------------------
+
+SPECS_ROOT_DIR: specs
+PLAN_PACKAGES_DIR: ${SPECS_ROOT_DIR}/plans
+
+# -----------------------------------------------------------------------------
+# 2. CONSTITUTIONS（相對 BOUNDARY_CODEBASE_ROOT；DEV 為單檔、BDD 為 bdd-stack 目錄錨點；runtime 文件由 starter 產生）
+# -----------------------------------------------------------------------------
+
+DEV_CONSTITUTION_PATH: ${AIBDD_CONFIG_DIR}/dev-constitution.md
+BDD_CONSTITUTION_PATH: ${AIBDD_CONFIG_DIR}/bdd-stack/
+
+# -----------------------------------------------------------------------------
+# 3. CURRENT_SPEC_PACKAGE（借位 slot；caller-context 提供具體 slug）
+# -----------------------------------------------------------------------------
+
+CURRENT_PLAN_PACKAGE: ${PLAN_PACKAGES_DIR}/<<NNN-plan-slug>>
+PLAN_SPEC: ${CURRENT_PLAN_PACKAGE}/spec.md
+PLAN_MD: ${CURRENT_PLAN_PACKAGE}/plan.md
+PLAN_REPORTS_DIR: ${CURRENT_PLAN_PACKAGE}/reports
+IMPACT_MATRIX_YML: ${PLAN_REPORTS_DIR}/impact-matrix.yml
+PLAN_COVERAGE_REPORT_DIR: ${PLAN_REPORTS_DIR}/coverage
+PLAN_IMPLEMENTATION_DIR: ${CURRENT_PLAN_PACKAGE}/implementation
+PLAN_SEQUENCE_DIR: ${PLAN_IMPLEMENTATION_DIR}/sequences
+PLAN_INTERNAL_STRUCTURE: ${PLAN_IMPLEMENTATION_DIR}/internal-structure.class.mmd
+CLARIFY_DIR: ${CURRENT_PLAN_PACKAGE}/clarify
+
+# -----------------------------------------------------------------------------
+# 4. ARCHITECTURE_TRUTH
+# -----------------------------------------------------------------------------
+
+TRUTH_ARCHITECTURE_DIR: ${SPECS_ROOT_DIR}/architecture
+BOUNDARY_YML: ${TRUTH_ARCHITECTURE_DIR}/boundary.yml
+COMPONENT_DIAGRAM: ${TRUTH_ARCHITECTURE_DIR}/component-diagram.class.mmd
+BOUNDARY_MAP_FILE: ${SPECS_ROOT_DIR}/boundary-map.yml
+
+# -----------------------------------------------------------------------------
+# 5. BOUNDARY_TRUTH（boundary.yml 的 id 為語意 tag，不對應 filesystem 子目錄）
+# -----------------------------------------------------------------------------
+
+TRUTH_BOUNDARY_ROOT: ${SPECS_ROOT_DIR}
+TRUTH_BOUNDARY_SHARED_DIR: ${TRUTH_BOUNDARY_ROOT}/shared
+TRUTH_BOUNDARY_PACKAGES_DIR: ${TRUTH_BOUNDARY_ROOT}/packages
+CONTRACTS_DIR: ${TRUTH_BOUNDARY_ROOT}/contracts
+DATA_DIR: ${TRUTH_BOUNDARY_ROOT}/data
+BOUNDARY_SHARED_DSL: ${TRUTH_BOUNDARY_SHARED_DIR}/dsl.yml
+TEST_STRATEGY_FILE: ${TRUTH_BOUNDARY_ROOT}/test-strategy.yml
+
+# -----------------------------------------------------------------------------
+# 6. FUNCTION_PACKAGE_TRUTH（借位 slot；同 boundary 下多 functional module 並存）
+# -----------------------------------------------------------------------------
+
+TRUTH_FUNCTION_PACKAGE: ${TRUTH_BOUNDARY_PACKAGES_DIR}/<<NN-functional-module>>
+FEATURE_SPECS_DIR: ${TRUTH_FUNCTION_PACKAGE}/features
+ACTIVITIES_DIR: ${TRUTH_FUNCTION_PACKAGE}/activities
+TRUTH_TEST_PLAN_DIR: ${TRUTH_FUNCTION_PACKAGE}/test-plan
+# DEPRECATED — DSL truth now lives in ${CONTRACTS_DIR}/*.dsl.yml and ${DATA_DIR}/*.dsl.yml.
+# Execute skills must not treat this path as the sole DSL corpus.
+BOUNDARY_PACKAGE_DSL: ${TRUTH_FUNCTION_PACKAGE}/dsl.yml
+
+# -----------------------------------------------------------------------------
+# 8. BDD_STRATEGY_REFS — invariant 部分（Gherkin / filename / sentence-parts refs）
+# -----------------------------------------------------------------------------
+
+GHERKIN_EXECUTABLE_STEP_LANGUAGE_REF: .athena/skills/aibdd-core/references/i18n/${PROJECT_SPEC_LANGUAGE}.md
+FILENAME_AXES_TITLE_LANGUAGE_REF: .athena/skills/aibdd-core/references/i18n/${PROJECT_SPEC_LANGUAGE}.md
+SENTENCE_PARTS_FRAMEWORK_REF: .athena/skills/aibdd-core/references/sentence-parts-framework/default.md
+
+# -----------------------------------------------------------------------------
+# 9. PROJECT_OWNED_BDD_STACK（starter 產生實體文件；本檔只宣告路徑）
+# -----------------------------------------------------------------------------
+
+ACCEPTANCE_RUNNER_RUNTIME_REF: ${AIBDD_CONFIG_DIR}/bdd-stack/acceptance-runner.md
+STEP_DEFINITIONS_RUNTIME_REF: ${AIBDD_CONFIG_DIR}/bdd-stack/step-definitions.md
+FIXTURES_RUNTIME_REF: ${AIBDD_CONFIG_DIR}/bdd-stack/fixtures.md
+FEATURE_ARCHIVE_RUNTIME_REF: ${AIBDD_CONFIG_DIR}/bdd-stack/feature-archive.md
+RED_PREHANDLING_HOOK_REF: ${AIBDD_CONFIG_DIR}/bdd-stack/prehandling-before-red-phase.md
+
+# =============================================================================
+# 以下由 02-execute-layout/SOP.md append per-stack/<stack>/arguments.tail.yml
+# 該 tail 含 STARTER_VARIANT、section 7 stack-specific paths，
+# 與 per-stack tail 中的 PRESET_KIND /（nextjs 才有的）PROJECT_SLUG / TLB_ID。
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stack-specific tail (java-e2e) — append 至 shared/.aibdd/arguments.yml 末尾
+# -----------------------------------------------------------------------------
+
+# STARTER_VARIANT — kickoff 本專案技術的 technical archetype。
+STARTER_VARIANT: java-e2e
+
+# PRESET_KIND — boundary preset；backend stack 必填。
+PRESET_KIND: web-service
+
+# -----------------------------------------------------------------------------
+# 7. JAVA_E2E_STARTER_OUTPUT_PATHS — Maven coordinates / Java 套件落點 / 版本鎖在本檔。
+# 想自訂 GROUP_ID 或 BASE_PACKAGE 請直接編此檔；想升版改下面 version 區塊。
+# -----------------------------------------------------------------------------
+
+# Maven coordinates — pom.xml <groupId> / <artifactId>。
+GROUP_ID: com.example
+ARTIFACT_ID: member-auth-api
+
+# BASE_PACKAGE — Java 主套件名（dot-separated）；
+# 由 02-execute-layout/SOP.md 依「${GROUP_ID}.<artifact_id 去 hyphen>」derive。
+BASE_PACKAGE: com.example.memberauthapi
+
+# Stack versions — 由 starter 寫進 pom.xml properties。升版直接編這幾行。
+JAVA_VERSION: '25'
+SPRING_BOOT_VERSION: '4.0.6'
+CUCUMBER_VERSION: '7.34.3'
+JJWT_VERSION: '0.12.6'
+
+# Local PostgreSQL（docker-compose）— acceptance 由 Testcontainers 動態啟動，不讀本區。
+POSTGRES_IMAGE_VERSION: '18'
+DB_NAME: member-auth-api
+DB_USER: postgres
+DB_PASSWORD: postgres
+DB_PORT: '5432'

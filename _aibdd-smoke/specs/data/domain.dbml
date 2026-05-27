@@ -1,0 +1,115 @@
+// DBML domain schema for plan package `001-會員中心雙管道註冊登入`.
+// Authored by /aibdd-plan via aibdd-form-entity-spec specifier.
+// Aggregate roots are marked via Note: 'aggregate_root'.
+// Scope: only entities owned by this boundary (`member-auth-api`).
+// CRM-owned entities (customer, member) are modelled as external references with minimal fields.
+
+Project member_auth_api {
+  database_type: 'PostgreSQL'
+  Note: '''
+    Boundary: member-auth-api (web-service).
+    External Refs: customer / member rows are owned by CRM; this boundary only stores ids + hashed lookup keys for routing decisions.
+    Source PRD: 會員中心雙管道註冊登入 v1.7.
+  '''
+}
+
+//
+// === External CRM mirror (read-only routing references) ===
+//
+
+Table customers {
+  id bigint [pk, note: 'Customer id; CRM-owned. Stored locally as FK target.']
+  email_hash varchar(64) [unique, null, note: 'Lowercased SHA-256(email); supports case-insensitive lookup (T-05).']
+  mobile_phone_hash varchar(64) [unique, null, note: 'SHA-256(+886 + 9digits); supports normalized mobile lookup (BR-27).']
+  created_at timestamptz
+  Note: 'External aggregate (CRM-owned). Read-only mirror.'
+}
+
+Table members {
+  id bigint [pk]
+  customer_id bigint [ref: > customers.id]
+  display_name varchar(120) [null]
+  Note: 'External aggregate (CRM-owned). Read-only mirror; sourced when binding (BR-17).'
+}
+
+//
+// === Member-center owned aggregates ===
+//
+
+// Aggregate root: MemberAuth (sign-in identity per Customer; soft-deletable)
+Table member_auths {
+  id bigint [pk, increment]
+  customer_id bigint [ref: - customers.id, unique, note: 'One MemberAuth per Customer (BR-19).']
+  email varchar(255) [null, note: 'Bound Email; null means unbound (BR-11/BR-26).']
+  email_hash varchar(64) [unique, null, note: 'Case-insensitive lookup (T-05).']
+  mobile_phone varchar(16) [null, note: 'Bound mobile in +886 + 9digits (BR-29).']
+  mobile_phone_hash varchar(64) [unique, null, note: 'Normalized mobile hash lookup.']
+  password_hash varchar(255) [not null, note: 'Hashed per existing scheme; BR-04 minimum 8 chars enforced at API.']
+  is_deleted boolean [not null, default: false, note: 'Soft-delete marker (BR-39).']
+  deleted_at timestamptz [null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Note: 'aggregate_root — MemberAuth owns sign-in lifecycle, password, contact bindings, and soft-delete.'
+  Indexes {
+    (email_hash) [name: 'idx_member_auths_email_hash', where: 'is_deleted = false']
+    (mobile_phone_hash) [name: 'idx_member_auths_mobile_phone_hash', where: 'is_deleted = false']
+  }
+}
+
+Table member_center_profiles {
+  id bigint [pk, increment]
+  member_auth_id bigint [ref: - member_auths.id, unique, not null]
+  member_id bigint [ref: > members.id, note: 'Link to CRM Member (BR-17 binding).']
+  remember_input_raw varchar(64) [null, note: 'Original input format (e.g. 0912345678) used by "記住我" (BR-32 / T-79).']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Note: 'Per-MemberAuth profile; not an aggregate root.'
+}
+
+// Aggregate root: OtpRecord (one per OTP send; purpose-segregated, single-use)
+Table otp_records {
+  id bigint [pk, increment]
+  otp_uuid uuid [unique, not null]
+  contact_hash varchar(64) [not null, note: 'Hash of recipient email or mobile.']
+  channel varchar(8) [not null, note: "Enum-like: 'sms' | 'email' (BR-51/BR-56)."]
+  purpose varchar(20) [not null, note: 'REGISTER | LOGIN | FORGOT_PASSWORD (BR-52); not interoperable.']
+  code_hash varchar(255) [not null, note: 'Hashed OTP code; raw never stored.']
+  expires_at timestamptz [not null, note: 'wrs_otp_expiry_sec default 300 (BR-22).']
+  used_at timestamptz [null, note: 'Non-null when verified or otherwise consumed; one-time use (T-57/T-74).']
+  created_at timestamptz [not null]
+  ip_address inet [null, note: 'For IP-dimension rate limit (BR-36 / T-77).']
+  Note: 'aggregate_root — OTP lifecycle (issue → verify-or-expire → mark used). otpToken for forgot-password is the same uuid post-verify (PRD Q-07).'
+  Indexes {
+    (contact_hash, purpose, created_at) [name: 'idx_otp_contact_purpose_time']
+    (ip_address, created_at) [name: 'idx_otp_ip_time']
+  }
+}
+
+// Aggregate root: BiometricDeviceToken (per-device App refresh token; revocable cohort)
+Table biometric_device_tokens {
+  id bigint [pk, increment]
+  member_auth_id bigint [ref: > member_auths.id, not null]
+  device_id varchar(128) [not null]
+  platform varchar(8) [not null, note: "'ios' | 'android' (BR-57)."]
+  refresh_token_hash varchar(255) [not null, note: 'Hash of issued refresh token; raw stored only on device (BR-59).']
+  is_revoked boolean [not null, default: false]
+  revoked_at timestamptz [null]
+  revoked_reason varchar(40) [null, note: "e.g. 'password_changed' (BR-62) | 'account_deleted' (CLARIFY-06) | 'user_disable' (T-123)."]
+  created_at timestamptz [not null]
+  last_used_at timestamptz [null]
+  Note: 'aggregate_root — biometric device tokens. Revocation is cohort-wise: password change revokes all rows of an account; account deletion likewise (CLARIFY-06).'
+  Indexes {
+    (member_auth_id, device_id) [unique, name: 'uq_biometric_member_device']
+    (member_auth_id, is_revoked) [name: 'idx_biometric_member_active']
+  }
+}
+
+//
+// === Domain notes ===
+//
+// CiC(BDY): rate-limit counters (per-IP, per-mobile per-day) are NOT modelled here — CRM Java backend
+// owns counters per BR-36; this boundary only consults its OTP table for cooldown/daily-cap decisions
+// or delegates the check.
+// CiC(BDY): existing CRM members.email / members.mobile_phone are NOT moved here. This boundary keeps
+// hash copies on member_auths for lookup speed but the canonical edit target is CRM Customer rows
+// (PRD §5.5 / §5.7 "更新 Customer 的 email / mobilePhone").

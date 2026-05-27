@@ -1,0 +1,6 @@
+version: 2
+id: "member-auth-api"
+level: 1
+role: backend
+type: web-service
+description: "member-auth-api Java Spring Boot backend service"

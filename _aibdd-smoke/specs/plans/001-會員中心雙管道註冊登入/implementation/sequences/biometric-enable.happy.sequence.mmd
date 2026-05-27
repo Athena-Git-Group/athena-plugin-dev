@@ -1,0 +1,27 @@
+%% Trace: features/05-App生物辨識啟用.feature
+sequenceDiagram
+    actor User
+    participant App as AppMobile
+    participant OS as DeviceBiometricAPI
+    participant Ctrl as BiometricController
+    participant Svc as BiometricEnrollmentService
+    participant Auth as JwtAuthGuard
+    participant Repo as BiometricDeviceTokenRepository
+    participant DB as PostgreSQL
+
+    Note over User,App: 使用者已以密碼/OTP 登入，持有 session token
+    User->>App: 帳號設定 → 啟用生物辨識
+    App->>OS: 觸發 Face ID / Touch ID / 指紋
+    OS-->>App: 通過 (本人確認)
+    App->>Ctrl: POST /biometric/enable (device_id, platform) [Authorization: Bearer]
+    Ctrl->>Auth: validateJwt(bearer)
+    Auth-->>Ctrl: currentUserId
+    Ctrl->>Svc: enable(member_auth_id=currentUserId, device_id, platform)
+    Svc->>Svc: generateRefreshToken()
+    Svc->>Repo: upsert BiometricDeviceToken(member_auth_id, device_id, platform, refresh_token_hash)
+    Repo->>DB: INSERT/UPDATE biometric_device_tokens
+    Svc-->>Ctrl: refresh_token (raw)
+    Ctrl-->>App: 201 {refresh_token}
+    App->>OS: 加密儲存於 Keychain / Keystore (BR-59)
+    OS-->>App: stored
+    App-->>User: 已啟用生物辨識

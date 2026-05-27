@@ -1,0 +1,123 @@
+dsl_steps:
+  - format: "BIND 客戶以 Email {電子郵件} 設定密碼 {密碼} 並通過確認 {密碼確認}"
+    name: firstTimeBindEmail.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/03-帳號綁定.api.yml#/paths/~1bind~1first-time~1email/post
+    param_bindings:
+      電子郵件:
+        target: specs/contracts/03-帳號綁定.api.yml#/paths/~1bind~1first-time~1email/post/requestBody/content/application~1json/schema/properties/email
+      密碼:
+        target: specs/contracts/03-帳號綁定.api.yml#/paths/~1bind~1first-time~1email/post/requestBody/content/application~1json/schema/properties/password
+      密碼確認:
+        target: specs/contracts/03-帳號綁定.api.yml#/paths/~1bind~1first-time~1email/post/requestBody/content/application~1json/schema/properties/password_confirm
+    datatable_bindings: {}
+
+  - format: "首次 Email 綁定應依預期成功或失敗"
+    name: firstTimeBindEmail.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/03-帳號綁定.api.yml#/paths/~1bind~1first-time~1email/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "BIND 客戶以手機 {手機號碼} 請求發送首次綁定 SMS OTP"
+    name: sendFirstTimeBindMobileOtp.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/03-帳號綁定.api.yml#/paths/~1bind~1first-time~1mobile~1send-otp/post
+    param_bindings:
+      手機號碼:
+        target: specs/contracts/03-帳號綁定.api.yml#/paths/~1bind~1first-time~1mobile~1send-otp/post/requestBody/content/application~1json/schema/properties/mobile
+    datatable_bindings: {}
+
+  - format: "首次手機綁定 OTP 發送應依預期成功或失敗"
+    name: sendFirstTimeBindMobileOtp.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/03-帳號綁定.api.yml#/paths/~1bind~1first-time~1mobile~1send-otp/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "首次手機綁定 OTP 回應應包含對應碼 {OTP對應碼}"
+    name: sendFirstTimeBindMobileOtp.operation-response-success-readmodel
+    handler: operation-response-success-readmodel
+    target_part_path: specs/contracts/03-帳號綁定.api.yml#/paths/~1bind~1first-time~1mobile~1send-otp/post/responses/200/content/application~1json/schema
+    param_bindings:
+      OTP對應碼:
+        target: response:$.otp_uuid
+    datatable_bindings: {}
+
+  - format: "BIND 客戶以 OTP {OTP對應碼} 與驗證碼 {驗證碼} 完成手機綁定並設定密碼"
+    name: firstTimeBindMobile.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/03-帳號綁定.api.yml#/paths/~1bind~1first-time~1mobile/post
+    param_bindings:
+      OTP對應碼:
+        target: specs/contracts/03-帳號綁定.api.yml#/paths/~1bind~1first-time~1mobile/post/requestBody/content/application~1json/schema/properties/otp_uuid
+      驗證碼:
+        target: specs/contracts/03-帳號綁定.api.yml#/paths/~1bind~1first-time~1mobile/post/requestBody/content/application~1json/schema/properties/otp_code
+    datatable_bindings: {}
+
+  - format: "首次手機綁定應依預期成功或失敗"
+    name: firstTimeBindMobile.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/03-帳號綁定.api.yml#/paths/~1bind~1first-time~1mobile/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "已登入會員以新 Email {電子郵件} 完成補綁"
+    name: addEmailBinding.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/03-帳號綁定.api.yml#/paths/~1account~1bindings~1email/post
+    param_bindings:
+      電子郵件:
+        target: specs/contracts/03-帳號綁定.api.yml#/paths/~1account~1bindings~1email/post/requestBody/content/application~1json/schema/properties/email
+    datatable_bindings: {}
+
+  - format: "補綁 Email 應依預期成功或失敗"
+    name: addEmailBinding.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/03-帳號綁定.api.yml#/paths/~1account~1bindings~1email/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "已登入會員以新手機 {手機號碼} 請求發送補綁 SMS OTP"
+    name: sendAddMobileBindingOtp.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/03-帳號綁定.api.yml#/paths/~1account~1bindings~1mobile~1send-otp/post
+    param_bindings:
+      手機號碼:
+        target: specs/contracts/03-帳號綁定.api.yml#/paths/~1account~1bindings~1mobile~1send-otp/post/requestBody/content/application~1json/schema/properties/mobile
+    datatable_bindings: {}
+
+  - format: "補綁手機 OTP 發送應依預期成功或失敗"
+    name: sendAddMobileBindingOtp.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/03-帳號綁定.api.yml#/paths/~1account~1bindings~1mobile~1send-otp/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+
+  - format: "補綁手機 OTP 回應應包含對應碼 {OTP對應碼}"
+    name: sendAddMobileBindingOtp.operation-response-success-readmodel
+    handler: operation-response-success-readmodel
+    target_part_path: specs/contracts/03-帳號綁定.api.yml#/paths/~1account~1bindings~1mobile~1send-otp/post/responses/200/content/application~1json/schema
+    param_bindings:
+      OTP對應碼:
+        target: response:$.otp_uuid
+    datatable_bindings: {}
+
+  - format: "已登入會員以 OTP {OTP對應碼} 與驗證碼 {驗證碼} 完成補綁手機"
+    name: addMobileBinding.operation-invoke
+    handler: operation-invoke
+    target_part_path: specs/contracts/03-帳號綁定.api.yml#/paths/~1account~1bindings~1mobile/post
+    param_bindings:
+      OTP對應碼:
+        target: specs/contracts/03-帳號綁定.api.yml#/paths/~1account~1bindings~1mobile/post/requestBody/content/application~1json/schema/properties/otp_uuid
+      驗證碼:
+        target: specs/contracts/03-帳號綁定.api.yml#/paths/~1account~1bindings~1mobile/post/requestBody/content/application~1json/schema/properties/otp_code
+    datatable_bindings: {}
+
+  - format: "補綁手機應依預期成功或失敗"
+    name: addMobileBinding.operation-response-success-and-failure
+    handler: operation-response-success-and-failure
+    target_part_path: specs/contracts/03-帳號綁定.api.yml#/paths/~1account~1bindings~1mobile/post/responses/200
+    param_bindings: {}
+    datatable_bindings: {}
+

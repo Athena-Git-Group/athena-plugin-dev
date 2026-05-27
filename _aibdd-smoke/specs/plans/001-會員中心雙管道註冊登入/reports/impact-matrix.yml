@@ -1,0 +1,108 @@
+version: 1
+entries:
+- path: packages/01-雙管道註冊/features/01-Email註冊.feature
+  change_type: add
+  impact_summary: 新增 Email 註冊 sign-up/mail 之驗收規則骨架
+- path: packages/01-雙管道註冊/features/02-手機註冊發送OTP.feature
+  change_type: add
+  impact_summary: 新增手機註冊 SMS OTP 發送之驗收規則骨架
+- path: packages/01-雙管道註冊/features/03-手機註冊完成驗證.feature
+  change_type: add
+  impact_summary: 新增 verify-otp 完成手機註冊之驗收規則骨架
+- path: packages/02-雙管道登入/features/01-聯絡身分檢查.feature
+  change_type: add
+  impact_summary: 新增 check-contact-identity 三態回傳之驗收規則骨架
+- path: packages/02-雙管道登入/features/02-密碼登入.feature
+  change_type: add
+  impact_summary: 新增密碼登入第二階段之驗收規則骨架
+- path: packages/02-雙管道登入/features/03-OTP登入發送驗證碼.feature
+  change_type: add
+  impact_summary: 新增 OTP 登入發送 Email/SMS 驗證碼之驗收規則骨架
+- path: packages/02-雙管道登入/features/04-OTP登入完成驗證.feature
+  change_type: add
+  impact_summary: 新增 verify-otp 完成 OTP 登入之驗收規則骨架
+- path: packages/02-雙管道登入/features/05-App生物辨識啟用.feature
+  change_type: add
+  impact_summary: 新增 App 生物辨識啟用流程之驗收規則骨架
+- path: packages/02-雙管道登入/features/06-App生物辨識登入.feature
+  change_type: add
+  impact_summary: 新增 App 生物辨識快速登入流程之驗收規則骨架
+- path: packages/02-雙管道登入/features/07-App生物辨識停用.feature
+  change_type: add
+  impact_summary: 新增 App 生物辨識停用流程之驗收規則骨架
+- path: packages/03-帳號綁定/features/01-首次綁定Email建立帳號.feature
+  change_type: add
+  impact_summary: 新增首次 Email BIND 綁定建立 MemberAuth 之驗收規則骨架
+- path: packages/03-帳號綁定/features/02-首次綁定手機發送OTP.feature
+  change_type: add
+  impact_summary: 新增首次手機 BIND 發送 SMS OTP 之驗收規則骨架
+- path: packages/03-帳號綁定/features/03-首次綁定手機完成綁定.feature
+  change_type: add
+  impact_summary: 新增首次手機 BIND 驗證完成綁定之驗收規則骨架
+- path: packages/03-帳號綁定/features/04-補綁Email.feature
+  change_type: add
+  impact_summary: 新增已登入會員補綁 Email 之驗收規則骨架
+- path: packages/03-帳號綁定/features/05-補綁手機發送OTP.feature
+  change_type: add
+  impact_summary: 新增已登入會員補綁手機發送 SMS OTP 之驗收規則骨架
+- path: packages/03-帳號綁定/features/06-補綁手機完成綁定.feature
+  change_type: add
+  impact_summary: 新增已登入會員補綁手機完成綁定之驗收規則骨架
+- path: packages/04-編輯與解除綁定/features/01-編輯Email.feature
+  change_type: add
+  impact_summary: 新增編輯已綁定 Email 之驗收規則骨架
+- path: packages/04-編輯與解除綁定/features/02-編輯手機發送OTP.feature
+  change_type: add
+  impact_summary: 新增編輯手機發送 SMS OTP 之驗收規則骨架
+- path: packages/04-編輯與解除綁定/features/03-編輯手機完成更新.feature
+  change_type: add
+  impact_summary: 新增 OTP 驗證完成編輯手機之驗收規則骨架
+- path: packages/04-編輯與解除綁定/features/04-解除綁定Email.feature
+  change_type: add
+  impact_summary: 新增解除綁定 Email 之驗收規則骨架
+- path: packages/04-編輯與解除綁定/features/05-解除綁定手機.feature
+  change_type: add
+  impact_summary: 新增解除綁定手機之驗收規則骨架
+- path: packages/05-忘記密碼/features/01-Email忘記密碼.feature
+  change_type: add
+  impact_summary: 新增 Email 忘記密碼沿用既有重設流程之驗收規則骨架
+- path: packages/05-忘記密碼/features/02-手機忘記密碼發送OTP.feature
+  change_type: add
+  impact_summary: 新增 forgot/mobile 發送 SMS OTP 之驗收規則骨架
+- path: packages/05-忘記密碼/features/03-手機忘記密碼完成驗證.feature
+  change_type: add
+  impact_summary: 新增 verify-otp 完成手機忘記密碼驗證之驗收規則骨架
+- path: packages/05-忘記密碼/features/04-手機忘記密碼重設.feature
+  change_type: add
+  impact_summary: 新增 forgot/reset 重設密碼之驗收規則骨架
+- path: packages/06-刪除帳戶/features/01-刪除帳戶.feature
+  change_type: add
+  impact_summary: 新增刪除會員中心帳戶軟刪除 MemberAuth 之驗收規則骨架
+- path: contracts/common.yml
+  change_type: add
+  impact_summary: 新增 OpenAPI shared schemas（ErrorResponse / ContactIdentity / OtpUuid
+    等）
+- path: contracts/01-雙管道註冊.yml
+  change_type: add
+  impact_summary: 新增 sign-up/mail、sign-up/mobile、verify-otp(REGISTER) 三個 OpenAPI 路徑
+- path: contracts/02-雙管道登入.yml
+  change_type: add
+  impact_summary: 新增 check-contact-identity、password login、OTP login、biometric 七個
+    OpenAPI 路徑
+- path: contracts/03-帳號綁定.yml
+  change_type: add
+  impact_summary: 新增首次綁定 + 補綁共六個 OpenAPI 路徑
+- path: contracts/04-編輯與解除綁定.yml
+  change_type: add
+  impact_summary: 新增編輯 + 解除綁定共五個 OpenAPI 路徑
+- path: contracts/05-忘記密碼.yml
+  change_type: add
+  impact_summary: 新增 forgot/mail、forgot/mobile、forgot/verify-otp、forgot/reset 四個 OpenAPI
+    路徑
+- path: contracts/06-刪除帳戶.yml
+  change_type: add
+  impact_summary: 新增 DELETE /account 一個 OpenAPI 路徑
+- path: data/domain.dbml
+  change_type: add
+  impact_summary: 新增 domain DBML：member_auths（root）、member_center_profiles、otp_records（root）、biometric_device_tokens（root）+
+    customers/members 外部 ref

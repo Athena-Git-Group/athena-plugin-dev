@@ -1,0 +1,28 @@
+%% Trace: features/01-Email註冊.feature → contracts/01-雙管道註冊.yml#signUpByMail
+sequenceDiagram
+    actor User
+    participant FE as Frontend
+    participant Captcha as CaptchaProvider
+    participant Ctrl as SignUpController
+    participant Svc as MemberRegistrationService
+    participant CRM as CrmCustomerGateway
+    participant Repo as MemberAuthRepository
+    participant DB as PostgreSQL
+
+    User->>FE: 輸入 Email + 密碼 + Captcha
+    FE->>Captcha: 驗證 Captcha token
+    Captcha-->>FE: ok
+    FE->>Ctrl: POST /sign-up/mail (email, password, captcha)
+    Ctrl->>Svc: register(email, password)
+    Svc->>CRM: lookupCustomer(emailHash)
+    CRM-->>Svc: NONE (NEW)
+    Svc->>CRM: createCustomer(email)
+    CRM-->>Svc: customer_id
+    Svc->>Repo: insert MemberAuth(customer_id, email, email_hash, password_hash)
+    Repo->>DB: INSERT member_auths
+    DB-->>Repo: id
+    Svc->>Repo: insert MemberCenterProfile(member_auth_id, member_id)
+    Repo->>DB: INSERT member_center_profiles
+    Svc-->>Ctrl: registered
+    Ctrl-->>FE: 201 Created
+    FE-->>User: 註冊成功，導向登入

@@ -1,0 +1,32 @@
+%% Trace: features/06-App生物辨識登入.feature
+sequenceDiagram
+    actor User
+    participant App as AppMobile
+    participant OS as DeviceBiometricAPI
+    participant Ctrl as BiometricController
+    participant Svc as BiometricLoginService
+    participant Repo as BiometricDeviceTokenRepository
+    participant JwtIssuer as JwtTokenService
+
+    User->>App: 開啟 App
+    App->>App: 偵測本機已啟用生物辨識
+    App->>OS: 提示生物辨識 (BR-60)
+    OS-->>App: 通過
+    App->>OS: 取出加密儲存之 refresh_token
+    OS-->>App: refresh_token
+    App->>Ctrl: POST /biometric/login (refresh_token, device_id)
+    Ctrl->>Svc: login(refresh_token, device_id)
+    Svc->>Repo: findActiveByDeviceAndHash(device_id, refresh_token_hash, is_revoked=false)
+    Repo-->>Svc: token row OR null
+    alt token 有效
+        Svc->>JwtIssuer: issue(subject=member_auth_id)
+        JwtIssuer-->>Svc: access_token
+        Svc-->>Ctrl: SessionToken
+        Ctrl-->>App: 200 {access_token}
+        App-->>User: 進入會員中心
+    else token 已撤銷 (BR-62 / CLARIFY-06)
+        Svc-->>Ctrl: invalid
+        Ctrl-->>App: 401 BIOMETRIC_TOKEN_INVALID
+        App->>OS: 清除裝置 token
+        App-->>User: 「請重新登入」+ 顯示登入頁
+    end

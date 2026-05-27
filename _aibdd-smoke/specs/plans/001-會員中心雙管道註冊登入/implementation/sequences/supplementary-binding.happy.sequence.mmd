@@ -1,0 +1,52 @@
+%% Trace: features/04-補綁Email.feature + 05-補綁手機發送OTP + 06-補綁手機完成綁定.feature
+sequenceDiagram
+    actor User
+    participant FE as Frontend
+    participant Ctrl as AccountBindingController
+    participant Auth as JwtAuthGuard
+    participant Svc as SupplementaryBindingService
+    participant OtpSvc as OtpService
+    participant SMS as ItSmsGateway
+    participant Repo as MemberAuthRepository
+    participant CRM as CrmCustomerGateway
+
+    Note over User,FE: 使用者已登入 (Bearer token)
+
+    alt 補綁 Email (不需 OTP, BR-14)
+        User->>FE: 帳號設定 → 綁定 Email → 輸入 Email
+        FE->>Ctrl: POST /account/bindings/email (email) [Bearer]
+        Ctrl->>Auth: validateJwt
+        Auth-->>Ctrl: currentUserId
+        Ctrl->>Svc: bindEmail(memberAuthId=currentUserId, email)
+        Svc->>Repo: findByEmailHash(emailHash) - 確認唯一性
+        Repo-->>Svc: null (free)
+        Svc->>Repo: UPDATE member_auths SET email, email_hash WHERE id
+        Svc->>CRM: updateCustomerEmail(customer_id, email)
+        Svc-->>Ctrl: bound
+        Ctrl-->>FE: 201 Created
+    else 補綁手機 (兩步)
+        %% Step 1: send OTP with uniqueness pre-check
+        User->>FE: 帳號設定 → 綁定手機 → 輸入手機
+        FE->>Ctrl: POST /account/bindings/mobile/send-otp (mobile) [Bearer]
+        Ctrl->>Auth: validateJwt
+        Ctrl->>Svc: prepareMobileBind(currentUserId, mobile)
+        Svc->>Repo: findByMobileHash - 唯一性
+        Repo-->>Svc: null (free)
+        Svc->>OtpSvc: issue(contact=mobile, purpose=REGISTER, channel=sms)
+        OtpSvc->>SMS: enqueue
+        OtpSvc-->>Svc: otp_uuid
+        Svc-->>Ctrl: otp_uuid
+        Ctrl-->>FE: 200 {otp_uuid}
+
+        %% Step 2: verify OTP + write contact
+        User->>FE: 輸入 OTP
+        FE->>Ctrl: POST /account/bindings/mobile (otp_uuid, otp_code) [Bearer]
+        Ctrl->>Svc: bindMobile(currentUserId, otp_uuid, otp_code)
+        Svc->>OtpSvc: verify(otp_uuid, otp_code)
+        OtpSvc-->>Svc: ok (contact_hash)
+        Svc->>Repo: UPDATE member_auths SET mobile_phone, mobile_phone_hash
+        Svc->>CRM: updateCustomerMobile(customer_id, mobile)
+        Svc-->>Ctrl: bound
+        Ctrl-->>FE: 201 Created
+    end
+    FE-->>User: 完成，兩種方式皆可登入

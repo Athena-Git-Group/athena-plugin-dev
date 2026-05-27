@@ -1,0 +1,207 @@
+openapi: 3.0.3
+info:
+  title: 帳號綁定 — OpenAPI Slice
+  version: 0.1.0-discovery
+  description: |
+    Slice for function package `packages/03-帳號綁定`.
+    6 endpoints covering first-time bind (BIND result) and post-login supplementary bind (補綁).
+tags:
+  - name: binding
+paths:
+  /bind/first-time/email:
+    post:
+      tags: [binding]
+      operationId: firstTimeBindEmail
+      summary: 首次以 Email 將既有 CRM 客戶綁定至會員中心
+      description: |
+        Maps to feature `packages/03-帳號綁定/features/01-首次綁定Email建立帳號.feature`.
+        Triggered when check-contact-identity returned BIND. CLARIFY-01: requires password confirmation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, password_confirm]
+              properties:
+                email:
+                  $ref: 'common.api.yml#/components/schemas/Email'
+                password:
+                  $ref: 'common.api.yml#/components/schemas/Password'
+                password_confirm:
+                  $ref: 'common.api.yml#/components/schemas/Password'
+      responses:
+        '201':
+          description: MemberAuth bound to existing CRM Customer/Member.
+        '400':
+          description: Password confirmation mismatch (CLARIFY-01). `code=PASSWORD_MISMATCH`.
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+        '409':
+          description: Customer not in BIND state (already bound, or no CRM record).
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+  /bind/first-time/mobile/send-otp:
+    post:
+      tags: [binding]
+      operationId: sendFirstTimeBindMobileOtp
+      summary: 為首次手機綁定發送 SMS OTP 驗證碼
+      description: Maps to feature `packages/03-帳號綁定/features/02-首次綁定手機發送OTP.feature`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mobile]
+              properties:
+                mobile:
+                  $ref: 'common.api.yml#/components/schemas/TaiwanMobile'
+      responses:
+        '200':
+          description: OTP dispatched via SMS.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [otp_uuid]
+                properties:
+                  otp_uuid:
+                    $ref: 'common.api.yml#/components/schemas/OtpUuid'
+        '429':
+          $ref: 'common.api.yml#/components/responses/TooManyRequests'
+  /bind/first-time/mobile:
+    post:
+      tags: [binding]
+      operationId: firstTimeBindMobile
+      summary: 以 SMS OTP 完成首次手機綁定並建立會員中心帳號
+      description: |
+        Maps to feature `packages/03-帳號綁定/features/03-首次綁定手機完成綁定.feature`.
+        Verifies OTP then creates MemberAuth + Profile against existing Customer/Member.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otp_uuid, otp_code, password, password_confirm]
+              properties:
+                otp_uuid:
+                  $ref: 'common.api.yml#/components/schemas/OtpUuid'
+                otp_code:
+                  type: string
+                password:
+                  $ref: 'common.api.yml#/components/schemas/Password'
+                password_confirm:
+                  $ref: 'common.api.yml#/components/schemas/Password'
+      responses:
+        '201':
+          description: Mobile bound; MemberAuth created.
+        '422':
+          description: OTP invalid / expired / mismatch.
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+  /account/bindings/email:
+    post:
+      tags: [binding]
+      operationId: addEmailBinding
+      summary: 已登入會員於帳號設定補綁 Email
+      description: |
+        Maps to feature `packages/03-帳號綁定/features/04-補綁Email.feature`.
+        No OTP required (BR-14).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  $ref: 'common.api.yml#/components/schemas/Email'
+      responses:
+        '201':
+          description: Email bound.
+        '409':
+          description: Email already in use (BR-12 / T-40). `code=EMAIL_TAKEN`.
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+        '422':
+          description: Member is already bound to email or direction rule violated (BR-11/BR-26 / T-42).
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+  /account/bindings/mobile/send-otp:
+    post:
+      tags: [binding]
+      operationId: sendAddMobileBindingOtp
+      summary: 為已登入會員補綁手機發送 SMS OTP 驗證碼
+      description: Maps to feature `packages/03-帳號綁定/features/05-補綁手機發送OTP.feature`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mobile]
+              properties:
+                mobile:
+                  $ref: 'common.api.yml#/components/schemas/TaiwanMobile'
+      responses:
+        '200':
+          description: OTP dispatched via SMS.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [otp_uuid]
+                properties:
+                  otp_uuid:
+                    $ref: 'common.api.yml#/components/schemas/OtpUuid'
+        '409':
+          description: Mobile already in use (BR-12 / T-41).
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'
+        '429':
+          $ref: 'common.api.yml#/components/responses/TooManyRequests'
+  /account/bindings/mobile:
+    post:
+      tags: [binding]
+      operationId: addMobileBinding
+      summary: 以 SMS OTP 完成補綁手機並啟用雙管道登入
+      description: Maps to feature `packages/03-帳號綁定/features/06-補綁手機完成綁定.feature`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otp_uuid, otp_code]
+              properties:
+                otp_uuid:
+                  $ref: 'common.api.yml#/components/schemas/OtpUuid'
+                otp_code:
+                  type: string
+      responses:
+        '201':
+          description: Mobile bound.
+        '422':
+          description: OTP invalid / expired / mismatch (T-43).
+          content:
+            application/json:
+              schema:
+                $ref: 'common.api.yml#/components/schemas/ErrorResponse'

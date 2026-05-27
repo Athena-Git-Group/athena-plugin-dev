@@ -357,6 +357,6 @@ Marker schema 與 mode 選擇建議詳見 `skills/athena-flow/references/flow-co
 
 | Skill | 對應 Stage | 說明 |
 |-------|-----------|------|
-| **athena-discovery** | spec | 需求分析（7 步流程，產出 Activity + Feature Rules） |
+| **athena-discovery** | spec | 需求分析（三段式 sub-SOP：sourcing-and-packaging → feature-file-list-analyze → atomic-rules-analyze；產出 PLAN_SPEC、impact-matrix、function-package feature 骨架）。源自 AIxBDD discovery；前置 `/aibdd-kickoff`，下游 `/aibdd-plan → /aibdd-tasks → /aibdd-{red,green,refactor}-execute` |
 | **athena-specformula** | plan | 工程計畫產生器（產出 plan.md + Phase 卡片） |
 | **athena-carry-on-engineering-plan** | build | 計畫執行器（human-in-the-loop 逐 Phase 推進） |

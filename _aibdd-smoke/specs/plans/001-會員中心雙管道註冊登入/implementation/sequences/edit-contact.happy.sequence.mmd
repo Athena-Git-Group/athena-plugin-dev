@@ -1,0 +1,50 @@
+%% Trace: features/01-編輯Email.feature + 02-編輯手機發送OTP + 03-編輯手機完成更新.feature
+sequenceDiagram
+    actor User
+    participant FE as Frontend
+    participant Ctrl as AccountContactController
+    participant Auth as JwtAuthGuard
+    participant Svc as ContactEditService
+    participant OtpSvc as OtpService
+    participant SMS as ItSmsGateway
+    participant Mail as MailGateway
+    participant Repo as MemberAuthRepository
+    participant CRM as CrmCustomerGateway
+
+    Note over User,FE: 使用者已登入
+
+    alt 編輯 Email (不需 OTP)
+        User->>FE: 帳號設定 → 編輯 Email → 輸入新 Email
+        FE->>Ctrl: PUT /account/bindings/email (new_email) [Bearer]
+        Ctrl->>Auth: validateJwt
+        Ctrl->>Svc: updateEmail(currentUserId, new_email)
+        Svc->>Repo: findByEmailHash(newEmailHash) - 唯一性
+        Repo-->>Svc: null
+        Svc->>Repo: UPDATE member_auths SET email=new_email
+        Svc->>CRM: updateCustomerEmail
+        Svc->>Mail: send "Email 變更確認" 至 new_email (CLARIFY-04)
+        Svc-->>Ctrl: updated
+        Ctrl-->>FE: 200 OK
+    else 編輯手機 (兩步)
+        User->>FE: 帳號設定 → 編輯手機 → 輸入新手機
+        FE->>Ctrl: POST /account/bindings/mobile/edit-send-otp (new_mobile) [Bearer]
+        Ctrl->>Svc: prepareEditMobile(currentUserId, new_mobile)
+        Svc->>Repo: findByMobileHash - 唯一性
+        Repo-->>Svc: null
+        Svc->>OtpSvc: issue(contact=new_mobile, purpose=REGISTER, channel=sms)
+        OtpSvc->>SMS: enqueue
+        OtpSvc-->>Svc: otp_uuid
+        Ctrl-->>FE: 200 {otp_uuid}
+
+        User->>FE: 輸入 OTP
+        FE->>Ctrl: PUT /account/bindings/mobile (otp_uuid, otp_code)
+        Ctrl->>Svc: updateMobile(currentUserId, otp_uuid, otp_code)
+        Svc->>OtpSvc: verify
+        OtpSvc-->>Svc: ok
+        Svc->>Repo: UPDATE member_auths SET mobile_phone=new_mobile
+        Svc->>CRM: updateCustomerMobile
+        Svc->>SMS: send "手機變更確認" 至 new_mobile (CLARIFY-04)
+        Svc-->>Ctrl: updated
+        Ctrl-->>FE: 200 OK
+    end
+    FE-->>User: 顯示新聯絡方式
