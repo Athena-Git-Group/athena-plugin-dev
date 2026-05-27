@@ -16,8 +16,10 @@ description: >
 
 - Read `references/scoring-rubric.md` 取得評分維度、分數區間與分流規則
 - Read `references/knowledge-base-guidelines.md` 了解知識庫讀取規範
+- Read `references/codemap-guidelines.md` 了解何時/如何透過 `graphify-out/` codemap 蒐證
 - Read `references/gate-rules.md` 了解 point-report 的檔案契約與可進入的下一階段
 - 掃描 `.athena/knowledge/` 目錄，了解團隊知識庫有哪些內容可供查證
+- 偵測專案根目錄是否存在 `graphify-out/graph.json`（由 `/codemap` 產生）
 
 ## 何時使用
 
@@ -52,11 +54,17 @@ description: >
 
 1. 將需求重述成一個可判斷的變更敘述
 2. 掃描 `.athena/knowledge/` 目錄結構，掌握團隊有哪些知識文件
-3. 用 rubric 對每個維度打分
-4. 若命中知識庫條件，從 `.athena/knowledge/` 讀取相關文件再修正分數
-5. 根據總分與硬性 gate 決定路由
-6. 明確指出下一步 command
-7. 用 `assets/point-report-template.md` 的格式寫出 point-report
+3. **偵測 codemap**：檢查 `graphify-out/graph.json` 是否存在於專案根目錄
+   - 存在 → 依 `references/codemap-guidelines.md` 規範，**優先**透過 `graphify query "<question>"` / `graphify path "A" "B"` / `graphify explain "Entity"` 蒐集 codebase 結構資訊，用於 Impact Radius / Contract-Schema / Regression Risk 維度的評估；**不要**對 `src/` 做大範圍 Read / Grep 掃描
+   - 存在但 `command -v graphify` 失敗 → 優雅降級：被動 Read `graphify-out/GRAPH_REPORT.md` 與（必要時）`graphify-out/graph.json` 當純文字參考
+   - 不存在 → 跳過此步驟，照原本流程進行（**不得**自動執行 `/codemap`、`graphify install` 或任何寫盤的 graphify 子指令）
+   - 同時檢查 codemap 是否過期（`graphify-out/graph.json` 的 mtime 比最後一次 git commit 還舊 → 視為 stale，於 report 中註記）
+4. 用 rubric 對每個維度打分
+5. 若命中知識庫條件，從 `.athena/knowledge/` 讀取相關文件再修正分數
+6. 若 codemap 可用，依 `references/scoring-rubric.md` 的「Codemap-Assisted Cues」對 Impact / Contract / Regression 維度做 **±1** 微調；**禁止**因 codemap 線索而翻轉 route（仍須由 rubric 閾值決定）
+7. 根據總分與硬性 gate 決定路由
+8. 明確指出下一步 command
+9. 用 `assets/point-report-template.md` 的格式寫出 point-report；若有偵測 codemap，於 `Codemap consulted` 欄位（optional）標註結果
 
 ## 路由結果
 
@@ -162,3 +170,5 @@ Risks
 4. 產出必須包含「為什麼不用 spec」或「為什麼一定要 spec」
 5. 不只回覆在對話中，還要把結果寫成 `points/<request-slug>.md`
 6. 若尚未查證必要知識庫，不得發出 `PASS-DIRECT-BUILD`
+7. codemap（`graphify-out/`）只能用於蒐證，不得作為翻轉 route 的單一理由；codemap 缺席時必須能照原流程完成評分
+8. 不得執行任何寫盤的 graphify 子指令（`install` / `clone` / `add` / 重建 / `--update` / `merge-graphs` / `extract`），只允許唯讀的 `query` / `path` / `explain`
