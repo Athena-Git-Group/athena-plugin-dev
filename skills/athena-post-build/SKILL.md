@@ -30,6 +30,7 @@ user-invocable: false
 
 - Read `../git-conventions/SKILL.md` 取得 commit message 規範
 - Read `../git-conventions/references/output-language.md` 取得語言偏好
+- Read `references/codemap-refresh-policy.md` 取得 codemap auto-refresh 的 guard、失敗策略與雙路徑一致性要求
 - 讀取對應的 handoff artifact：
   - `triggering_stage: build-lightweight` → `handoffs/<slug>-build.md`（Compact build handoff）
   - `triggering_stage: build-phase-<NN>` → `handoffs/<slug>-build-phase-<NN>.md`（mini-handoff）
@@ -112,7 +113,20 @@ user-invocable: false
    git add <relevant-files>
    git commit -m "<formatted-message>"
 
-8. 將結果追加到 flow context
+8. Refresh codemap（best-effort，失敗不阻斷）
+   - 前置檢查（全部成立才執行）：
+     a. `graphify-out/graph.json` 存在於 repo root
+     b. `command -v graphify` 成功
+     c. `git check-ignore graphify-out/` 退出 0（已被 .gitignore 忽略，刷新不會汙染 working tree）
+     d. `command -v timeout` 成功（否則跳過，避免 hang 卡死 flow）
+   - 任一前置不成立 → silent skip + 將 `codemap_refresh: skipped (<reason>)` 寫入 flow context
+   - 都成立 → 用 timeout wrapper 跑 `timeout 90 graphify "<repo-root>" --update`
+     - exit 0 → flow context 標 `codemap_refresh: done`
+     - exit != 0 → flow context 標 `codemap_refresh: failed (exit=<code>)`，**不**阻斷後續 stage
+   - 不論結果，回到主流程繼續
+   - 細節 / 為何選擇 post-build 而非 point 階段 → 見 `references/codemap-refresh-policy.md`
+
+9. 將結果追加到 flow context
 ```
 
 ## 輸出
@@ -126,19 +140,26 @@ git_context:
       stage: "build-phase-05"
       message: "[HAP-3621] feat(approval): add approval API and schema (phase-05)"
       files_committed: 5
+      codemap_refresh: "done"
     - hash: "bcd2345"
       stage: "build-phase-06"
       message: "[HAP-3621] feat(approval): add approval frontend page (phase-06)"
       files_committed: 4
+      codemap_refresh: "skipped (no graphify-out)"
     - hash: "cde3456"
       stage: "build-phase-07"
       message: "[HAP-3621] test(approval): integration validation (phase-07)"
       files_committed: 3
+      codemap_refresh: "failed (exit=124)"
     - hash: "def4567"
       stage: "verify"
       message: "[HAP-3621] test(approval): add unit tests (verify)"
       files_committed: 2
+      codemap_refresh: "skipped (cli missing)"
 ```
+
+> `codemap_refresh` 是 best-effort 結果欄位，可省略；下游 stage 不應將其作為 hard
+> precondition。允許值見 `references/codemap-refresh-policy.md`。
 
 ## 失敗處理
 
@@ -148,6 +169,8 @@ git_context:
 | 無未提交的變更 | 回報 `no_changes`，繼續流程 |
 | commit 失敗 | 記錄警告，繼續流程（不阻斷） |
 | 無法推斷 scope | 使用空 scope：`<type>: <description>` |
+| `graphify --update` 失敗 / 超時 | 記錄 `codemap_refresh: failed (exit=<code>)`，繼續流程 |
+| `graphify-out/` 不存在 / cli 缺席 / 未被 gitignore | 記錄 `codemap_refresh: skipped (<reason>)`，繼續流程 |
 
 ## 非協商規則
 
@@ -159,3 +182,6 @@ git_context:
 6. **Ticket 從 flow context 取得** — 不另外詢問使用者
 7. **一個 triggering_stage 一個 commit** — 不合併多個 phase 的變更，每個 phase 獨立 commit（Full Weight）
 8. **Lightweight 模式整個 build 一次 commit** — `triggering_stage: build-lightweight` 時，commit message 不帶 phase-tag
+9. **Codemap refresh 為 best-effort** — 失敗、超時、跳過都不得阻斷 flow；任何錯誤只能記錄、不能 raise
+10. **不得在 `graphify-out/` 未被 .gitignore 時執行 `--update`** — 避免汙染 working tree 干擾 verify / ship 階段的 `git status` 判斷
+11. **Codemap 寫入路徑只能走 `--update`** — 禁止自動安裝 graphify、自動初始化 `/codemap`、或執行其他寫盤 flag（`--cluster-only` / `--watch` / `--neo4j-push` 等）
