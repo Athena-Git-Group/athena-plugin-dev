@@ -21,6 +21,11 @@ graph TD
         QG["Quality Gate\nActor 合法 + F1-F6 + CiC=0"]
     end
 
+    subgraph "Step 8: Examples 填入"
+        S8["Step 8: DELEGATE bdd-analysis\n系統抽象 + 句型 + Examples\n(max 3 回退輪)"]
+        FEAT_EX["features/**/*.feature\n(含 Examples, 可執行)"]
+    end
+
     subgraph "Phase 01 Output"
         EP["Execution Plan\n(Phase 02-08 scope)"]
     end
@@ -38,13 +43,16 @@ graph TD
     %% 品質門檻
     FEAT --> QG
     ACT --> QG
-    QG -->|"通過"| EP
+    QG -->|"通過"| S8
+    S8 -->|"Examples 填入"| FEAT_EX
+    S8 -->|"完成"| EP
 
     %% 逆向回饋（Clarify Loop）
     FEAT -.->|"CiC 澄清"| FEAT
     ACT -.->|"CiC 澄清"| ACT
     FEAT -.->|"Rule 變動"| ACT
     QG -.->|"掃描失敗\n→ 回退 Clarify"| FEAT
+    S8 -.->|"new CiC\n→ 回退 Clarify (max 3)"| FEAT
 
     %% Structural Read 讀取既有規格（Existing 時）
     ACT -.->|"讀取既有"| SR
