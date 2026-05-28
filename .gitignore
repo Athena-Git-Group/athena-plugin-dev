@@ -15,6 +15,7 @@ __pycache__/
 /points/
 /requirement-feedback/
 /plans/
+/specs/
 
 # /codemap (graphify) runtime artifacts — per-user knowledge graph cache.
 # Each consumer regenerates locally; never commit.
