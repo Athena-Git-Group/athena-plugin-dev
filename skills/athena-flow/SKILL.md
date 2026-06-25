@@ -29,6 +29,7 @@ description: >
 - Read `references/phase-orchestration.md` — Build 內部的 phase loop 編排
 - Read `references/verify-retry.md` — Verify 失敗的回退流程
 - Read `references/flow-context.md` — Hook 模式的 marker file schema
+- Read `references/run-trace.md` — Run Trace schema + Failure Taxonomy + Handoff GC（強制收尾步驟）
 
 ## 核心原則
 
@@ -273,7 +274,22 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
       git push -u origin <branch_name>
     ```
 
-    流程結束。不寫 review-ship handoff，不問 merge_target。
+    流程結束前仍執行步驟 12（emit trace + GC handoff）。不寫 review-ship handoff，不問 merge_target。
+
+12. **Run 收尾 — Emit Trace + Handoff GC（所有路由的強制步驟，flow-inline）**：
+
+    無論流程以 `shipped` / `done` / `stopped@<stage>` / `handed-to-human` 何種結局結束，
+    flow 在最終回報使用者前，於 flow agent 內聯執行（不開 agent）：
+
+    a. 蒐集本次 run 的 trace 欄位（trigger、point verdict/score/dimensions、weight、route、
+       各 stage 的 gate/retries/agents、failures[]（含 taxonomy tag）、human_interventions、outcome）
+    b. Append 一筆 JSON 到 `.athena/traces/runs.jsonl`（不存在則建立）
+    c. 依 **Handoff Retention Policy** 做 GC（詳見 `references/run-trace.md`）：
+       - outcome 為 `shipped` / `done` → 刪除該 slug 的所有 handoff（含 mini-handoff）
+       - outcome 為 `stopped@<stage>` / `handed-to-human` → **保留** handoff（供 resume 與 Loop 3）
+       - **先 emit trace 再 GC**；**只刪已寫入 trace 的當前 run；絕不刪 in-flight 或其他未解 run**
+
+    此步驟對 Minimal / Lightweight / Full 三條路由都適用，是 flow 的最後一個動作。
 
 ## 必要輸出
 
@@ -306,3 +322,5 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
 18. **Minimal 路由不開 review/ship agent** — build(minimal) 含 self-review，flow 結束後由使用者自行 push
 19. **可平行 phase 必須同一次回應送出** — 不可序列化 Agent 呼叫，否則喪失平行（僅 Full Weight）
 20. **flow agent 不 sleep 輪詢** — background 模式靠 harness 通知，foreground 模式靠 tool result 同步返回
+21. **每次 run 必須 emit 一筆 trace** — 不論成敗，步驟 12 是強制收尾，append 到 `.athena/traces/runs.jsonl`
+22. **GC 先 emit trace 後刪、且只刪已完成 run** — 絕不刪 in-flight 或未解 run 的 handoff（見 `references/run-trace.md`）

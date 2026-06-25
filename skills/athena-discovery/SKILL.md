@@ -3,9 +3,9 @@ name: athena-discovery
 description: >
   需求分析的主入口（Phase 01）。以統一流程處理 greenfield / 新功能 / 改變需求——
   三者是同一件事，差別只在起始狀態（空 vs 已有 artifacts）。
-  統一 7 步：Composition → Flow Alignment → Structural Read → Impact Analysis
-  → Behavior Design → Clarify → Quality Gate。
-  產出 Execution Plan（Phase 02-08 的 scope 依據）+ Activity Diagrams + Feature Rules。
+  統一 8 步：Composition → Flow Alignment → Structural Read → Impact Analysis
+  → Behavior Design → Clarify → Quality Gate → Examples 填入（DELEGATE bdd-analysis）。
+  產出 Execution Plan（Phase 02-08 的 scope 依據）+ Activity Diagrams + Feature Files（含 Examples，可執行）。
   保持 Activity、.feature 兩個視圖的一致性（api.yml / erm.dbml 由後續 Phase 處理）。
 user-invocable: true
 ---
@@ -15,7 +15,7 @@ user-invocable: true
 | 方向 | 內容 |
 |------|------|
 | Input | User idea (raw text) &#124; existing `${SPECS_ROOT_DIR}` (for update) |
-| Output | Execution Plan, `activities/*${ACTIVITY_EXT}`, `features/**/*.feature` (Rules only), `specs/actors/*.md` |
+| Output | Execution Plan, `activities/*${ACTIVITY_EXT}`, `features/系統抽象.md`, `features/{domain}/句型.md`, `features/**/*.feature` (含 Examples, 可執行), `specs/actors/*.md` |
 
 # 角色
 
@@ -105,7 +105,7 @@ Activity 視圖統一由 `/athena-form-activity` 處理。
 
 - 步驟完成後立即推進至下一步，不展示 review cycle
 - 需要使用者輸入的步驟（如 Step 2 Flow Alignment 的 confirm、Step 6 Clarify Loop 的問答）屬於**工作互動**，自然發生在連續執行中
-- 全部 7 步完成後，回傳 carry-on，由 carry-on 進入 Feedback Loop 讓使用者審查交付物
+- 全部 8 步完成後，回傳 carry-on，由 carry-on 進入 Feedback Loop 讓使用者審查交付物
 
 # To-Do List 進度控管
 
@@ -119,7 +119,7 @@ Activity 視圖統一由 `/athena-form-activity` 處理。
 5. **Compaction 後恢復**：讀取 To-Do List，找到第一個 `in_progress` 或 `pending` 任務繼續
 6. **完成後回傳**：Step 7 completed 後，REPORT 給 carry-on，不自行展示審查選項
 
-## 統一模板（7 個里程碑）
+## 統一模板（8 個里程碑）
 
 ```
 TodoWrite([
@@ -130,6 +130,7 @@ TodoWrite([
   { content: "Step 5 — Behavior Design（Activity + Feature 骨架）", status: "pending" },
   { content: "Step 6 — Clarify Loop（CiC 便條紙歸零）",            status: "pending" },
   { content: "Step 7 — Quality Gate（最終驗證）",                   status: "pending" },
+  { content: "Step 8 — Examples 填入（DELEGATE bdd-analysis）",     status: "pending" },
 ])
 ```
 
@@ -144,6 +145,7 @@ TodoWrite([
 | 5 | Behavior Design | 所有 create/modify/delete 的 Activity + Feature 檔案寫入完成 |
 | 6 | Clarify Loop | **Grep `CiC\(` 於 `activities/` + `features/` 結果為空** |
 | 7 | Quality Gate | Actor 合法 + F1-F6 Clear + CiC = 0 + Execution Plan 完成 |
+| 8 | Examples 填入 | bdd-analysis 三階段完成、所有 `.feature` 移除 `@ignore` 且含 Examples、`系統抽象.md` 與 `句型.md` 已產出 |
 
 **特別注意 #2**：使用者未說 **confirm** 之前，禁止寫入任何檔案。
 **特別注意 #6**：可能跑很多輪。只有便條紙歸零才能標 `completed`。
@@ -158,7 +160,7 @@ TodoWrite([
 
 ---
 
-# 統一流程（7 步）
+# 統一流程（8 步）
 
 **核心原則：每個需求都是 current state → desired state 的 delta 操作。**
 
@@ -356,6 +358,36 @@ TodoWrite([
 
 ---
 
+## Step 8: Examples 填入
+
+DELEGATE 給 `/athena-form-bdd-analysis` 將 Rules 骨架擴展為含 Examples 的可執行 `.feature`。
+
+1. 標記 Step 8 → `in_progress`
+2. 驗證前置：所有 `.feature` 帶 `@ignore` tag、F1-F6 Clear、CiC=0（Step 7 完成的證據）
+3. **DELEGATE** `/athena-form-bdd-analysis`，傳入 scope 內的 domain 清單
+   - 該 skill 內部三階段 reconciliation：
+     - 第一階段：產出 `features/系統抽象.md`
+     - 第二階段：per-domain 產出 `features/{domain}/句型.md`（含覆蓋矩陣、QA 五維分析）
+     - 第三階段：填入 Examples、移除 `.feature` 的 `@ignore` tag
+   - **每階段使用者 review 是 bdd-analysis 的內部機制**，不是 discovery 的額外審查
+4. **若 bdd-analysis REPORT 包含 `new_sticky_notes`**：
+   a. 將新便條紙寫入對應 `.feature` 或 activity 檔案
+   b. 標記 Step 8 → `pending`，**Step 6 → `in_progress`**（觸發回退）
+   c. 重跑 Step 6 → Step 7 → Step 8 直到 bdd-analysis 不再產出新 CiC
+   d. **最大回退次數 = 3**（防無限迴圈，超過交給使用者）
+5. 全部 `.feature` 確認移除 `@ignore` + 含 Examples → 標記 Step 8 → `completed`
+
+### 回退保護機制（防無限迴圈）
+
+| 保護 | 機制 |
+|------|------|
+| 計次 | 每次進入 Step 8 計數，最多 3 輪 |
+| 重複偵測 | bdd-analysis 產出的 new_sticky_notes hash 與前一輪比對，若重複出現 → 立即升級為使用者介入 |
+| 已澄清池 marker | 進入 Step 8 前的便條紙計入「已澄清池」，bdd-analysis 不得對已澄清項再產 CiC |
+| 升級條件 | 超過 3 輪 OR 重複 CiC OR 使用者中斷 → 停 + 標記 `.feature` 為 `@partial-examples` + 報告未解項目 |
+
+---
+
 # Feature 顆粒度與 Actor 合法性
 
 **1 Feature File = 1 API Endpoint = 1 外部觸發動作**。只允許「外部使用者」和「第三方系統」作為 Actor；內建系統邏輯收入觸發者 Feature 的 Rule。
@@ -369,15 +401,15 @@ TodoWrite([
 每次回應末尾附加一行，讓使用者隨時知道進度：
 
 ```
-> Phase 01: Discovery（Step N/7 — <任務名>）— M 張便條紙待解決
+> Phase 01: Discovery（Step N/8 — <任務名>）— M 張便條紙待解決
 ```
 
 範例：
 ```
-> Phase 01: Discovery（Step 2/7 — Flow Alignment）— Flow Tree v2，待使用者 confirm
+> Phase 01: Discovery（Step 2/8 — Flow Alignment）— Flow Tree v2，待使用者 confirm
 ```
 ```
-> Phase 01: Discovery（Step 6/7 — Clarify Loop）— 5 張便條紙待解決
+> Phase 01: Discovery（Step 6/8 — Clarify Loop）— 5 張便條紙待解決
 ```
 
 ---
@@ -389,9 +421,11 @@ ${SPECS_ROOT_DIR}/
 ├── activities/
 │   └── <流程名>${ACTIVITY_EXT}
 ├── features/
+│   ├── 系統抽象.md                 # Step 8 產出（bdd-analysis 第一階段）
 │   └── <domain>/
-│       ├── <功能名>.feature   # @ignore @command, Rules only
-│       └── <功能名>.feature   # @ignore @query, Rules only
+│       ├── 句型.md                  # Step 8 產出（bdd-analysis 第二階段，含覆蓋矩陣）
+│       ├── <功能名>.feature         # @command, 含 Examples（Step 8 移除 @ignore）
+│       └── <功能名>.feature         # @query, 含 Examples（Step 8 移除 @ignore）
 ├── specs/
 │   └── actors/
 │       └── <角色名>.md
@@ -446,4 +480,5 @@ specs/
 - 所有 .feature 無未解便條紙、無 `(待澄清)` 佔位
 - F1-F6 面向覆蓋率全部 Clear
 - Execution Plan 產出，涵蓋 Phase 02-08 的 scope
-- 所有新建/修改的 .feature 含 Rules、標記 `@ignore`、無 Examples
+- **Step 8 已完成**：所有 `.feature` 移除 `@ignore` tag、包含具體 Examples、句型 single source of truth 在 `{domain}/句型.md`
+- `features/系統抽象.md` 已產出

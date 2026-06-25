@@ -26,6 +26,34 @@ agent 之間不共享上下文，靠檔案交接。
 - Risks / unresolved issues
 - Next recommended stage
 
+## Gate Verdict 與 Failure Taxonomy
+
+Gate verdict 是 flow 判定能否繼續的依據，格式：
+
+```
+<PASS / FAIL> — <一句話原因> [#<taxonomy-tag>]
+```
+
+- **PASS**：不帶 tag。
+- **FAIL**：**必須**在原因後附一個 failure taxonomy tag（`#spec-gap`、`#integration-mismatch` 等），
+  讓 flow 的 emit-trace 步驟能把它彙整進 Run Trace 的 `failures[]`，供 Loop 3 統計。
+  多個獨立問題就列多筆 issue、各帶自己的 tag。
+
+Taxonomy enum 的完整定義見 `run-trace.md` 的 Failure Taxonomy 段。
+
+> **向後相容**：tag 是 additive。舊 handoff（FAIL 無 tag）仍可被 flow 讀取——
+> 缺 tag 時 emit-trace 以 `#unclassified` 補登並提示補標，不打斷既有 run。
+
+範例（Full Weight verify FAIL，沿用 `verify-retry.md` 的 affected_phase 標記）：
+
+```markdown
+## Gate Verdict
+FAIL — frontend 呼叫 /api/approval 但後端是 /api/approvals (plural) #integration-mismatch
+
+## Issues Found
+1. **[Phase 06]** frontend calls `/api/approval` instead of `/api/approvals` #integration-mismatch
+```
+
 ## Phase-Level Handoff（Build 內部）
 
 Build stage 被拆解為多個 phase，每個 phase 由 fresh agent 執行。
@@ -209,3 +237,4 @@ PASS — reviewed, pushed and merged to <merge_target>
 6. 每個 build phase 結束時必須寫入 mini-handoff，不可省略（僅 Full Weight）
 7. **Lightweight 路由的 review-ship 可合併為一個 agent**——這是唯一允許同一 agent 處理多個 stage 的例外
 8. **Minimal 路由不產出 review-ship handoff**——build handoff 的 self-review 段落取代獨立 review
+9. **FAIL 的 gate verdict 必須帶 failure taxonomy tag**——enum 見 `run-trace.md`；缺 tag 時由 emit-trace 以 `#unclassified` 補登，不打斷流程

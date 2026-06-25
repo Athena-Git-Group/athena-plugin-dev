@@ -49,6 +49,8 @@ Plugin 透過 Claude Code 的四個 manifest 入口（`skills` / `commands` / `a
 | **athena-skill-eval** | 輔導工具 | — | L4 動態 eval runner — 對 skill 跑 case，捕捉真實行為（獨立於 flow） |
 | **athena-audit-requirement-backend** | 輔導工具 | — | PM 需求文件「後端視角」可譯性審計（獨立於 flow，PM/TL 主動觸發） |
 | **athena-audit-requirement-frontend** | 輔導工具 | — | PM 需求文件「前端視角」可譯性審計（獨立於 flow，PM/TL 主動觸發） |
+| **athena-trigger-dispatch** | 事件層（Loop 2b） | — | 事件驅動觸發層：輪詢 CI / PR review / cron / inbox，命中時製造 intake 呼叫 `/flow`（不繞過 point） |
+| **athena-hill-climb** | 自我改進（Loop 3） | — | 讀 Run Trace 找系統性失敗模式，產出改進提案（人工 gate，整合 skill-eval/audit 驗證） |
 | **git-conventions** | 參考庫 | — | Git 分支命名與 commit message 規範 |
 
 ### Slash Commands（使用者入口）
@@ -59,6 +61,8 @@ Plugin 透過 Claude Code 的四個 manifest 入口（`skills` / `commands` / `a
 | `/athena-point <request>` | `athena-point` | 需求評分與分流 |
 | `/athena-skill-audit [skill]` | `athena-skill-audit` | Skill 靜態品質健檢 |
 | `/athena-skill-eval <skill> <case>` | `athena-skill-eval` | Skill 動態行為評估 |
+| `/athena-trigger-dispatch [once]` | `athena-trigger-dispatch` | 事件驅動觸發層（Loop 2b），建議搭 `/loop` 持續監看 |
+| `/athena-hill-climb` | `athena-hill-climb` | 自我改進 retro（Loop 3），讀 trace 產出改進提案 |
 
 短形式由 harness 路由到對應 skill；若有衝突可用 fully-qualified `/athena-dev-plugin:athena-flow`。Commands 是 thin wrapper，邏輯在 `skills/<name>/SKILL.md`。
 
@@ -343,6 +347,9 @@ Marker schema 與 mode 選擇建議詳見 `skills/athena-flow/references/flow-co
 | Stage 契約 | `athena-flow/references/stage-contracts.md` | 每個 stage 的輸入/輸出規格 |
 | Phase 編排 | `athena-flow/references/phase-orchestration.md` | Full Weight 內的 phase loop、平行模式、conflict detection |
 | Flow Context | `athena-flow/references/flow-context.md` | Auto-commit hook 的 `.athena/.flow-context.json` schema 與 mode 選擇建議 |
+| Run Trace 基座 | `athena-flow/references/run-trace.md` | Run Trace schema + Failure Taxonomy + Handoff GC（v3 Loop Engineering 基座） |
+| 事件觸發契約 | `athena-trigger-dispatch/references/event-triggers.md` | `triggers.yml` schema / source adapter / dedup / autonomy / 輪詢節奏（Loop 2b） |
+| 自我改進契約 | `athena-hill-climb/references/hill-climb.md` | 六步流程 / systemic 判定 / 失敗模式映射 / metrics schema（Loop 3） |
 | Skill 元資料規格 | `athena-core/references/skill-metadata-spec.md` | SKILL.md frontmatter 欄位定義 |
 | Index Skill 模式 | `athena-flow/references/index-skill-pattern.md` | 同 stage 多 skill 的路由規範 |
 | Agent Handoff 契約 | `athena-flow/references/agent-handoff.md` | stage 間的交接格式 |
@@ -357,6 +364,6 @@ Marker schema 與 mode 選擇建議詳見 `skills/athena-flow/references/flow-co
 
 | Skill | 對應 Stage | 說明 |
 |-------|-----------|------|
-| **athena-discovery** | spec | 需求分析（7 步流程，產出 Activity + Feature Rules） |
+| **athena-discovery** | spec | 需求分析（8 步流程，產出 Activity + Feature Files **含 Examples、可執行**）。Step 8 自動 DELEGATE `athena-form-bdd-analysis` 將 Rules 骨架展開為含 Examples 的 .feature。從 PRD 到 cucumber-ready 一個指令完成。 |
 | **athena-specformula** | plan | 工程計畫產生器（產出 plan.md + Phase 卡片） |
 | **athena-carry-on-engineering-plan** | build | 計畫執行器（human-in-the-loop 逐 Phase 推進） |

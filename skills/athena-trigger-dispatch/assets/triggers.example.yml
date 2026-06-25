@@ -1,0 +1,39 @@
+# .athena/triggers.yml — Athena 事件驅動觸發層設定範例
+#
+# 複製到 consumer 專案的 .athena/triggers.yml 後依需求調整。
+# 由 athena-trigger-dispatch（Loop 2b）讀取。欄位說明見該 skill 的
+# references/event-triggers.md。
+#
+# 安全提醒：autonomy 預設 notify（只通知、不自動改 code）。新 trigger 建議
+# 先跑一陣子 notify，確認 dedup/guard 無誤觸後再放寬到 auto-to-gate。
+
+triggers:
+  # CI 紅燈 → 通知（最安全的起手式）
+  - name: ci-red-on-pr
+    source: ci
+    when: conclusion == failure && headBranch matches feature/*
+    guard: author != dependabot
+    poll: 270s
+    intake: fix
+    autonomy: notify        # 觀察穩定後可改 auto-to-gate（自動修但停在 ship 前）
+
+  # PR 被要求修改 → 自動處理到 ship 前，等人確認再 merge
+  - name: review-changes-requested
+    source: pr-review
+    when: reviewDecision == CHANGES_REQUESTED
+    intake: address-review
+    autonomy: auto-to-gate
+
+  # 每週一 02:00 跑 retro（Loop 3，需 Step 3 的 athena-hill-climb 才會實際動作）
+  - name: nightly-retro
+    source: cron
+    when: "0 2 * * 1"
+    intake: hill-climb
+    autonomy: auto-full      # retro 只產提案、不改 code，可放心 auto-full
+
+  # 外部事件 inbox：人或 GitHub Action 把事件寫成檔案丟進 .athena/inbox/
+  - name: external-inbox
+    source: inbox
+    intake: from-file
+    autonomy: notify
+    when: any                # inbox 有新檔即視為事件
