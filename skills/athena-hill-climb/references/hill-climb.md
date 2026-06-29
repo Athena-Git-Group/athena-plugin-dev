@@ -117,7 +117,7 @@ gate 在 run 內抓到 = failure tag；人事後抓到 = feedback kind。
 每輪 retro append 一行，讓「hill」可量測：
 
 ```json
-{"ts":"2026-06-25T02:00:00Z","window_runs":18,"gate_first_pass_rate":0.72,"verify_retry_rate":0.22,"scope_accuracy":0.83,"mean_agents_per_run":5.1,"human_intervention_rate":0.28,"post_ship_defect_rate":0.11,"by_tag":{"integration-mismatch":4,"scope-underestimate":3},"by_kind":{"post-ship-defect":2,"low-coverage":1}}
+{"ts":"2026-06-25T02:00:00Z","window_runs":18,"gate_first_pass_rate":0.72,"verify_retry_rate":0.22,"scope_accuracy":0.83,"mean_agents_per_run":5.1,"human_intervention_rate":0.28,"post_ship_defect_rate":0.11,"mean_coverage":0.81,"by_tag":{"integration-mismatch":4,"scope-underestimate":3},"by_kind":{"post-ship-defect":2,"low-coverage":1}}
 ```
 
 | 指標 | 定義 |
@@ -128,6 +128,7 @@ gate 在 run 內抓到 = failure tag；人事後抓到 = feedback kind。
 | `mean_agents_per_run` | 平均 agent 數（成本代理指標） |
 | `human_intervention_rate` | 有人工中途介入的 run 比率 |
 | `post_ship_defect_rate` | 事後缺陷率，定義見下方公式（分母為 0 時為 `null`）|
+| `mean_coverage` | 窗口內所有「帶 `coverage` 的 stage」的平均覆蓋率；無任何 coverage → `null` |
 | `by_tag` | 本窗口各 failure tag 次數 |
 | `by_kind` | 本窗口各 feedback kind 次數 |
 
@@ -144,6 +145,14 @@ post_ship_defect_rate =
 - **分母為 0**（窗口內無 shipped run）→ 值為 `null`，避免「沒 ship 過卻顯示 0% 缺陷」的誤導。
 - **只算 `shipped`**：post-ship 顧名思義只對已 ship 的 run 有意義。
 - `minor` 不計入分子；`low-coverage`/`perf`/`style` 不是「缺陷」，不進此指標（它們走 `by_kind` 趨勢）。
+
+### `mean_coverage` 趨勢示警
+
+`mean_coverage` 來自 trace 的 `stages[].metrics.coverage`（客觀 in-run 數字，見 run-trace.md Stage Metrics）。
+
+- **連續兩輪 `mean_coverage` 下降** → 在報告列為 **💡（值得觀察）**，提示「覆蓋率正在退坡，gate 卻仍 PASS」。
+- v1 **只示警、不自動立案**改 system（避免在少量樣本上過度反應）。把 metrics 退步升級為系統性提案留 v2。
+- 無 coverage 資料（`mean_coverage = null`）→ 不示警、不列入趨勢。
 
 > 報告必須對照上一輪指標秀趨勢——改動到底爬坡還是退坡。沒有 metric 不算改進。
 

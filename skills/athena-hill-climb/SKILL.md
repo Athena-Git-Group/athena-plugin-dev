@@ -62,8 +62,9 @@ retro 對**空湖**沒有意義。開跑前先看 `.athena/traces/runs.jsonl`：
 
 6. **Measure**：把本輪 flow-health 指標 append 到 `.athena/hill-climb/metrics.jsonl`
    （gate 一次過率、verify-retry 率、scope 準確率、平均 agents/run、人工介入率、
-   **`post_ship_defect_rate`**——事後缺陷率，定義見 `references/hill-climb.md` §7），
-   在報告裡秀趨勢，讓人看出改動是爬坡還是退坡。最後推進 watermark。
+   **`post_ship_defect_rate`**——事後缺陷率、**`mean_coverage`**——平均測試覆蓋率，
+   定義見 `references/hill-climb.md` §7），在報告裡秀趨勢，讓人看出改動是爬坡還是退坡。
+   `mean_coverage` 連兩輪下降 → 列 💡（值得觀察），**不**自動立案。最後推進 watermark。
 
 ## 輸出（對話中三段式）
 
