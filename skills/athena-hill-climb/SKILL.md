@@ -21,7 +21,9 @@ description: >
 ## 先讀哪些檔
 
 - Read `references/hill-climb.md` — 六步詳解、metrics schema、proposals 格式、與 skill-eval/audit 的整合
-- Read `athena-flow/references/run-trace.md` — trace schema 與 failure taxonomy（你的輸入）
+- Read `athena-flow/references/run-trace.md` — trace schema 與 failure taxonomy（你的輸入之一）
+- 你的**第二條輸入流**：`.athena/traces/feedback.jsonl`（事後回饋，由 `athena-feedback` 寫入）。
+  schema 與 `kind` taxonomy 見 `specs/feedback-channel-v1.md` §3、§8；本檔 §1/§3/§4/§7 已涵蓋你需要的用法。
 - 產出 proposal 時用 `assets/proposals.template.md`
 
 ## 前提（資料門檻）
@@ -31,10 +33,17 @@ retro 對**空湖**沒有意義。開跑前先看 `.athena/traces/runs.jsonl`：
 - 自上次 watermark 後**新 trace < 5 筆** → 輸出「資料不足，建議累積更多 run 再跑」，停。
 - 有足量資料（建議累積 ~15–30 條真實 run、含數條失敗）才有得爬。
 
+> **feedback 與 trace 分開計門檻**：事後回饋（`feedback.jsonl`）**不**併入上面的「新 trace ≥ 5」
+> 判定——否則 run 湖很空時，少數回饋會硬觸發一場無料可爬的 retro。回饋是 trace 的**加成輸入**：
+> 有足量 trace 時，回饋讓診斷更準；trace 不足時，即使回饋很多也先停。
+
 ## 六步流程
 
 1. **Collect**：讀 `runs.jsonl` 自 `.athena/hill-climb/state.json` 的 watermark 之後的 run，
    按 failure taxonomy tag / stage / skill / phase 邊界聚合。
+   **再讀 `feedback.jsonl`，以 LEFT JOIN on `run_id` 把回饋掛到對應 run**（每筆 run 多一個
+   `feedback[]`，可能為空）。於是當時 `gate=PASS`、`outcome=shipped` 的乾淨 run，若事後有回饋，
+   也會進入 retro 視野——這正是回饋 channel 的目的。
 
 2. **Diagnose**：**只挑重複出現**的系統問題（非一次性），每條附 trace 證據（run_ids）。
    例：「`integration-mismatch` 在 9 條 Full run 命中 4 條，全在 05↔06 endpoint 命名」。
@@ -52,7 +61,8 @@ retro 對**空湖**沒有意義。開跑前先看 `.athena/traces/runs.jsonl`：
    被採納的提案本身變成一張 `/athena-flow` intake——系統用自己改進自己。
 
 6. **Measure**：把本輪 flow-health 指標 append 到 `.athena/hill-climb/metrics.jsonl`
-   （gate 一次過率、verify-retry 率、scope 準確率、平均 agents/run、人工介入率），
+   （gate 一次過率、verify-retry 率、scope 準確率、平均 agents/run、人工介入率、
+   **`post_ship_defect_rate`**——事後缺陷率，定義見 `references/hill-climb.md` §7），
    在報告裡秀趨勢，讓人看出改動是爬坡還是退坡。最後推進 watermark。
 
 ## 輸出（對話中三段式）

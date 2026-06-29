@@ -8,7 +8,9 @@
 把「整次 `/flow` run 作為一個結果」蒸餾成一筆持久紀錄，取代散落在
 `points/`、`handoffs/`、git log、agent 記憶裡的零碎證據。
 
-- **Trace = durable**：歷史的唯一真相，append-only，只會長不會爆。
+- **Trace = durable**：機器對流程觀測的唯一真相，append-only，只會長不會爆。
+- **Feedback = durable**：人對結果的事後回饋（`.athena/traces/feedback.jsonl`，由 `athena-feedback`
+  寫入），平行於 trace、同為 append-only，以 `run_id` 指回原 run。Loop 3 把兩者 JOIN 起來學習。
 - **Handoff = ephemeral**：stage 間的交接草稿，run 結束即回收（見下方 Retention Policy）。
 
 ## 檔案位置
@@ -81,9 +83,15 @@ handoff 不是歷史紀錄，是 ephemeral scratch。emit-trace 後依結局回�
 
 | run 結局 | handoffs 處置 | 理由 |
 |---|---|---|
-| `shipped` / `done`（乾淨完成） | **emit trace → 刪除該 slug 的 handoffs** | 乾淨 run 無學習價值，trace 的 `gate=PASS` 已足夠 |
+| `shipped` / `done`（乾淨完成） | **emit trace → 刪除該 slug 的 handoffs** | 乾淨 run **在當下**無已知學習價值，trace 的 `gate=PASS` 已足夠（但見下方 ⚠️）|
 | `stopped@<stage>` / `handed-to-human`（未解） | **保留** | (a) 下次靠它 resume；(b) Loop 3 學失敗的原料 |
 | 失敗已解（重跑後 ship，或 hill-climb 已折成 eval case） | 刪除 | 學完即回收 |
+
+> ⚠️ **事後回饋與此政策的張力（v1 已知限制）**：乾淨 ship 的 run **在當下**看似無學習價值，
+> 但事後可能透過 `feedback.jsonl` 取得回饋（ship 後的 bug、覆蓋率過低…），屆時就**有**學習價值了。
+> v1 **不**為此延後 GC——shipped run 的 handoff 照舊立即刪。**後果**：回饋到達時該 run 的 handoff
+> 深度證據已不在，Loop 3 只能靠 trace + 回饋的 `note` 診斷。
+> **v2 補救**：對 shipped run 加 handoff retention 寬限窗（保留 N 天供事後回饋期內診斷）。
 
 ### GC 規則（非協商）
 

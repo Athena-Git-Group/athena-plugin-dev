@@ -17,6 +17,12 @@ __pycache__/
 /plans/
 /specs/
 
+# Athena loop-engineering runtime state — Run Trace + 事後回饋 lake
+# (runs.jsonl / feedback.jsonl) and hill-climb output (state / metrics /
+# proposals). Runtime-only, accumulated per consumer; never committed.
+/.athena/traces/
+/.athena/hill-climb/
+
 # /codemap (graphify) runtime artifacts — per-user knowledge graph cache.
 # Each consumer regenerates locally; never commit.
 /graphify-out/
