@@ -8,7 +8,9 @@
 把「整次 `/flow` run 作為一個結果」蒸餾成一筆持久紀錄，取代散落在
 `points/`、`handoffs/`、git log、agent 記憶裡的零碎證據。
 
-- **Trace = durable**：歷史的唯一真相，append-only，只會長不會爆。
+- **Trace = durable**：機器對流程觀測的唯一真相，append-only，只會長不會爆。
+- **Feedback = durable**：人對結果的事後回饋（`.athena/traces/feedback.jsonl`，由 `athena-feedback`
+  寫入），平行於 trace、同為 append-only，以 `run_id` 指回原 run。Loop 3 把兩者 JOIN 起來學習。
 - **Handoff = ephemeral**：stage 間的交接草稿，run 結束即回收（見下方 Retention Policy）。
 
 ## 檔案位置
@@ -38,7 +40,7 @@ flow 在 run 結束前，以 **flow-inline 步驟**（不開 agent，因為這�
 | `point` | object | `{ verdict, score, dimensions{} }` |
 | `weight` | enum | `Minimal` / `Lightweight` / `Full` |
 | `route` | string | 實走路線（如 `point -> build -> verify -> review-ship`） |
-| `stages[]` | array | 每個 stage：`{ stage, skill, gate, retries, agents }` |
+| `stages[]` | array | 每個 stage：`{ stage, skill, gate, retries, agents, metrics? }`（`metrics` 選填，見下方 Stage Metrics）|
 | `failures[]` | array | 每筆：`{ tag, stage, affected_phase?, note }`（`tag` 見 Failure Taxonomy） |
 | `human_interventions` | int | 使用者中途修正 / 否決次數 |
 | `outcome` | enum | `shipped` / `done` / `stopped@<stage>` / `handed-to-human` |
@@ -54,6 +56,35 @@ flow 在 run 結束前，以 **flow-inline 步驟**（不開 agent，因為這�
 ```json
 {"run_id":"2026-06-25-approval-01","slug":"approval-workflow","ts":"2026-06-25T16:10:00Z","trigger":"manual","point":{"verdict":"PASS-SPEC-FIRST","score":19,"dimensions":{}},"weight":"Full","route":"point -> spec -> plan -> build -> verify","stages":[{"stage":"build","skill":"team-build","gate":"PASS","retries":1,"agents":3},{"stage":"verify","skill":"team-verify","gate":"FAIL","retries":2,"agents":1}],"failures":[{"tag":"integration-mismatch","stage":"verify","affected_phase":"06","note":"frontend calls /api/approval, backend exposes /api/approvals"}],"human_interventions":1,"outcome":"handed-to-human"}
 ```
+
+## Stage Metrics（選填）
+
+`stages[].metrics` 是**選填**物件，承載該 stage 的客觀量化數字（覆蓋率、lint 數…）。
+與 `gate` 並列——`gate` 是二元 PASS/FAIL 裁決，`metrics` 是同一關的量化觀測，
+**不參與 gate 判定**。由 flow emit-trace 從各 stage handoff 的 `## Metrics` 區塊自動蒐集
+（見 `agent-handoff.md`）。
+
+- **所有 value 必須是數字**（才能跨 run 聚合）；文字描述不放這裡。
+- additive、向後相容——舊 trace 無此欄位仍合法；stage 沒提供 metrics 也合法。
+
+已知 key 詞彙（snake_case）：
+
+| key | 型別 | 說明 |
+|-----|------|------|
+| `coverage` | number 0..1 | 測試覆蓋率（比例，非百分比字串）|
+| `lint_warnings` | integer ≥0 | lint 警告數 |
+| `lint_errors` | integer ≥0 | lint 錯誤數（選填）|
+| `tests_passed` / `tests_failed` | integer ≥0 | 測試通過/失敗數（選填）|
+
+> **前向相容**：允許其他 snake_case + 數字 value 的 key；未知 key 消費端（hill-climb）忽略不報錯。
+
+### 範例（stage 帶 metrics）
+```json
+{"stage":"verify","skill":"team-verify","gate":"PASS","retries":0,"agents":1,"metrics":{"coverage":0.82,"lint_warnings":0}}
+```
+
+> **這條線 vs 事後回饋**：`metrics` 是「機器在 run 內的客觀觀測」，歸 trace；
+> 人對結果的主觀回饋（ship 後 bug 等）走 `feedback.jsonl`，兩者機制不混用。
 
 ## Failure Taxonomy
 
@@ -81,9 +112,15 @@ handoff 不是歷史紀錄，是 ephemeral scratch。emit-trace 後依結局回�
 
 | run 結局 | handoffs 處置 | 理由 |
 |---|---|---|
-| `shipped` / `done`（乾淨完成） | **emit trace → 刪除該 slug 的 handoffs** | 乾淨 run 無學習價值，trace 的 `gate=PASS` 已足夠 |
+| `shipped` / `done`（乾淨完成） | **emit trace → 刪除該 slug 的 handoffs** | 乾淨 run **在當下**無已知學習價值，trace 的 `gate=PASS` 已足夠（但見下方 ⚠️）|
 | `stopped@<stage>` / `handed-to-human`（未解） | **保留** | (a) 下次靠它 resume；(b) Loop 3 學失敗的原料 |
-| 失敗已解（重跑後 ship，或 hill-climb 已折成 eval case） | 刪除 | 學完即回收 |
+| 失敗已解（重跑後 ship，或 hill-climb 已折成 regression case） | 刪除 **handoff** | 折成**持久 regression case** 後 handoff 回收；**case 本身留存於 `.athena/hill-climb/regression/`（棘輪，只增不刪，見 hill-climb.md §5.5）**，不隨 handoff 消失 |
+
+> ⚠️ **事後回饋與此政策的張力（v1 已知限制）**：乾淨 ship 的 run **在當下**看似無學習價值，
+> 但事後可能透過 `feedback.jsonl` 取得回饋（ship 後的 bug、覆蓋率過低…），屆時就**有**學習價值了。
+> v1 **不**為此延後 GC——shipped run 的 handoff 照舊立即刪。**後果**：回饋到達時該 run 的 handoff
+> 深度證據已不在，Loop 3 只能靠 trace + 回饋的 `note` 診斷。
+> **v2 補救**：對 shipped run 加 handoff retention 寬限窗（保留 N 天供事後回饋期內診斷）。
 
 ### GC 規則（非協商）
 

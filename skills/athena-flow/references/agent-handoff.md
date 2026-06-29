@@ -54,6 +54,27 @@ FAIL — frontend 呼叫 /api/approval 但後端是 /api/approvals (plural) #int
 1. **[Phase 06]** frontend calls `/api/approval` instead of `/api/approvals` #integration-mismatch
 ```
 
+## Stage Metrics（選填，所有 handoff 通用）
+
+stage handoff（**standard / compact / mini-handoff 三種皆適用**）可選擇性附帶一個
+`## Metrics` 區塊，承載該 stage 的客觀量化數字。flow 的 emit-trace 會解析它，填入
+trace 的 `stages[].metrics`（schema 見 `run-trace.md` 的 Stage Metrics 段）。
+
+格式：**單一 JSON 物件**（最易可靠解析），value **皆為數字**：
+
+````markdown
+## Metrics
+```json
+{"coverage": 0.82, "lint_warnings": 0}
+```
+````
+
+規則：
+- **選填**——沒有客觀數字可報就**整段省略**（emit-trace 會視為該 stage 無 metrics）。
+- 每份 handoff **至多一個** `## Metrics` 區塊。
+- 適合 verify（覆蓋率、lint）與 build（測試數）；非數字描述放 handoff 本文，不放這裡。
+- 解析失敗（非法 JSON / 含非數字 value）由 emit-trace **安靜降級**，不影響 gate 與 run 結局。
+
 ## Phase-Level Handoff（Build 內部）
 
 Build stage 被拆解為多個 phase，每個 phase 由 fresh agent 執行。

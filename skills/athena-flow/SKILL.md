@@ -283,6 +283,15 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
 
     a. 蒐集本次 run 的 trace 欄位（trigger、point verdict/score/dimensions、weight、route、
        各 stage 的 gate/retries/agents、failures[]（含 taxonomy tag）、human_interventions、outcome）
+    a2. **蒐集 stage metrics（選填、最低優先）**：對每個 stage 的 handoff 找 `## Metrics` JSON 區塊，
+        填入該 stage 的 `stages[].metrics`（schema 見 `references/run-trace.md` Stage Metrics）。四種情況：
+        - **有且合法**（合法 JSON 且 value 皆數字）→ 放進 `metrics`
+        - **沒有** → 該 stage 不帶 `metrics`（合法）
+        - **有但壞掉**（非法 JSON／含非數字 value）→ **安靜跳過**，該 stage 不帶 metrics
+        - **Full Weight phase 彙整**：同名 metric 跨 phase 合併——`coverage` 取最後一個 phase（最終態），
+          計數類（lint_*／tests_*）取**加總**
+        > **非協商**：metrics 蒐集是 emit-trace 裡最低優先的附加動作；解析失敗只代表「少記一個數字」，
+        > **絕不**影響 trace 寫入或 run 結局。metrics 不參與任何 gate 判定。
     b. Append 一筆 JSON 到 `.athena/traces/runs.jsonl`（不存在則建立）
     c. 依 **Handoff Retention Policy** 做 GC（詳見 `references/run-trace.md`）：
        - outcome 為 `shipped` / `done` → 刪除該 slug 的所有 handoff（含 mini-handoff）
