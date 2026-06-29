@@ -104,6 +104,66 @@ gate 在 run 內抓到 = failure tag；人事後抓到 = feedback kind。
 > 「改完有沒有比較好」測量臂。整合方式是**鬆耦合**：hill-climb 產出 eval case / 檢查請求，
 > 呼叫對應工具，讀其結果，不改其內部。
 
+## 5.5 Regression Ratchet（棘輪 / 退步關卡）
+
+> 文章核心：「沒有關卡，就沒有自我改進」。§5 給了「怎麼量」的工具，本節給「量完不准倒退」的棘輪。
+> 修好的失敗 → 永久測試；採納新提案前必須通過退步 gate。系統無法回到比已解決更差的狀態。
+
+### 5.5.1 Regression Set 結構
+
+持久 corpus，路徑 `.athena/hill-climb/regression/`（append-only、只增不刪）：
+
+```
+.athena/hill-climb/regression/
+├── index.jsonl          # append-only 帳本，一行一個 case
+└── cases/
+    └── <case_id>.md     # 實際 eval case（沿用 skill-eval case-spec，可被 athena-skill-eval 跑）
+```
+
+`index.jsonl` 每行：
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| `case_id` | string | 唯一，`reg-<NNN>`（三位序號，只增）|
+| `fingerprint` | string | 去重指紋 `<captured>|<stage>|<phase-or-kind>`（見 5.5.3）|
+| `source` | object | `{run_ids[], captured}`；`captured` = 原 failure tag 或 feedback kind |
+| `case_path` | string | 對應 `cases/<case_id>.md` |
+| `added_ts` | string | ISO-8601 升格時間 |
+| `status` | enum | `active`（預設）/ `retired`（僅人工 + reason，**不刪檔**）|
+
+`cases/<case_id>.md`：沿用 `athena-skill-eval` case-spec 格式（frontmatter `eval-case-version`/`target-stage`
++ 額外 `regression: true`/`source_run_ids`；Setup/Task/Expected/Anti-patterns 帶 `[mechanical]`/`[semantic]`），
+使其可被 skill-eval 直接跑。
+
+範例 `index.jsonl`：
+```json
+{"case_id":"reg-001","fingerprint":"integration-mismatch|build|06","source":{"run_ids":["2026-06-25-approval-01"],"captured":"integration-mismatch"},"case_path":"cases/reg-001.md","added_ts":"2026-06-30T02:00:00Z","status":"active"}
+```
+
+### 5.5.2 退步 Gate（採納提案的前置條件）
+
+採納任何提案**前**，用 `athena-skill-eval` 跑整組 `status=active` 的 regression case，閘門：
+
+| 條件 | 門檻 |
+|------|------|
+| **已修好的不退步** | active case 通過率 ≥ `regression_gate_threshold`（**預設 0.8**，對齊文章 NeoSigma）|
+| **不低於 baseline** | 通過率 ≥ 上一輪 baseline——即使 ≥0.8，比上輪退步仍算退步（防 0.8 門檻下緩慢下滑）|
+| **抗 flaky** | 失敗 case 允許**重跑一次**；仍失敗才算退步 |
+
+- knob：`regression_gate_threshold`（預設 `0.8`；要嚴格棘輪可上調 `1.0`）。
+- **gate 失敗 → 不採納**：提案保持 `open`，標記「卡退步 gate + 退步的 case_id」，回報人工。**不**自動改 system。
+- **gate 通過 → 仍須人工最終採納**（gate 是客觀前置條件，非自動套用——維持 §9 規則 6）。
+
+### 5.5.3 棘輪 Invariant + 升格規則
+
+提案**採納並驗證修好**後，把修好的失敗**升格**為永久 case：
+
+1. **append-only**：`index.jsonl` 只 append、既有行不改；`cases/` 既有檔不刪。
+2. **升格冪等（去重）**：以 `fingerprint = <captured>|<stage>|<phase-or-kind>` 去重；已存在相同 fingerprint → 不重複新增。
+3. **不可變**：case 內容寫入後不變；要更新就新增 case 並把舊的 `status=retired`（附人工 reason）。
+4. **退役需人工**：`retired` 只能人工設定 + reason，**絕不自動刪檔**（保留歷史、可審計）。
+5. **只增不減**：正常運作下 set 單調成長——這就是「系統無法回到更差狀態」的核心保證。
+
 ## 6. Proposals 檔 — `.athena/hill-climb/<date>-proposals.md`
 
 格式見 `assets/proposals.template.md`。要點：
@@ -117,7 +177,7 @@ gate 在 run 內抓到 = failure tag；人事後抓到 = feedback kind。
 每輪 retro append 一行，讓「hill」可量測：
 
 ```json
-{"ts":"2026-06-25T02:00:00Z","window_runs":18,"gate_first_pass_rate":0.72,"verify_retry_rate":0.22,"scope_accuracy":0.83,"mean_agents_per_run":5.1,"human_intervention_rate":0.28,"post_ship_defect_rate":0.11,"mean_coverage":0.81,"by_tag":{"integration-mismatch":4,"scope-underestimate":3},"by_kind":{"post-ship-defect":2,"low-coverage":1}}
+{"ts":"2026-06-25T02:00:00Z","window_runs":18,"gate_first_pass_rate":0.72,"verify_retry_rate":0.22,"scope_accuracy":0.83,"mean_agents_per_run":5.1,"human_intervention_rate":0.28,"post_ship_defect_rate":0.11,"mean_coverage":0.81,"regression_set_size":17,"by_tag":{"integration-mismatch":4,"scope-underestimate":3},"by_kind":{"post-ship-defect":2,"low-coverage":1}}
 ```
 
 | 指標 | 定義 |
@@ -129,6 +189,7 @@ gate 在 run 內抓到 = failure tag；人事後抓到 = feedback kind。
 | `human_intervention_rate` | 有人工中途介入的 run 比率 |
 | `post_ship_defect_rate` | 事後缺陷率，定義見下方公式（分母為 0 時為 `null`）|
 | `mean_coverage` | 窗口內所有「帶 `coverage` 的 stage」的平均覆蓋率；無任何 coverage → `null` |
+| `regression_set_size` | 當輪 `status=active` 的 regression case 數（棘輪健康度，應單調不減；類比文章 0→17）|
 | `by_tag` | 本窗口各 failure tag 次數 |
 | `by_kind` | 本窗口各 feedback kind 次數 |
 
@@ -164,11 +225,13 @@ post_ship_defect_rate =
 
 ## 9. 非協商規則
 
-1. **唯讀 trace、只寫 proposal/metrics/state** — 不碰 src/ 或 skill。
+1. **唯讀 trace/feedback、只寫 proposal/metrics/state/regression** — 不碰 src/ 或 skill 本體。
 2. **只對重複出現的模式立提案** — 一次性失敗不算系統性。
 3. **每條診斷附 run_ids 證據**。
 4. **每條提案附驗證方式**（skill-eval / re-point / skill-audit）。
 5. **每輪更新 metrics 並對照趨勢**。
-6. **不自動套用** — 採納提案走 `/athena-flow`（dogfooding）。
+6. **不自動套用** — 採納提案走 `/athena-flow`（dogfooding）。退步 gate 是「能否採納」的客觀前置，**不**取代人最終拍板。
 7. **資料不足（新 trace < 5）就停**。
+8. **棘輪 append-only** — regression set 只增不減；`retired` 僅人工 + reason 且不刪檔（見 §5.5.3）。
+9. **採納前必過退步 gate** — 已修好的 ≥ 門檻通過且不低於上輪 baseline，否則不採納（見 §5.5.2）。
 </content>

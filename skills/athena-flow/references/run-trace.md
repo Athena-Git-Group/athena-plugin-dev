@@ -114,7 +114,7 @@ handoff 不是歷史紀錄，是 ephemeral scratch。emit-trace 後依結局回�
 |---|---|---|
 | `shipped` / `done`（乾淨完成） | **emit trace → 刪除該 slug 的 handoffs** | 乾淨 run **在當下**無已知學習價值，trace 的 `gate=PASS` 已足夠（但見下方 ⚠️）|
 | `stopped@<stage>` / `handed-to-human`（未解） | **保留** | (a) 下次靠它 resume；(b) Loop 3 學失敗的原料 |
-| 失敗已解（重跑後 ship，或 hill-climb 已折成 eval case） | 刪除 | 學完即回收 |
+| 失敗已解（重跑後 ship，或 hill-climb 已折成 regression case） | 刪除 **handoff** | 折成**持久 regression case** 後 handoff 回收；**case 本身留存於 `.athena/hill-climb/regression/`（棘輪，只增不刪，見 hill-climb.md §5.5）**，不隨 handoff 消失 |
 
 > ⚠️ **事後回饋與此政策的張力（v1 已知限制）**：乾淨 ship 的 run **在當下**看似無學習價值，
 > 但事後可能透過 `feedback.jsonl` 取得回饋（ship 後的 bug、覆蓋率過低…），屆時就**有**學習價值了。
