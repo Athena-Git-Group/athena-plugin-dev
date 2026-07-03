@@ -53,10 +53,10 @@ L4 動態評估 runner — 對 skill 進行「行為測試」。
 
 | 參數 | 說明 |
 |------|------|
-| `<target-skill>` | 要被測試的 skill 名稱（位於 `.athena/skills/<target-skill>/`） |
+| `<target-skill>` | 要被測試的 skill 名稱（位於 `.athena/skills/<target-skill>/`，或 plugin 內建 skill，見下方解析流程 fallback chain） |
 | `<case-name>` | case 檔名稱（不含 .md，位於 `.athena/evals/<stage>-cases/<case-name>.md`） |
 
-`<stage>` 從目標 skill 的 frontmatter `stage` 欄位推斷（決定 case 從哪個目錄找）。
+`<stage>`（或映射表推斷值）依下方「解析輸入」步驟的 fallback chain 決定。
 
 第一版只支援單 case 執行；批量、持久化結果、跨團隊 benchmark 留 v2。
 
@@ -66,9 +66,37 @@ L4 動態評估 runner — 對 skill 進行「行為測試」。
 讀取上述 5 個 reference / asset 檔，掌握 protocol 與模板。
 
 ### 2. 解析輸入
-- 從 `.athena/skills/<target-skill>/SKILL.md` 讀 frontmatter，取 `stage` 值
+
+解析 target skill 依下列 fallback chain **依序嘗試，命中即停**：
+
+1. **team-provided 優先**：`.athena/skills/<target-skill>/SKILL.md` 存在 → 用它，
+   讀其 frontmatter `stage` 值決定 case 目錄（`<stage>-cases/`）。
+2. **plugin-internal fallback**：步驟 1 找不到 → 嘗試
+   `<plugin-root>/skills/<target-skill>/SKILL.md`（`<plugin-root>` 為本
+   SKILL.md 自己所在 plugin 的根目錄，即 `skills/athena-skill-eval/../..`）。
+   - 該 SKILL.md **有** `stage:` 欄位 → 沿用其值決定 case 目錄（與步驟 1 邏輯一致）。
+   - 該 SKILL.md **沒有** `stage:` 欄位（如 `athena-point`）→ 查下列**靜態映射表**：
+
+     | plugin 內建 skill 名稱 | 對應 case 目錄 | 對應 `target-stage` 值 |
+     |---|---|---|
+     | `athena-point` | `.athena/evals/point-cases/` | `point` |
+
+     映射表命中 → 用該行的 case 目錄與 `target-stage` 值。
+     映射表**沒有**命中（skill 存在、但無 `stage` 也不在表中）→ 視同步驟 3
+     的「都找不到」，輸出引導訊息（提示需要在映射表補一行，或該 skill 需要
+     補 `stage` 欄位），**不得靜默猜測目錄**。
+3. **都找不到**（兩條路徑都沒有對應 SKILL.md）→ 輸出引導訊息：明確列出
+   兩個嘗試過的路徑（`.athena/skills/<name>/` 與 `<plugin-root>/skills/<name>/`），
+   並指向 `assets/case-template.md`。
+
+解析出 case 目錄後：
 - 從 `.athena/evals/<stage>-cases/<case-name>.md` 讀 case 檔
 - Case 檔不存在 → 輸出引導訊息（指向 `assets/case-template.md`）
+
+> **為什麼 team-provided 優先**：team-provided skill 可能刻意覆蓋/影子同名的
+> plugin 內建 skill，優先權必須給 team-provided，否則 eval 測到的不是使用者
+> 真正在用的那個 skill——與 `athena-post-build`/`athena-pre-build`「plugin
+> 提供預設實作，團隊可在 `.athena/skills/` 中替換」的既有慣例一致。
 
 ### 3. 驗證 case 格式
 依 `case-spec.md` 規則檢查：

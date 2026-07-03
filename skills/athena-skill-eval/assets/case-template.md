@@ -1,6 +1,6 @@
 ---
 eval-case-version: 1
-target-stage: <build | spec | plan | verify | review | ship>
+target-stage: <build | spec | plan | verify | review | ship | point>
 description: <一句話描述這 case 在驗證什麼行為>
 expected_max_steps: 20
 ---

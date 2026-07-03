@@ -11,7 +11,8 @@
 ├── build-cases/
 ├── verify-cases/
 ├── review-cases/
-└── ship-cases/
+├── ship-cases/
+└── point-cases/
 ```
 
 每個 case 一個 `.md` 檔，檔名即 case 名稱（如 `typo-fix.md` → `typo-fix` 為 case-name 引數值）。
@@ -30,7 +31,7 @@ expected_max_steps: 20          # 選填，超過此 step 數視為偏離預期�
 | 欄位 | 必填 | 用途 |
 |------|------|------|
 | `eval-case-version` | ✓ | parser 版本辨識；v1 固定 `1` |
-| `target-stage` | ✓ | spec/plan/build/verify/review/ship；決定 case 屬於哪個目錄 |
+| `target-stage` | ✓ | spec/plan/build/verify/review/ship/point；決定 case 屬於哪個目錄 |
 | `description` | — | 給人讀；不參與評分 |
 | `expected_max_steps` | — | sub-agent 用了超過此步數 → eval 報告加 💡 提示 |
 

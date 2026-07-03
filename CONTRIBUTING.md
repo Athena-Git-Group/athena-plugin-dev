@@ -48,7 +48,7 @@ bash scripts/lint-plugin.sh
 .athena/evals/point-cases/example-trivial.md
 ```
 
-包含 4 條 `[mechanical]` 條件 + 1 條 `[semantic]` 條件（mechanical 條件適合放進未來的 CI eval runner；semantic 條件保留給手動執行）。
+包含 5 條 `[mechanical]` 條件（Expected 4 條 + Anti-patterns 1 條）+ 1 條 `[semantic]` 條件（mechanical 條件適合放進未來的 CI eval runner；semantic 條件保留給手動執行）。
 
 執行（手動）：
 
