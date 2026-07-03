@@ -179,9 +179,10 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
    - `PASS-SPEC-FIRST` → spec → plan → pre-build → build(phase loop) → verify → post-build → review → ship
 
 5. 檢查路由上所有 standard stage 都有對應 skill，缺少則引導
-   - Minimal 路由需要：build（不需要 review、ship）
-   - Lightweight 路由需要：build + review + ship（review-ship 由 review skill + ship skill 合併執行）
-   - Full 路由需要：spec + plan + build + verify + review + ship
+   - Minimal（PASS-TRIVIAL）需要：build（不需要 review、ship）
+   - Lightweight / PASS-DIRECT-BUILD 需要：build + review + ship（review-ship 合併執行）
+   - Lightweight / PASS-BUILD-WITH-VERIFY 需要：build + verify + review + ship（review-ship 合併執行）
+   - Full（PASS-SPEC-FIRST）需要：spec + plan + build + verify + review + ship
 6. **執行 pre-build**（flow-inline）：
    a. 讀取 pre-build skill（團隊版或 plugin 預設）
    b. 在 flow agent 中內聯執行
@@ -257,15 +258,18 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
 
     **10-L. Lightweight Review-Ship**（PASS-DIRECT-BUILD / PASS-BUILD-WITH-VERIFY）：
     a. **Flow 先詢問使用者**：「要合到哪個分支？（預設：`{git_context.base_branch}`）」
-    b. 使用者確認後，開一個 fresh agent 同時執行 review + ship
+    b. 使用者確認後，開一個 fresh agent 同時執行 review + ship。
+       **殼用 `athena-stage-ship`**（不存在 `athena-stage-review-ship` 殼；review-ship 是合併
+       stage，複用工具最寬的 ship 殼——其 Read/Grep/Bash 足以做 review、Bash(push/merge) 做 ship）。
+       在 prompt 中同時傳入 team review skill 與 ship skill。
     c. Agent 先讀取 review skill 執行 code review
     d. Review 通過後，讀取 ship skill 執行 push + merge（使用 flow 傳入的 `merge_target`）
     e. 寫 `handoffs/<slug>-review-ship.md`（Compact 格式）
 
     **10-F. Full Review + Ship**（PASS-SPEC-FIRST）：
     a. 開新 agent 執行 review skill → 寫 `handoffs/<slug>-review.md`
-    b. Flow 讀取 review Gate Verdict：
-       - FAIL（request-changes）→ 停止流程，報告 review 意見給使用者，不自動 retry
+    b. Flow 讀取 review Gate Verdict（格式見 `agent-handoff.md`；review 的機器值為 FAIL，tag=`#review-finding`）：
+       - FAIL (request-changes) #review-finding → 停止流程，報告 review 意見給使用者，不自動 retry
        - PASS → 繼續
     c. **Flow 詢問使用者**：「要合到哪個分支？（預設：`{git_context.base_branch}`）」
     d. 使用者確認後，開新 agent 執行 ship skill，傳入 `merge_target`

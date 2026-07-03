@@ -60,13 +60,14 @@
 
 ## Hard Stops
 
-以下情況下不得產生 `PASS-DIRECT-BUILD`：
+以下情況下不得產生 `PASS-DIRECT-BUILD`。目標 verdict 見 `athena-point/SKILL.md`「硬性 Gate」表
+（此處為權威 verdict 意義，SKILL.md 為命中→去向的映射，兩者必須一致）：
 
-- 未查證但明顯依賴知識庫
-- 有 schema / entity 變更
-- 有 API contract 變更
-- 需求存在關鍵歧義
-- 牽涉高風險 domain rule
+- 未查證但明顯依賴知識庫 → 先查證再重新打分
+- 有 schema / entity 變更 → `PASS-SPEC-FIRST`
+- 有 API contract 變更 → `PASS-SPEC-FIRST`
+- 需求存在關鍵歧義 → 先澄清，未消解則 `PASS-SPEC-FIRST`
+- 牽涉高風險 domain rule → `PASS-SPEC-FIRST`
 
 ## Missing Report Behavior
 

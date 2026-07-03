@@ -200,14 +200,16 @@ gate 在 run 內抓到 = failure tag；人事後抓到 = feedback kind。
 
 ```
 post_ship_defect_rate =
-    (窗口內 outcome=shipped 且 ≥1 筆 kind ∈ {post-ship-defect, regression}
+    (窗口內 outcome ∈ {shipped, done} 且 ≥1 筆 kind ∈ {post-ship-defect, regression}
      且 severity ∈ {blocker, major} 的 distinct run_id 數)
-  ÷ (窗口內 outcome=shipped 的 distinct run_id 數)
+  ÷ (窗口內 outcome ∈ {shipped, done} 的 distinct run_id 數)
 ```
 
 - **窗口**：與其他 metrics 相同（自上次 watermark 後）。
-- **分母為 0**（窗口內無 shipped run）→ 值為 `null`，避免「沒 ship 過卻顯示 0% 缺陷」的誤導。
-- **只算 `shipped`**：post-ship 顧名思義只對已 ship 的 run 有意義。
+- **分母為 0**（窗口內無已交付 run）→ 值為 `null`，避免「沒交付過卻顯示 0% 缺陷」的誤導。
+- **算已交付的 run（`shipped` ∪ `done`）**：`done` 是 Minimal 路由的正常終局，其產物一樣由使用者
+  push 進生產，事後缺陷對它同樣有意義。分子分母的 outcome 條件必須一致（都是 shipped∪done），
+  否則 done-run 的缺陷回饋會進 `by_kind` 卻漏出此指標（2026-06 dogfood 已命中的 gap）。
 - `minor` 不計入分子；`low-coverage`/`perf`/`style` 不是「缺陷」，不進此指標（它們走 `by_kind` 趨勢）。
 
 ### 時間指標的缺欄位規則（非協商）
