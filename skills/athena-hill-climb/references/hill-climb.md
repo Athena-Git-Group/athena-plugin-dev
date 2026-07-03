@@ -98,7 +98,7 @@ gate 在 run 內抓到 = failure tag；人事後抓到 = feedback kind。
 | 改進類別 | 驗證方式 | 工具 |
 |---------|---------|------|
 | skill 行為 | 把失敗 trace 折成 regression eval case（trace 有 intake=輸入、expected=本該如何、actual=怎麼壞），真跑 | `athena-skill-eval` |
-| point rubric | 拿 trace 裡歷史 intake 重新 point，比對 verdict 分布是否改善 | `athena-point`（re-score） |
+| point rubric | 拿 trace 裡歷史 intake 重新 point，比對 verdict 分布是否改善；輸出到 `.athena/hill-climb/re-point/<run_id>.md`，**不透過**標準 `athena-point` subagent 殼（該殼依 prompt 慣例只寫 `points/`，非硬性 sandbox；此處刻意不走該殼路徑）——改為讀 `athena-point` 的 rubric（`SKILL.md` + `references/gate-rules.md`）自行產出 scorecard 並寫入該路徑 | `athena-point`（re-score，唯讀引用 rubric） |
 | stage contract / handoff 格式 | 靜態結構檢查 | `athena-skill-audit` |
 
 > 這一步是把現在**靜態、與 flow 脫鉤**的 skill-eval / skill-audit 接成 hill-climbing 的
@@ -152,6 +152,8 @@ gate 在 run 內抓到 = failure tag；人事後抓到 = feedback kind。
 | **抗 flaky** | 失敗 case 允許**重跑一次**；仍失敗才算退步 |
 
 - knob：`regression_gate_threshold`（預設 `0.8`；要嚴格棘輪可上調 `1.0`）。
+- **baseline 讀取方式**：baseline = `metrics.jsonl` 中**最近一筆「有」`regression_pass_rate` 欄位的行**（不是嚴格上一行）——即使上一行剛好是 schema 升級前的舊列（缺此欄位），仍 fallback 到更早一筆有欄位的行。
+- **舊列相容規則（缺欄位 = 無 baseline）**：若**完全找不到**任何有 `regression_pass_rate` 的歷史行，視為「無 baseline」——該輪**跳過「不低於 baseline」的相對比較，只套用絕對門檻**（`regression_pass_rate ≥ regression_gate_threshold`，預設 0.8），並在報告中註記「本輪無可比較 baseline（上一輪為 schema 升級前的舊格式，或尚無歷史列）」。**明確禁止**把缺欄位當作 baseline=0（會讓相對比較形同虛設地必過，掩蓋絕對門檻才該做的判斷）或 baseline=1（會讓相對比較形同虛設地必不過）——兩者都是錯誤方向的偏誤。此過渡期只影響「第一次在有舊列的湖上跑新版 gate」的那一輪；之後每輪都有上一輪的 `regression_pass_rate` 可讀，相對比較自然恢復生效。
 - **gate 失敗 → 不採納**：提案保持 `open`，標記「卡退步 gate + 退步的 case_id」，回報人工。**不**自動改 system。
 - **gate 通過 → 仍須人工最終採納**（gate 是客觀前置條件，非自動套用——維持 §9 規則 6）。
 
@@ -178,7 +180,7 @@ gate 在 run 內抓到 = failure tag；人事後抓到 = feedback kind。
 每輪 retro append 一行，讓「hill」可量測：
 
 ```json
-{"ts":"2026-06-25T02:00:00Z","window_runs":18,"gate_first_pass_rate":0.72,"verify_retry_rate":0.22,"scope_accuracy":0.83,"mean_agents_per_run":5.1,"mean_wall_seconds":1840,"parallel_speedup":1.6,"human_intervention_rate":0.28,"post_ship_defect_rate":0.11,"mean_coverage":0.81,"regression_set_size":17,"by_tag":{"integration-mismatch":4,"scope-underestimate":3},"by_kind":{"post-ship-defect":2,"low-coverage":1}}
+{"ts":"2026-06-25T02:00:00Z","window_runs":18,"gate_first_pass_rate":0.72,"verify_retry_rate":0.22,"scope_accuracy":0.83,"mean_agents_per_run":5.1,"mean_wall_seconds":1840,"parallel_speedup":1.6,"human_intervention_rate":0.28,"post_ship_defect_rate":0.11,"mean_coverage":0.81,"regression_set_size":17,"regression_pass_rate":0.88,"by_tag":{"integration-mismatch":4,"scope-underestimate":3},"by_kind":{"post-ship-defect":2,"low-coverage":1}}
 ```
 
 | 指標 | 定義 |
@@ -193,6 +195,7 @@ gate 在 run 內抓到 = failure tag；人事後抓到 = feedback kind。
 | `post_ship_defect_rate` | 事後缺陷率，定義見下方公式（分母為 0 時為 `null`）|
 | `mean_coverage` | 窗口內所有「帶 `coverage` 的 stage」的平均覆蓋率；無任何 coverage → `null` |
 | `regression_set_size` | 當輪 `status=active` 的 regression case 數（棘輪健康度，應單調不減；類比文章 0→17）|
+| `regression_pass_rate` | number 0..1，或 `null`。本輪退步 gate 執行時，`status=active` regression case 的通過率（含 §5.5.2 允許的「失敗重跑一次」後的最終結果）。`regression_set_size = 0` 時為 `null`，對齊 `post_ship_defect_rate`/`mean_coverage` 的「分母為 0 → null」慣例。**舊列（本欄位新增前寫入的行）可能缺此欄位**——讀取端視為「該輪資訊未知」，見 §5.5.2 的 baseline 相容規則，不可當作 0 或 1。公式：`(本輪跑過的 active case 中最終 PASS 的數量 ÷ 本輪跑過的 active case 總數)`，失敗 case 允許重跑一次，仍失敗才計入失敗。**寫入時機**：每輪 retro 步驟 4「Verify 改進 + 退步 Gate」計算一次，步驟 6「Measure」與其他 metrics 同一行、同時 append，不另開檔案或另一次寫入時機。|
 | `by_tag` | 本窗口各 failure tag 次數 |
 | `by_kind` | 本窗口各 feedback kind 次數 |
 
@@ -246,7 +249,7 @@ post_ship_defect_rate =
 
 ## 9. 非協商規則
 
-1. **唯讀 trace/feedback、只寫 proposal/metrics/state/regression** — 不碰 src/ 或 skill 本體。
+1. **唯讀 trace/feedback、只寫 proposal/metrics/state/regression/re-point（`.athena/hill-climb/` 下）** — 不碰 `src/`、skill 本體、或 `points/`。
 2. **只對重複出現的模式立提案** — 一次性失敗不算系統性。
 3. **每條診斷附 run_ids 證據**。
 4. **每條提案附驗證方式**（skill-eval / re-point / skill-audit）。
