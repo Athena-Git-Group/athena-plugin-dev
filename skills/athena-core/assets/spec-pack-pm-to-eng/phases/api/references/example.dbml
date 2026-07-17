@@ -1,0 +1,21 @@
+// 範例 annotated DBML — 模擬 db_table stage 的 erm.dbml 產出
+// （供 transpiler prototype 試跑；非真實領域）
+
+Enum order_status {
+  pending
+  paid
+  shipped
+  cancelled
+}
+
+Table Order {
+  id bigint [pk, note: '訂單代理鍵']
+  customer_id bigint [not null, note: '下單客戶']
+  status order_status [not null, note: '訂單狀態']
+  total_amount decimal(12,2) [not null, note: '訂單總額']
+  note varchar(500) [note: '備註']
+  version int [not null, note: '樂觀鎖（內部機制，不曝）']
+  created_at timestamp [not null, note: '建立時間']
+  updated_at timestamp [note: '更新時間']
+  deleted_at timestamp [note: 'soft-delete（內部機制，不曝）']
+}
