@@ -1,0 +1,15 @@
+# pm-to-eng-flow 執行設定範本
+# 複製到「跑流水線的專案」根目錄並命名為 arguments.yml。
+# 編排器啟動時讀此檔；缺檔則 target 改用互動詢問、frontend_verify 視為未指定。
+
+# 走哪條 track
+target: backend            # backend | frontend | fullstack
+
+# 前端可執行規格（.feature）由哪個機制驗證（僅 frontend / fullstack 會用到）。
+# 注意：.feature 本身 runner-agnostic；此欄只告訴「下游」用什麼跑，不改寫規格內容。
+frontend_verify: playwright   # mcp | playwright | agent-browser | vitest-testing-library
+#   mcp                    — Chrome DevTools MCP：agent 驅動真實 Chrome，即時驗證 + 除錯
+#                            （互動式；非為可重複 CI 套件設計）
+#   playwright             — Playwright（+ Cucumber 綁 .feature）：確定性回歸、CI gate
+#   agent-browser          — Vercel Agent Browser（athena e2e-runner 的 preferred）
+#   vitest-testing-library — 元件 / 整合測試（快、走 MSW）：驗元件層，而非跨頁 journey
