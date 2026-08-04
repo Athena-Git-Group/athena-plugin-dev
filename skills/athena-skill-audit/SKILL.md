@@ -72,9 +72,21 @@ user-invocable: true
 
 依 `l1-static-checks.md` 列表逐項對照：
 - frontmatter 必填欄位是否都在
-- name 命名是否符合規範
+- name 命名是否符合規範（含 ≤64 字元、不含 `anthropic` / `claude`）
 - stage 值是否在合法清單中
-- description 是否過短或命中泛詞黑名單
+- description 是否過短，或超出官方上限（≤1,024 字元；`description` + `when_to_use` 合併不超過 per-skill cap）
+- SKILL.md body 是否 < 500 行
+- `references/` 有無死檔（檔案未在 SKILL.md 被提及＝Claude 永遠不會讀）
+
+**與官方工具的分工**（見 `l1-static-checks.md` 開頭「分工原則」）：
+
+- **token 成本與 listing 預算一律改跑 `claude plugin details <plugin>`**（always-on / on-invoke 逐元件），
+  本 skill 不自行估算；判斷 listing 是否溢出 1% 預算也以該指令與 `/context` 的實跑輸出為準。
+- frontmatter 存在性、name 規範、description 語意品質，官方 `plugin-dev:plugin-validator` /
+  `plugin-dev:skill-reviewer` 做得更好；**但它們以 plugin 為單位**，掃不到 `.athena/skills/`
+  這種非 plugin 路徑，也不知道 athena 的 stage 契約——那才是本 skill 存在的理由。
+- plugin-dev 預設未安裝。叫不到官方 agent 時**照本表回退本地檢查**，並在報告註明「官方工具不可用」，
+  不得跳過。
 
 #### L2（契約遵守）
 
