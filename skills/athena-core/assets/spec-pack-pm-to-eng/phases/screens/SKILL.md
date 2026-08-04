@@ -40,6 +40,7 @@ description: >
   - 畫面清單（可數、可辨識）
   - 導航圖（畫面之間怎麼走：入口 / 路徑 / 條件跳轉 / 返回；建議 mermaid）
   - 每個畫面的元件清單與 UI 狀態（loading / empty / error / success / 權限差異）
+  - NFR 表態節（screen-map 末尾一節，全 track 一次）：a11y / i18n / 效能 / 瀏覽器支援四項，每項寫「採專案預設」或「本期不做 + 原因」或具體值（如「List 頁 >200 筆啟用虛擬捲動」）——強制顯式，不強制詳盡；有畫面級差異者附註於該畫面
 - `specs/<slug>/handoffs/screens.md`（依 handoff-contract）
 
 ## 執行步驟
@@ -50,7 +51,8 @@ description: >
 4. **列扁平元件清單** — 每畫面分「顯示元素 / 可操作元素」，可操作元素標出現 / 啟用條件與權限（下游 gherkin 場景來源）。**不做組合樹 / 元件物件圖**（元件拆分與型別契約交 ui_contract + Nuxt 4 實作）。（`screen-breakdown.md`）
 5. **標 UI 四態** — 每個會載入資料的畫面標 loading / empty / error / success（不適用者明標 N/A + 原因）+ 權限差異。（§3）
 6. **對照回報** — design/ 與 clarified.md 不一致處（稿有需求沒提 / 需求要稿沒畫）標 `待釐清` / `待補設計`，**不擅自選邊**。
-7. **輸出** — 寫 `screens/screen-map.md` + `handoffs/screens.md`（畫面數、關鍵 IA 決策、待釐清 / 待補設計清單）。
+7. **NFR 表態** — 於 screen-map 末尾列 a11y / i18n / 效能 / 瀏覽器四項，逐項顯式表態（採專案預設 / 本期不做 + 原因 / 具體值）。不確定的標「待釐清」，不留白。
+8. **輸出** — 寫 `screens/screen-map.md` + `handoffs/screens.md`（畫面數、關鍵 IA 決策、待釐清 / 待補設計清單）。
 
 ## 完成判準
 
@@ -59,6 +61,7 @@ description: >
 - [ ] 每個會載入資料的畫面標齊 UI 四態（不適用者標 N/A + 原因）。
 - [ ] 每個可操作元素標了出現 / 啟用條件與權限差異。
 - [ ] design/ 有稿時：畫面 / 元素與視覺稿一致，不一致處已標 `待釐清` / `待補設計` 回報——**未擅自選邊**。
+- [ ] screen-map 有 NFR 表態節，a11y / i18n / 效能 / 瀏覽器四項皆顯式（無留白），不做者附原因。
 - [ ] handoff 含畫面數、關鍵 IA 決策、待釐清 / 待補設計清單。
 
 ## references/

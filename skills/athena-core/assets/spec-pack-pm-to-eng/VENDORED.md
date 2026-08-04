@@ -1,8 +1,10 @@
 # Vendored 來源與同步
 
 - **來源**：內部 `athena-skills` 目錄（keer.huang 維護的 PM→工程文件 skill 集；vendor 當時尚未版控）
-- **Vendor 日期**：2026-07-17
-- **來源版控狀態**：vendor 當時來源**不是 git repo**（無 commit hash 可釘）。
+- **初次 vendor 日期**：2026-07-17
+- **最後同步日期**：2026-08-04
+- **來源版控狀態**：來源**仍不是 git repo**（無 commit hash 可釘）。同步時以
+  `diff -rq` 逐檔比對＋`find -newermt <上次同步日>` 交叉確認變動檔。
   建議來源目錄 `git init` 後在此補記 hash，否則漂移無從比對。
 
 ## 帶了什麼、沒帶什麼
@@ -47,3 +49,10 @@ dogfood 安裝（`.athena/skills/pm-to-eng-spec/` 整目錄重拷）。
 ## 變更紀錄
 
 - 2026-07-17：初次 vendor（wrapper SKILL.md 為本 repo 原創，非 vendored）
+- 2026-08-04：同步上游。僅 `phases/screens/SKILL.md`（新增 NFR 表態節：
+  a11y / i18n / 效能 / 瀏覽器四項顯式表態，含執行步驟 7 與一條完成判準）與
+  `phases/ui_contract/SKILL.md`（新增欄位級 client 驗證規則與金額 / 日期 /
+  數值呈現格式規格，含執行步驟 8、兩條完成判準、非協商規則 7）有變動，
+  皆為上游純新增；無檔案新增 / 刪除，無 `eng-output/` 路徑需再轉換。
+  wrapper SKILL.md 不受影響（phase 順序、gate 映射、workspace 路徑均未變）。
+  dogfood 安裝 `.athena/skills/pm-to-eng-spec/` 已整目錄重拷同步。

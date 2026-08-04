@@ -43,6 +43,7 @@ description: >
   - 每個畫面的 view model（顯示什麼、送出什麼）+ 承載它的輕量元件 / composable 規劃（typed props/emits、容器 vs 展示，**夠用即可、不畫 class diagram**）
   - 互動 → 事件 → (API 呼叫 / 導航) 綁定表
   - API-First 規劃：Zod schema / fixtures / MSW handler / API client 對應（消費 openapi.yaml）
+  - 欄位級驗證與呈現規格：client 端驗證規則（必填 / 格式 / 範圍 / 跨欄位）+ 金額 / 日期 / 數值的顯示與輸入格式（消費 clarified.md 的格式決策，不重新決定業務規則）
 - `specs/<slug>/handoffs/ui_contract.md`（依 handoff-contract）
 
 ## 執行步驟
@@ -55,7 +56,8 @@ description: >
 5. **對齊契約** — openapi 存在 → 消費它長出 view model / Zod / MSW；不存在 → 走 API-First，從互動反推「需要哪些 API 表面」當待辦回報後端。
 6. **規劃 API 層四件套** — typed client 函式（對齊 operationId、`$fetch<T>`）/ Zod schema（搬 openapi 約束、型別用 `z.infer`）/ fixtures（取自 clarified.md 範例）/ MSW handler（覆蓋成功 + 錯誤碼）。**只規劃、不寫程式碼**。（`api-layer-guide.md`）
 7. **接錯誤碼** — 互動的失敗分支對應後端 Error schema / 狀態碼，供下游 gherkin 前端場景驗證。（§3）
-8. **輸出** — 寫 `ui_contract/ui-contract.md` + `handoffs/ui_contract.md`（綁定覆蓋、待補 API、**規劃非實作 + 下游實作 skill 棧差異**、待釐清）。
+8. **定 client 驗證與呈現格式** — 為每個輸入欄位列 client 端驗證規則（必填 / 格式 / 範圍 / 跨欄位），標明「送出前擋下」或「僅提示、仍送後端」；每個金額 / 日期 / 數值欄位定顯示格式（千分位 / 小數精度 / 對齊 / 負數 / 幣別）與輸入行為（遮罩 / 貼上 / 即時試算）。格式的**值**（小數位、幣別、時區）以 clarified.md / openapi 為準，本步只定「前端怎麼呈現與輸入」，不重定業務規則。
+9. **輸出** — 寫 `ui_contract/ui-contract.md` + `handoffs/ui_contract.md`（綁定覆蓋、待補 API、**規劃非實作 + 下游實作 skill 棧差異**、待釐清）。
 
 ## 完成判準
 
@@ -64,6 +66,8 @@ description: >
 - [ ] 每個互動都對應到 API 呼叫 / 導航（`navigateTo`）/ UI 狀態切換，**無懸空互動**。
 - [ ] API 層四件套（client / Zod / fixtures / MSW）清單齊全，client 對齊 operationId（typed `$fetch<T>`）、Zod 約束搬自 openapi。
 - [ ] 互動失敗分支對應後端錯誤碼（不自創前端錯誤語意）。
+- [ ] 每個輸入欄位有 client 驗證規則，並標「送出前擋下 / 僅提示仍送後端」——與後端錯誤碼互補、非重複。
+- [ ] 每個金額 / 日期 / 數值欄位有顯示格式與輸入行為規格，格式值回指 clarified.md / openapi。
 - [ ] openapi 不存在時：API-First 反推的所需 API 表面已列為待辦回報。
 - [ ] 全程無 `any`（含 `as any`）；外部 / 未知資料經 Zod / type guard 收斂。
 - [ ] handoff 標明「規劃非實作」、Nuxt 4 棧與下游實作 skill 差異、待補 API、待釐清。
@@ -83,3 +87,4 @@ description: >
 4. 前端錯誤呈現對應後端錯誤碼，**不自創**前端專屬錯誤語意。
 5. 元件 / composable 只規劃**夠用**的份量承載綁定，**不畫 class diagram、不過度設計**；前端結構層無 component_design 階段，元件設計就落在這份契約裡。
 6. 缺少必要上游 artifact（clarified / screen-map）時，回報並中止。
+7. 金額 / 日期 / 數值的**格式值**（小數位、幣別、時區）以 clarified.md / openapi 為單一事實來源；ui_contract 只定前端呈現與輸入行為，不自訂業務格式規則。
