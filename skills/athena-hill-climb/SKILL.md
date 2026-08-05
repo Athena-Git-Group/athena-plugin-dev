@@ -98,4 +98,4 @@ retro 對**空湖**沒有意義。開跑前先看 `.athena/traces/runs.jsonl`：
 5. **沒有 metric 不算改進** — 每輪必更新 metrics.jsonl 並對照趨勢。
 6. **唯讀 trace/feedback + 只寫 proposal/metrics/state/regression/re-point（`.athena/hill-climb/` 下）** — 不對 `src/`、skill 本體、或 `points/` 寫入。
 7. **棘輪 append-only** — regression set 只增不減；採納前必過退步 gate（≥ 門檻且不低於上輪 baseline）；`retired` 僅人工 + reason 且不刪檔。
-7. **資料不足就停** — 不對空湖或極少樣本硬產提案。
+8. **資料不足就停** — 不對空湖或極少樣本硬產提案。
