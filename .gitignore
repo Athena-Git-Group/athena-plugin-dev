@@ -24,6 +24,10 @@ __pycache__/
 /.athena/hill-climb/
 /.athena/status.html
 
+# Worktree fallback（手動協議）的 per-phase worktree 掛載點 — 見
+# skills/athena-flow/references/phase-orchestration.md「Worktree 隔離」
+/.athena/worktrees/
+
 # /codemap (graphify) runtime artifacts — per-user knowledge graph cache.
 # Each consumer regenerates locally; never commit.
 /graphify-out/

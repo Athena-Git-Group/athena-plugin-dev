@@ -86,4 +86,3 @@ dispatcher **絕不**自己改 code。命中事件時只「製造一張 intake�
 7. **GC 只刪已完成 run** — housekeeping 絕不刪 in-flight 或未解 run 的 handoff（見 `references/event-triggers.md` 與 `athena-flow/references/run-trace.md`）。
 8. **triggers.yml 缺失不報錯硬闖** — 引導使用者建立後再跑，不自行臆測 trigger。
 9. **in_flight 不許永久卡死** — 條目必帶 `started_at`；清除只依兩個判準（同 slug 較新 trace，或 stale > 24h），stale 清除必在回報中通知使用者，絕不無聲吞掉（見 `references/event-triggers.md` §8b）。
-</content>

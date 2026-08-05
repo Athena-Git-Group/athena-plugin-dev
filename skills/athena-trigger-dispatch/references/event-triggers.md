@@ -160,4 +160,3 @@ flow run 若 crash，完成通知永遠不會到，`in_flight` 條目就永久�
 6. **GC 只刪已完成 run** — 見 §8a。
 7. **triggers.yml / state.json 缺失採安全預設** — 缺 triggers.yml 引導後停；缺 state 視為空（首次全部當新事件，但仍依 autonomy，預設只 notify 不會誤改 code）。
 8. **in_flight 條目必帶 `started_at`，且不許永久卡死** — 清除只依 §8b 的兩個判準（同 slug 較新 trace，或 stale > 24h）；stale 清除必須在回報中通知使用者，絕不無聲吞掉。
-</content>

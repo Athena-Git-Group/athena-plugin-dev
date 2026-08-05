@@ -81,3 +81,9 @@ Full Weight 允許多個 phase agent 平行執行。此時任一 agent 先結束
   （marker 保留，不消費）。commit 改由 flow 層在全部 phase 收斂、
   conflict check 通過後依序執行。
 - 欄位不存在、為 0 或 1（序列情境）→ hook 行為不變，照常 commit。
+- **worktree 隔離模式**（見 `phase-orchestration.md`「Worktree 隔離」）：主樹 marker
+  **照寫** `parallel_phases` 當保險；worktree 內沒有 `.athena/.flow-context.json`
+  （untracked 檔案不跟隨 worktree），hook 在 worktree 內自然 no-op——per-phase commit
+  由 phase agent 自己在 worktree 分支執行，主樹整合點是 flow merge-back 的 merge commit。
+  mini-handoff 仍寫在**主樹**的 `handoffs/`（artifact 一律走主樹絕對路徑，雙路徑規則見
+  `phase-orchestration.md`「Worktree 隔離」），flow 照常讀得到。

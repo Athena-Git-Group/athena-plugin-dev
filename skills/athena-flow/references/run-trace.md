@@ -71,7 +71,7 @@ flow 在 run 結束前，以 **flow-inline 步驟**（不開 agent，因為這�
 - **build stage 的 `phases`**（選填，陣列）：Full Weight phase loop 的逐 phase 觀測，每筆：
 
   ```json
-  {"id":"05","name":"Backend TDD","started_at":"2026-06-25T14:02:11Z","ended_at":"2026-06-25T14:18:47Z","mode":"foreground","gate":"PASS","retries":0,"parallel_group":["05","06"]}
+  {"id":"05","name":"Backend TDD","started_at":"2026-06-25T14:02:11Z","ended_at":"2026-06-25T14:18:47Z","mode":"foreground","isolation":"worktree","gate":"PASS","retries":0,"parallel_group":["05","06"]}
   ```
 
   | 欄位 | 說明 |
@@ -79,6 +79,7 @@ flow 在 run 結束前，以 **flow-inline 步驟**（不開 agent，因為這�
   | `id` / `name` | 對應 plan.md frontmatter 的 phase id 與名稱 |
   | `started_at` / `ended_at` | **選填**，來自該 phase mini-handoff 的 `Started At:` / `Ended At:` |
   | `mode` | `"foreground"` / `"background"`（flow 自己知道用哪種模式 spawn） |
+  | `isolation` | **選填**，`"worktree"` / `"shared"`——該 phase 是否在獨立 git worktree 中執行（flow 自己知道 spawn 時用哪種隔離，含手動 worktree 協議；缺失即略，舊 trace 不需遷移） |
   | `gate` / `retries` | `"PASS"` / `"FAIL"` 與 retry 次數（flow 的 gate 判定紀錄） |
   | `parallel_group` | 與該 phase **同時 spawn** 的 phase id 集合（**含自己**）；序列執行時為 `["05"]` |
 
@@ -93,7 +94,7 @@ flow 在 run 結束前，以 **flow-inline 步驟**（不開 agent，因為這�
 ### 範例（build stage 帶 phases 的完整 trace 行）
 
 ```json
-{"run_id":"2026-08-05-approval-02","slug":"approval-workflow","ts":"2026-08-05T15:10:00Z","started_at":"2026-08-05T14:00:00Z","trigger":"manual","point":{"verdict":"PASS-SPEC-FIRST","score":19,"dimensions":{}},"weight":"Full","route":"point -> spec -> plan -> build -> verify -> review -> ship","stages":[{"stage":"build","skill":"team-build","gate":"PASS","retries":0,"agents":3,"started_at":"2026-08-05T14:00:30Z","ended_at":"2026-08-05T14:50:00Z","phases":[{"id":"05","name":"Backend TDD","started_at":"2026-08-05T14:02:11Z","ended_at":"2026-08-05T14:18:47Z","mode":"foreground","gate":"PASS","retries":0,"parallel_group":["05","06"]},{"id":"06","name":"Frontend Build","started_at":"2026-08-05T14:02:15Z","ended_at":"2026-08-05T14:25:03Z","mode":"foreground","gate":"PASS","retries":0,"parallel_group":["05","06"]},{"id":"07","name":"Integration","started_at":"2026-08-05T14:26:00Z","ended_at":"2026-08-05T14:49:12Z","mode":"foreground","gate":"PASS","retries":0,"parallel_group":["07"]}],"conflicts":[{"phases":["05","06"],"files":[],"resolution":"clean"}],"metrics":{"wall_seconds":4200,"agent_seconds":3756,"max_parallel_width":2}},{"stage":"verify","skill":"team-verify","gate":"PASS","retries":0,"agents":1,"started_at":"2026-08-05T14:51:00Z","ended_at":"2026-08-05T15:05:00Z"}],"failures":[],"human_interventions":0,"outcome":"shipped"}
+{"run_id":"2026-08-05-approval-02","slug":"approval-workflow","ts":"2026-08-05T15:10:00Z","started_at":"2026-08-05T14:00:00Z","trigger":"manual","point":{"verdict":"PASS-SPEC-FIRST","score":19,"dimensions":{}},"weight":"Full","route":"point -> spec -> plan -> build -> verify -> review -> ship","stages":[{"stage":"build","skill":"team-build","gate":"PASS","retries":0,"agents":3,"started_at":"2026-08-05T14:00:30Z","ended_at":"2026-08-05T14:50:00Z","phases":[{"id":"05","name":"Backend TDD","started_at":"2026-08-05T14:02:11Z","ended_at":"2026-08-05T14:18:47Z","mode":"foreground","isolation":"worktree","gate":"PASS","retries":0,"parallel_group":["05","06"]},{"id":"06","name":"Frontend Build","started_at":"2026-08-05T14:02:15Z","ended_at":"2026-08-05T14:25:03Z","mode":"foreground","isolation":"worktree","gate":"PASS","retries":0,"parallel_group":["05","06"]},{"id":"07","name":"Integration","started_at":"2026-08-05T14:26:00Z","ended_at":"2026-08-05T14:49:12Z","mode":"foreground","isolation":"shared","gate":"PASS","retries":0,"parallel_group":["07"]}],"conflicts":[{"phases":["05","06"],"files":[],"resolution":"clean"}],"metrics":{"wall_seconds":4200,"agent_seconds":3756,"max_parallel_width":2}},{"stage":"verify","skill":"team-verify","gate":"PASS","retries":0,"agents":1,"started_at":"2026-08-05T14:51:00Z","ended_at":"2026-08-05T15:05:00Z"}],"failures":[],"human_interventions":0,"outcome":"shipped"}
 ```
 
 ## Stage Metrics（選填）
@@ -197,4 +198,3 @@ crash / 使用者放棄的 run，handoff 會殘留。由 Trigger Dispatcher（Lo
 4. **先 emit trace 再 GC handoff** — 順序不可顛倒。
 5. **GC 絕不刪 in-flight / 未解 run** — 見上方 GC 規則第 2 條。
 6. **schema 向後相容** — 新增欄位用 additive 方式；既有欄位語意一旦被 2b/3 依賴就不改名。
-</content>

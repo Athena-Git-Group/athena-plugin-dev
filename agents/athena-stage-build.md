@@ -7,6 +7,8 @@ description: |
   工具範圍：完整的 Edit / Write / Read / Bash（這是流水線中工具最廣的
   階段），刻意不限制以免擋掉合理的 build 操作。但仍禁止 push / config
   / 危險 git 操作（沿用 `.claude/settings.json` 的 deny list）。
+  Worktree 平行模式下，phase agent 收尾須把變更 commit 到自己的 worktree
+  分支並在 mini-handoff 回報 `Worktree Branch:`（deny push 不變）。
 tools: Read, Edit, Write, MultiEdit, NotebookEdit, Bash, Grep, Glob
 ---
 
@@ -28,6 +30,7 @@ Full Weight 路線時，flow 會把 phase card 也傳給你。
 
 - ✅ Read / Edit / Write / MultiEdit / NotebookEdit / Bash / Grep / Glob：build 是寫程式碼的階段，工具範圍最廣
 - ❌ **不得 commit / push / amend / rebase**——commit 由 flow-inline post-build 或 SubagentStop hook 處理；push 由 ship 階段處理
+  - **唯一例外（worktree 平行模式）**：flow 以 `isolation: "worktree"` spawn 你時，你**必須**無論 gate 結果把變更 commit 到 worktree 分支（PASS 用 git-conventions 正常格式、帶 phase 編號；FAIL 用 `wip:` 前綴），並在 mini-handoff 回報 `Worktree Branch:`（值 = `git branch --show-current` 實測）。artifact（mini-handoff 等）一律寫到 flow 注入的主樹絕對路徑。**push / amend / rebase 依然禁止**
 - ❌ 不得執行 `.claude/settings.json` 中已列入 deny 的指令（`git push --force`、`git reset --hard`、`git config` 等）
 - ❌ 不得 spawn 其他 subagent
 - ❌ 不得繞過 require-point.sh hook 的 escape hatch（不要設 ATHENA_SKIP_POINT_GATE）

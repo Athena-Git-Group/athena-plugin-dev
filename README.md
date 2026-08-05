@@ -242,6 +242,17 @@ Flow 根據 point 評分自動決定流程重量，避免小任務走過重的�
 - **Lightweight**：review + ship 合併為一個 agent
 - **Full**：完整流程，build 內部依 plan.md 拆分 phase loop
 
+> **平行 phase 的 worktree 隔離**：Full Weight 平行集 ≥ 2 時，flow spawn phase agent
+> 一律帶 `isolation: "worktree"`——每個 phase 在獨立 git worktree 中物理隔離（artifact
+> 如 handoff/plans 仍走主樹絕對路徑），收尾無論 gate 結果都 commit 到自己的 worktree
+> 分支（FAIL 用 `wip:` 前綴、絕不 merge）並在 mini-handoff 回報 `Worktree Branch:`，
+> flow 在主樹按拓撲序 `git merge --no-ff` 合回、成功後 `git branch -d`。安全網共三層：第一層
+> ownership violation（對照 touches 宣告）、第二層跨 phase Files Changed 重疊比對、
+> 第三層 merge conflict（立即停止、交使用者）。isolation 選項不可用時 fallback 到手動
+> `git worktree add .athena/worktrees/<slug>-<NN> -b athena/phase/<slug>-<NN>` 協議；
+> 連 worktree 都不可用則退回 shared-tree 模式（touches 分區 + conflict detection）。
+> 詳見 `skills/athena-flow/references/phase-orchestration.md`「Worktree 隔離」。
+
 ## 流程概覽
 
 ```
@@ -336,7 +347,7 @@ Hook 行為：
 
 Marker schema 與 mode 選擇建議詳見 `skills/athena-flow/references/flow-context.md`。
 
-> 平行 phase：marker 有選填欄位 `parallel_phases`（flow 在同時 spawn >1 個 phase agent 前寫入）。值 >1 時 hook 不 commit，log「parallel phase mode — commit deferred to flow」後讓位給 flow 層「全部 phase 完成 → conflict check → 依序 commit」；序列情境（欄位不存在、0 或 1）行為不變。
+> 平行 phase：marker 有選填欄位 `parallel_phases`（flow 在同時 spawn >1 個 phase agent 前寫入）。值 >1 時 hook 不 commit，log「parallel phase mode — commit deferred to flow」後讓位給 flow 層「全部 phase 完成 → conflict check → 依序 commit」；序列情境（欄位不存在、0 或 1）行為不變。worktree 平行模式下主樹 marker 照寫 `parallel_phases` 當保險；worktree 內沒有 marker（untracked 不跟隨 worktree），hook 自然 no-op，per-phase commit 由 phase agent 在 worktree 分支自己做。
 
 ## 狀態看板（Status Dashboard）
 

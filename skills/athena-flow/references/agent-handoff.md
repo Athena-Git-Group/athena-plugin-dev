@@ -134,6 +134,9 @@ handoffs/<slug>-build-phase-<NN>.md
 ## Gate Verdict
 <PASS / FAIL + 原因>
 
+## Worktree Branch
+- Worktree Branch: <選填，僅 worktree 隔離模式；值必須是 `git branch --show-current` 的實測輸出，不准猜命名>
+
 ## Timing
 - Started At: <ISO-8601 UTC，選填>
 - Ended At: <ISO-8601 UTC，選填>
@@ -152,6 +155,7 @@ handoffs/<slug>-build-phase-<NN>.md
 | Spec Deviations | 必要 | 防止下游在錯誤基礎上繼續 |
 | Smoke Test Result | 必要 | Gate 判定依據 |
 | Gate Verdict | 必要 | Flow 讀取此欄位決定是否繼續 |
+| Worktree Branch | 選填 | 僅平行 worktree 隔離模式：phase agent 無論 gate 結果都 commit 到 worktree 分支（PASS 正常格式、FAIL 用 `wip:` 前綴）後回報所在分支，值 = `git branch --show-current` 實測（不准猜命名）；mini-handoff 本身寫在**主樹**的 `handoffs/`（artifact 走主樹絕對路徑）；flow merge-back（`git merge --no-ff`）讀此欄位且**只 merge latest gate = PASS 的分支**，協議見 `phase-orchestration.md`「Worktree 隔離」|
 | Timing（Started At / Ended At） | 選填 | ISO-8601 UTC 起訖時間，emit-trace 填入 `phases[].started_at` / `ended_at`（見上方 Timing 段）|
 | Notes for Next Phase | 選填 | 跨 phase 的實作細節傳遞 |
 
