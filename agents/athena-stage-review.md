@@ -32,5 +32,10 @@ tools: Read, Grep, Glob, Bash, Write
 ## 非協商規則
 
 1. Review 意見必須具體：指出檔案、行號、問題類型，並建議改法
-2. Gate Verdict：PASS / REQUEST-CHANGES（不用 FAIL，避免和 verify FAIL 搞混）
-3. Request-changes 時 flow 會停下來給使用者，不自動 retry
+2. Gate Verdict 遵循 `agent-handoff.md` 的通用格式 `<PASS / FAIL> — 原因 [#tag]`：
+   - 通過 → `PASS`
+   - 需修正 → `FAIL (request-changes) — <原因> #review-finding`
+   機器層用 `FAIL`（讓 flow 的 emit-trace `stages[].gate` 可判定）；人類層保留
+   `request-changes` 字樣。**與 verify FAIL 的區別由 trace 的 `stage` 欄位承載
+   （stage=review vs stage=verify），不靠另造第三種 gate 值。**
+3. Request-changes（即 FAIL #review-finding）時 flow 會停下來給使用者，不自動 retry

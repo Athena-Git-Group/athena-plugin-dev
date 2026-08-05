@@ -58,7 +58,10 @@ retro 對**空湖**沒有意義。開跑前先看 `.athena/traces/runs.jsonl`：
 
 4. **Verify 改進（用既有工具當測量臂）+ 退步 Gate（棘輪）**：
    - skill 類 → 把失敗 trace 折成 regression eval case，餵 **`athena-skill-eval`** 真跑驗證。
-   - rubric 類 → 拿 trace 裡歷史 intake **重新 point 一次**，看 verdict 分布有否改善。
+   - rubric 類 → 拿 trace 裡歷史 intake **重新 point 一次**，看 verdict 分布有否改善。輸出到
+     `.athena/hill-climb/re-point/<run_id>.md`，**不透過**標準 `athena-point` subagent 殼（該殼依
+     prompt 慣例只寫 `points/`，非硬性 sandbox；此處刻意不走該殼路徑）——改為讀 `athena-point` 的
+     rubric 自行產出 scorecard 寫入該路徑，絕不覆寫原始 point report。
    - contract 類 → **`athena-skill-audit`** 靜態檢查。
    - **退步 gate（採納前置）**：跑整組 `status=active` 的 regression set（`.athena/hill-climb/regression/`），
      通過率須 ≥ `regression_gate_threshold`（預設 **0.8**）**且不低於上輪 baseline**（抗 flaky：失敗 case 重跑一次）。
@@ -93,6 +96,6 @@ retro 對**空湖**沒有意義。開跑前先看 `.athena/traces/runs.jsonl`：
 3. **每條診斷必附 trace 證據（run_ids）** — 不憑感覺。
 4. **改進必須可驗證** — 提案要附「用 skill-eval / 重新 point / skill-audit 怎麼驗」。
 5. **沒有 metric 不算改進** — 每輪必更新 metrics.jsonl 並對照趨勢。
-6. **唯讀 trace/feedback + 只寫 proposal/metrics/state/regression** — 不對 src/ 或 skill 本體寫入。
+6. **唯讀 trace/feedback + 只寫 proposal/metrics/state/regression/re-point（`.athena/hill-climb/` 下）** — 不對 `src/`、skill 本體、或 `points/` 寫入。
 7. **棘輪 append-only** — regression set 只增不減；採納前必過退步 gate（≥ 門檻且不低於上輪 baseline）；`retired` 僅人工 + reason 且不刪檔。
-7. **資料不足就停** — 不對空湖或極少樣本硬產提案。
+8. **資料不足就停** — 不對空湖或極少樣本硬產提案。

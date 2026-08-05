@@ -1,67 +1,49 @@
 ---
-target_skill: athena-point
-case_name: example-trivial
+eval-case-version: 1
+target-stage: point
 description: |
   Reference eval case for athena-point. Sanity-checks that a clearly
   trivial request gets routed to PASS-TRIVIAL with total score ≤ 4
   and the point-report file lands at the expected path.
-
-  This is intentionally a mechanical-heavy case so it can run cheaply
-  without burning API budget on semantic grading.
+expected_max_steps: 10
 ---
 
-# Eval Case: athena-point — example-trivial
+# Case：athena-point — example-trivial
 
-## Input
+Reference dogfood case for the point skill. Intentionally mechanical-heavy
+so it can run cheaply without burning API budget on semantic grading.
 
-A trivial requirement that should clearly land on PASS-TRIVIAL.
+## Setup
 
-```
-Request: 把 README 第一行的 typo "athena-dev-pluign" 改成 "athena-dev-plugin"。
-```
+本 case 無需預先建立 mock 檔案；point skill 的唯一輸入是下方 `## Task` 段的
+需求文字，不依賴 repo 中已存在的 mock 檔。
 
-## Expected Behaviour
+## Task
 
-The point skill should:
+對以下需求執行 athena-point 評分流程：「把 README 第一行的 typo
+"athena-dev-pluign" 改成 "athena-dev-plugin"。」
 
-1. Read its scoring-rubric, knowledge-base-guidelines, gate-rules.
-2. Score every dimension at 0 or 1 (typo fix is the textbook trivial case).
-3. Output Route = Trivial, Gate verdict = `PASS-TRIVIAL`.
-4. Write `points/<some-slug>.md` containing the required fields.
+## Expected
 
-## Criteria
+- [mechanical] 執行後，`points/*.md` 下恰好新增一個檔案，其路徑含有由需求
+  推導出的 slug（例如包含 "typo" 或 "readme"）
+- [mechanical] 寫出的 point-report 含一行符合
+  `^- Gate verdict: .*PASS-TRIVIAL`（允許反引號包裹的 `` `PASS-TRIVIAL` `` 形式）
+- [mechanical] 寫出的 point-report 含一行 Total，數值 ≤ 4，符合
+  pattern `^- Total: [0-4]/30`
+- [mechanical] 寫出的 point-report 含 `Knowledge base needed: no`（typo fix
+  不需要知識依賴）
+- [semantic] judge sub-agent 讀 Why / Risks 段後，確認推理過程與「這是一個
+  單純 typo fix」的定性一致（optional，deferred：CI 跳過，僅手動執行時評分）
 
-### [mechanical] writes-point-report
+## Anti-patterns
 
-After the skill runs, exactly one new file under `points/*.md` must
-exist whose path includes a slug derived from the request (e.g.
-contains "typo" or "readme").
-
-### [mechanical] gate-verdict-trivial
-
-The written point-report must contain a line matching
-`^- Gate verdict: .*PASS-TRIVIAL` (allowing for the backtick-wrapped
-form `` `PASS-TRIVIAL` ``).
-
-### [mechanical] total-score-low
-
-The written point-report must contain a Total line whose numeric value
-is ≤ 4. Pattern: `^- Total: [0-4]/30`.
-
-### [mechanical] knowledge-base-no
-
-`Knowledge base needed: no` must appear (no knowledge required for a
-typo fix).
-
-### [semantic] reasoning-sound (optional, deferred)
-
-Skip during CI. When manually run, a judge sub-agent reads the Why /
-Risks sections and confirms the reasoning is consistent with the
-trivial nature of a typo fix.
+- [mechanical] point 不得在 `points/` 以外建立或修改任何檔案（point 的職責
+  就是只寫 `points/<slug>.md`；若它動了 src/ 或其他檔，是 Expected 段
+  完全沒檢查的獨立退化訊號）
 
 ## Notes
 
-- Case format follows `skills/athena-skill-eval/references/case-spec.md`.
 - Run via `/athena-dev-plugin:athena-skill-eval athena-point example-trivial`.
-- CI runs static lint only (see `.github/workflows/lint.yml`); this
-  semantic case is for local / nightly use.
+- CI runs static lint only (see `.github/workflows/lint.yml`); the
+  `[semantic]` criterion above is for local / nightly use.

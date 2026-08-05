@@ -147,6 +147,7 @@ flow 在 run 結束前，以 **flow-inline 步驟**（不開 agent，因為這�
 | `flaky` | smoke / verify 非確定性，重跑結果不同 |
 | `scope-underestimate` | point 低估（如 trivial 路由但實際需要 spec） |
 | `scope-overestimate` | point 高估（如 full 路由給一行改動） |
+| `review-finding` | review 階段提出需修正的品質/正確性問題（handoff 顯示為 `request-changes`）；與 verify FAIL 的區別靠 `stages[].stage` 而非 tag |
 | `env` | 環境 / 工具失敗，非邏輯問題 |
 | `unclassified` | **保留 fallback**：FAIL 未帶 tag 時由 emit-trace 補登。非正式分類，代表「待 triage」，Loop 3 應優先回頭補標 |
 
