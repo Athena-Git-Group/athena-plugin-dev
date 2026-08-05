@@ -4,27 +4,44 @@ phases:
   - id: "01"
     name: Requirement Analysis
     depends_on: []
+    touches:
+      files: ["specs/discovery/**"]
   - id: "02"
     name: Entity Modeling
     depends_on: ["01"]
+    touches:
+      files: ["specs/entity/**"]
   - id: "03"
     name: BDD Analysis
     depends_on: ["02"]
+    touches:
+      files: ["specs/features/**"]
   - id: "04"
     name: API Contract
     depends_on: ["03"]
+    touches:
+      files: ["specs/api/**"]
   - id: "05"
     name: Backend TDD Track
     depends_on: ["04"]
+    touches:
+      files: ["src/backend/**", "tests/backend/**"]
+      resources: ["db-migration-sequence"]
   - id: "06"
     name: Frontend Build Track
     depends_on: ["04"]
+    touches:
+      files: ["src/frontend/**"]
   - id: "07"
     name: Frontend E2E
     depends_on: ["06"]
+    touches:
+      files: ["tests/e2e/**"]
   - id: "08"
     name: Integration Validation
     depends_on: ["05", "07"]
+    touches:
+      files: ["reports/integration/**"]
 status_source: folders
 ---
 
@@ -45,6 +62,16 @@ status_source: folders
 > **人類視圖**，必須與 frontmatter 一致，否則 validator 會報 error。
 > `status_source: folders` 表示 phase 狀態的唯一真相是卡片所在的 `todo/` / `doing/` /
 > `done/` 資料夾；表格中的「狀態」欄僅供人類瀏覽。
+>
+> **touches = 所有權宣告**：每個 phase 的選填 `touches`（`files` glob 清單 +
+> `resources` 具名共享資源，如 `db-migration-sequence`、`package-lockfile`、
+> `generated-api-types`、`test-db`、`dev-port`）宣告該 phase 預期新增/修改的範圍。
+> validator 會對 DAG 上互相不可達（可平行）的每一對 phase 機械檢查 touches 交集，
+> 交集非空即 error（檔案用保守的 glob 字面前綴啟發式，resources 用精確字串比對；
+> 詳見 `validate_plan.py --help`）。上方各 phase 的 touches 是預設路徑範例，
+> 依實際需求調整為互不相交的所有權切分。
+> **防過度串鏈**：兩個 phase 若 touches 無交集且無語意依賴，**不得**加 `depends_on`
+> 邊——邊只表達真正的依賴，人為串鏈會抹掉可平行性。
 
 | Phase | Name | Depends On | 狀態 |
 |-------|------|------------|------|

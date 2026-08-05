@@ -2,7 +2,7 @@
 """validate_plan.py — mechanical validator for a specformula plan directory.
 
 Usage:
-    python3 validate_plan.py plans/<slug>/
+    python3 validate_plan.py [--require-touches] plans/<slug>/
 
 Validates:
   1. plan.md exists and its YAML frontmatter parses (the frontmatter is the
@@ -14,6 +14,14 @@ Validates:
      (status_source: folders — folder location is the status truth).
   6. The markdown Dependency Graph table (human view) agrees with the
      frontmatter on the phase id set and the dependency edges.
+  7. independence-overlap: for every pair of phases that are mutually
+     unreachable on the DAG (no ancestor relation, i.e. parallel-eligible),
+     their optional `touches` ownership declarations must not intersect
+     (files by conservative glob-prefix heuristic, resources by exact
+     string match). A non-empty intersection is an error.
+
+`touches` is optional per phase (missing → warning, for backward
+compatibility); pass --require-touches to turn missing touches into errors.
 
 No hard third-party dependency: tries `import yaml`, falls back to a
 mini-parser targeted at the fixed frontmatter schema.
@@ -21,6 +29,7 @@ mini-parser targeted at the fixed frontmatter schema.
 Exit code: 0 = valid, 1 = at least one error (all errors listed on stderr).
 """
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -65,10 +74,14 @@ def parse_frontmatter_fallback(fm_text: str) -> dict:
           - id: "01"
             name: <name>
             depends_on: ["..."]
+            touches:            # optional, one nesting level
+              files: ["..."]
+              resources: ["..."]
         status_source: folders
     """
     data = {"plan": None, "phases": [], "status_source": None}
     current = None
+    in_touches = False
     for lineno, raw in enumerate(fm_text.splitlines(), start=1):
         stripped = raw.strip()
         if not stripped or stripped.startswith("#"):
@@ -76,6 +89,7 @@ def parse_frontmatter_fallback(fm_text: str) -> dict:
         indented = raw.startswith((" ", "\t"))
         if not indented:
             current = None
+            in_touches = False
             if stripped.startswith("plan:"):
                 data["plan"] = _strip_quotes(stripped.split(":", 1)[1])
             elif stripped == "phases:" or stripped.startswith("phases:"):
@@ -86,6 +100,7 @@ def parse_frontmatter_fallback(fm_text: str) -> dict:
                 raise ValueError(f"frontmatter line {lineno}: unknown top-level key: {stripped!r}")
         else:
             if stripped.startswith("- id:"):
+                in_touches = False
                 current = {
                     "id": _strip_quotes(stripped.split(":", 1)[1]),
                     "name": None,
@@ -93,9 +108,18 @@ def parse_frontmatter_fallback(fm_text: str) -> dict:
                 }
                 data["phases"].append(current)
             elif current is not None and stripped.startswith("name:"):
+                in_touches = False
                 current["name"] = _strip_quotes(stripped.split(":", 1)[1])
             elif current is not None and stripped.startswith("depends_on:"):
+                in_touches = False
                 current["depends_on"] = _parse_inline_list(stripped.split(":", 1)[1])
+            elif current is not None and stripped.startswith("touches:"):
+                in_touches = True
+                current["touches"] = {}
+            elif in_touches and stripped.startswith("files:"):
+                current["touches"]["files"] = _parse_inline_list(stripped.split(":", 1)[1])
+            elif in_touches and stripped.startswith("resources:"):
+                current["touches"]["resources"] = _parse_inline_list(stripped.split(":", 1)[1])
             else:
                 raise ValueError(f"frontmatter line {lineno}: unexpected line: {stripped!r}")
     return data
@@ -146,6 +170,104 @@ def parse_markdown_table(body: str) -> dict:
 # Checks
 # ---------------------------------------------------------------------------
 
+# --- independence-overlap heuristic --------------------------------------
+# CONSERVATIVE HEURISTIC (over-approximates overlap; documented in --help):
+#   * each file glob is truncated at its first wildcard char (* ? [) to a
+#     literal prefix, then trimmed back to whole path segments (a partial
+#     trailing segment like "src/back" from "src/back*" falls back to "src");
+#   * two globs are considered overlapping when one prefix is a path-prefix
+#     of the other (segment-wise); an empty prefix (e.g. "**") overlaps all;
+#   * brace expansion / extglob syntax is NOT understood — patterns like
+#     "src/{a,b}/**" are compared by literal prefix "src" only;
+#   * resources overlap only on exact string equality.
+# Consequence: disjoint globs sharing a directory (src/a*.py vs src/b*.py)
+# are flagged as overlapping — re-slice ownership by directory to satisfy it.
+
+_WILDCARD_RE = re.compile(r"[*?\[]")
+
+
+def glob_literal_prefix(pattern: str) -> str:
+    """Literal prefix of a glob, truncated at the first wildcard and
+    trimmed back to whole path segments."""
+    m = _WILDCARD_RE.search(pattern)
+    if m is None:
+        return pattern.strip("/")
+    literal = pattern[: m.start()]
+    # drop the partial trailing segment so only complete segments remain
+    cut = literal.rfind("/")
+    literal = literal[: cut + 1] if cut >= 0 else ""
+    return literal.strip("/")
+
+
+def _segments(prefix: str):
+    return [s for s in prefix.split("/") if s]
+
+
+def prefixes_overlap(a: str, b: str) -> bool:
+    """True when one literal prefix is a path-prefix of the other."""
+    sa, sb = _segments(a), _segments(b)
+    n = min(len(sa), len(sb))
+    return sa[:n] == sb[:n]
+
+
+def compute_ancestors(ids, deps_map):
+    """Transitive dependencies per phase id. Call only on an acyclic graph."""
+    memo = {}
+
+    def anc(pid):
+        if pid in memo:
+            return memo[pid]
+        memo[pid] = set()  # placeholder (graph verified acyclic beforehand)
+        result = set()
+        for dep in deps_map.get(pid, []):
+            if dep in deps_map:
+                result.add(dep)
+                result |= anc(dep)
+        memo[pid] = result
+        return result
+
+    for pid in ids:
+        anc(pid)
+    return memo
+
+
+def check_independence_overlap(plan_md, ids, deps_map, touches_map):
+    """Error for each mutually-unreachable phase pair whose touches intersect."""
+    errors = []
+    ancestors = compute_ancestors(ids, deps_map)
+    for i, p in enumerate(ids):
+        for q in ids[i + 1:]:
+            if p in ancestors[q] or q in ancestors[p]:
+                continue  # ordered by the DAG — overlap is fine
+            tp, tq = touches_map.get(p), touches_map.get(q)
+            if tp is None or tq is None:
+                continue  # missing touches handled separately (warning/error)
+            file_hits = []
+            for ga in tp.get("files") or []:
+                for gb in tq.get("files") or []:
+                    pa, pb = glob_literal_prefix(ga), glob_literal_prefix(gb)
+                    if prefixes_overlap(pa, pb):
+                        file_hits.append(
+                            f'"{ga}" vs "{gb}" (literal prefixes '
+                            f'"{pa or "<repo root>"}" / "{pb or "<repo root>"}")')
+            res_hits = sorted(set(tp.get("resources") or []) & set(tq.get("resources") or []))
+            if file_hits or res_hits:
+                detail = []
+                if file_hits:
+                    detail.append("file globs: " + "; ".join(file_hits))
+                if res_hits:
+                    detail.append("resources: " + ", ".join(f'"{r}"' for r in res_hits))
+                errors.append(
+                    f'{plan_md}: independence-overlap — phases "{p}" and "{q}" are '
+                    f'parallel-eligible (no ancestor relation on the DAG) but their '
+                    f'touches intersect ({"; ".join(detail)}). '
+                    f'Fix: add a depends_on edge between them (if there is a real '
+                    f'ordering) or re-slice ownership so their touches are disjoint. '
+                    f'Note: file matching is a conservative glob-prefix heuristic '
+                    f'(truncate at first wildcard, whole path segments).')
+    return errors
+
+
 def detect_cycle(ids, deps_map):
     """Kahn's algorithm; return list of node ids stuck in a cycle ([] if acyclic)."""
     indegree = {i: 0 for i in ids}
@@ -169,27 +291,29 @@ def detect_cycle(ids, deps_map):
     return sorted(i for i in ids if indegree[i] > 0)
 
 
-def validate(plan_dir: Path):
+def validate(plan_dir: Path, require_touches: bool = False):
+    """Return (errors, warnings)."""
     errors = []
+    warnings = []
     plan_md = plan_dir / "plan.md"
     if not plan_dir.is_dir():
-        return [f"{plan_dir}: not a directory"]
+        return [f"{plan_dir}: not a directory"], warnings
     if not plan_md.is_file():
-        return [f"{plan_md}: plan.md not found"]
+        return [f"{plan_md}: plan.md not found"], warnings
 
     text = plan_md.read_text(encoding="utf-8")
     fm_text = extract_frontmatter(text)
     if fm_text is None:
-        return [f"{plan_md}: no YAML frontmatter block found (--- ... --- at top of file)"]
+        return [f"{plan_md}: no YAML frontmatter block found (--- ... --- at top of file)"], warnings
 
     try:
         data = parse_frontmatter(fm_text)
     except Exception as e:
-        return [f"{plan_md}: frontmatter failed to parse: {e}"]
+        return [f"{plan_md}: frontmatter failed to parse: {e}"], warnings
 
     phases = data.get("phases")
     if not isinstance(phases, list) or not phases:
-        return [f"{plan_md}: frontmatter has no 'phases' list"]
+        return [f"{plan_md}: frontmatter has no 'phases' list"], warnings
     if data.get("status_source") != "folders":
         errors.append(f"{plan_md}: frontmatter status_source must be 'folders' "
                       f"(got {data.get('status_source')!r})")
@@ -197,6 +321,7 @@ def validate(plan_dir: Path):
     # --- ids: format + uniqueness ---
     ids = []
     deps_map = {}
+    touches_map = {}
     for idx, ph in enumerate(phases):
         if not isinstance(ph, dict):
             errors.append(f"{plan_md}: phases[{idx}] is not a mapping")
@@ -215,6 +340,35 @@ def validate(plan_dir: Path):
         ids.append(pid)
         deps_map[pid] = deps
 
+        # --- optional touches (ownership declaration) ---
+        touches = ph.get("touches")
+        if touches is None:
+            touches_map[pid] = None
+            msg = (f"{plan_md}: phase \"{pid}\" has no 'touches' ownership declaration "
+                   f"(independence-overlap check cannot cover this phase)")
+            if require_touches:
+                errors.append(msg + " [--require-touches]")
+            else:
+                warnings.append(msg)
+        elif not isinstance(touches, dict):
+            errors.append(f"{plan_md}: phase \"{pid}\" touches must be a mapping "
+                          f"with 'files' / 'resources' lists, got {touches!r}")
+            touches_map[pid] = None
+        else:
+            bad = False
+            for key in touches:
+                if key not in ("files", "resources"):
+                    errors.append(f"{plan_md}: phase \"{pid}\" touches has unknown key "
+                                  f"{key!r} (allowed: files, resources)")
+                    bad = True
+            for key in ("files", "resources"):
+                val = touches.get(key, [])
+                if not isinstance(val, list) or not all(isinstance(v, str) for v in val):
+                    errors.append(f"{plan_md}: phase \"{pid}\" touches.{key} must be "
+                                  f"a list of strings, got {val!r}")
+                    bad = True
+            touches_map[pid] = None if bad else touches
+
     id_set = set(ids)
 
     # --- depends_on references exist ---
@@ -229,6 +383,10 @@ def validate(plan_dir: Path):
     if cyclic:
         errors.append(f"{plan_md}: dependency cycle detected involving phases: "
                       + ", ".join(f'"{i}"' for i in cyclic))
+
+    # --- independence-overlap (touches of parallel-eligible phase pairs) ---
+    if not cyclic:  # ancestor computation requires an acyclic graph
+        errors.extend(check_independence_overlap(plan_md, ids, deps_map, touches_map))
 
     # --- exactly one card per phase across todo/doing/done ---
     folders = ["todo", "doing", "done"]
@@ -275,15 +433,50 @@ def validate(plan_dir: Path):
                               f"frontmatter says {sorted(deps_map[pid])}, "
                               f"table says {sorted(table[pid])}")
 
-    return errors
+    return errors, warnings
+
+
+HELP_EPILOG = """\
+touches / independence-overlap:
+  Each phase may declare an ownership block:
+      touches:
+        files: ["src/backend/**", "tests/backend/**"]
+        resources: ["db-migration-sequence"]
+  For every pair of phases with no ancestor relation on the DAG
+  (i.e. parallel-eligible), a non-empty touches intersection is an ERROR.
+
+  Heuristic limits (conservative, over-approximates overlap):
+    - each file glob is truncated at its first wildcard (* ? [) to a literal
+      prefix, then trimmed back to whole path segments
+      ("src/backend/**" -> "src/backend"; "src/back*" -> "src");
+    - two globs overlap when one prefix is a path-prefix of the other;
+      an empty prefix (e.g. "**") overlaps everything;
+    - brace expansion / extglob are not understood (compared by prefix only);
+    - disjoint globs sharing a directory (src/a*.py vs src/b*.py) are still
+      flagged — slice ownership by directory instead;
+    - resources overlap only on exact string equality.
+
+  Phases without touches are skipped by the check and produce a warning
+  (backward compatible); --require-touches turns those into errors.
+"""
 
 
 def main():
-    if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} <plans/<slug>/ directory>", file=sys.stderr)
-        sys.exit(1)
-    plan_dir = Path(sys.argv[1])
-    errors = validate(plan_dir)
+    parser = argparse.ArgumentParser(
+        description="Mechanical validator for a specformula plan directory.",
+        epilog=HELP_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("plan_dir", metavar="plans/<slug>/",
+                        help="plan directory containing plan.md (+ todo/doing/done)")
+    parser.add_argument("--require-touches", action="store_true",
+                        help="error (instead of warn) when any phase lacks a "
+                             "'touches' ownership declaration")
+    args = parser.parse_args()
+    plan_dir = Path(args.plan_dir)
+    errors, warnings = validate(plan_dir, require_touches=args.require_touches)
+    for w in warnings:
+        print(f"validate_plan: WARNING — {w}", file=sys.stderr)
     if errors:
         print(f"validate_plan: {plan_dir} INVALID — {len(errors)} error(s):", file=sys.stderr)
         for e in errors:

@@ -76,9 +76,15 @@ def _parse_inline_list(s):
 
 
 def parse_frontmatter(fm_text):
-    """Mini-parser for the fixed plan frontmatter schema (no pyyaml needed)."""
+    """Mini-parser for the fixed plan frontmatter schema (no pyyaml needed).
+
+    Tolerant by design: unknown nested (indented) structure is skipped, not
+    raised on — the schema may grow new per-phase fields (e.g. `touches`)
+    without breaking the status board. `touches` itself is parsed so the
+    drawer can show ownership."""
     data = {"plan": None, "phases": [], "status_source": None}
     current = None
+    in_touches = False
     for lineno, raw in enumerate(fm_text.splitlines(), start=1):
         stripped = raw.strip()
         if not stripped or stripped.startswith("#"):
@@ -86,6 +92,7 @@ def parse_frontmatter(fm_text):
         indented = raw.startswith((" ", "\t"))
         if not indented:
             current = None
+            in_touches = False
             if stripped.startswith("plan:"):
                 data["plan"] = _strip_quotes(stripped.split(":", 1)[1])
             elif stripped == "phases:" or stripped.startswith("phases:"):
@@ -96,18 +103,31 @@ def parse_frontmatter(fm_text):
                 raise ValueError(f"frontmatter line {lineno}: unknown top-level key: {stripped!r}")
         else:
             if stripped.startswith("- id:"):
+                in_touches = False
                 current = {
                     "id": _strip_quotes(stripped.split(":", 1)[1]),
                     "name": None,
                     "depends_on": [],
+                    "touches": None,
                 }
                 data["phases"].append(current)
             elif current is not None and stripped.startswith("name:"):
+                in_touches = False
                 current["name"] = _strip_quotes(stripped.split(":", 1)[1])
             elif current is not None and stripped.startswith("depends_on:"):
+                in_touches = False
                 current["depends_on"] = _parse_inline_list(stripped.split(":", 1)[1])
+            elif current is not None and stripped.startswith("touches:"):
+                in_touches = True
+                current["touches"] = {}
+            elif in_touches and stripped.startswith(("files:", "resources:")):
+                key, _, rest = stripped.partition(":")
+                try:
+                    current["touches"][key] = _parse_inline_list(rest)
+                except ValueError:
+                    pass  # non-inline list form: ignore, board stays up
             else:
-                raise ValueError(f"frontmatter line {lineno}: unexpected line: {stripped!r}")
+                continue  # unknown nested structure: tolerate (future schema fields)
     return data
 
 
@@ -266,6 +286,7 @@ def load_plan(plan_dir):
             "id": p.get("id"),
             "name": p.get("name") or "(unnamed)",
             "depends_on": [d for d in (p.get("depends_on") or [])],
+            "touches": p.get("touches") or None,
         }
         for p in phases
         if isinstance(p, dict) and isinstance(p.get("id"), str) and ID_RE.match(p.get("id"))
@@ -391,6 +412,7 @@ def build_phase_details(plan, handoffs, root):
     for p in plan["phases"]:
         for d in p["depends_on"]:
             dependents.setdefault(d, []).append(p["id"])
+    touches_by_id = {p["id"]: p.get("touches") for p in plan["phases"]}
     details = {}
 
     def base_detail(pid, name, state, depends_on):
@@ -403,6 +425,7 @@ def build_phase_details(plan, handoffs, root):
             "state_label": STATE_LABEL[state],
             "depends_on": depends_on,
             "dependents": sorted(dependents.get(pid, [])),
+            "touches": touches_by_id.get(pid),
             "folder": card["folder"] if card else None,
             "card_file": card["file"] if card else None,
             "owner": meta.get("owner"),
@@ -977,6 +1000,16 @@ JS = r"""
     var rdep = section("被依賴 dependents");
     rdep.appendChild(depChips(uid, d.dependents, plan));
     body.appendChild(rdep);
+
+    var tch = d.touches;
+    if (tch && ((tch.files && tch.files.length) || (tch.resources && tch.resources.length))) {
+      var town = section("Touches 所有權");
+      if (tch.files && tch.files.length)
+        town.appendChild(el("div", "drow mono", "files: " + tch.files.join(", ")));
+      if (tch.resources && tch.resources.length)
+        town.appendChild(el("div", "drow mono", "resources: " + tch.resources.join(", ")));
+      body.appendChild(town);
+    }
 
     var gate = section("Gate Verdict");
     if (d.gate) {

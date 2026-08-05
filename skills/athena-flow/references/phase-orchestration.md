@@ -122,6 +122,13 @@ Flow 讀 plan.md frontmatter → 掃描 todo/doing/done/ → 建立依賴圖
 3. handoffs/<slug>-build-phase-<prev-NN>.md（上一個 phase 的交接）
 4. spec 的 Section <X>, <Y>（phase card 中 spec_sections 指定的）
 
+你的 touches 邊界（來自 plan.md frontmatter 此 phase 的 touches 宣告）：
+- files: <該 phase 的 touches.files glob 清單>
+- resources: <該 phase 的 touches.resources 清單>
+
+只准改宣告範圍內的檔案；若實作中發現必須碰宣告外的檔案，
+停下來在 mini-handoff 記 gate FAIL + 原因 `#plan-gap`，不得逕自修改。
+
 完成實作後：
 1. 執行 smoke test：<phase card 中的 smoke_test 指令>
 2. 再執行一次 `date -u +%Y-%m-%dT%H:%M:%SZ` 取得 Ended At
@@ -192,6 +199,11 @@ Phase A 和 Phase B 可平行，當且僅當：
 - 兩者的所有前置依賴都已完成
 ```
 
+> **事前分區保證**：可平行 pair 的 `touches` 宣告（`files` glob + `resources`）
+> 互斥已由 plan 階段的 `validate_plan.py --require-touches` 機械保證——
+> 這是「事前分區」。Flow 在選取平行集合時**不需**重算 touches 交集；
+> 事後的 Conflict Detection（見下節）是第二道防線，不是分區依據。
+
 ### 執行模式
 
 Flow 依「同時可啟動的 phase 數量」與「預估執行時間落差」選擇兩種平行模式：
@@ -242,9 +254,27 @@ Conflict Detection（同下節）
 - mini-handoff 仍然是真相來源；TaskCreate 只是 UX 投影
 - 不要把 mini-handoff 的內容塞進 task description，避免重複
 
-### Conflict Detection
+### Conflict Detection（兩層）
 
-平行 phase 完成後，flow 比對所有平行 phase 的 `Files Changed` 清單：
+平行 phase 完成後，flow 依序執行兩層檢查：
+
+**第一層：Ownership Violation（對照 touches 宣告）**
+
+逐一把每個 phase 的 mini-handoff `Files Changed` 清單對照該 phase 在
+plan.md frontmatter 的 `touches.files` glob 宣告：
+
+| 情況 | 處理 |
+|------|------|
+| 所有改動檔案都落在自己的 touches 宣告內 | 通過，進入第二層 |
+| 任一 phase 改了宣告範圍外的檔案 | **違規** → 停止流程，報告違規 phase 與越界檔案，交給使用者 |
+
+> 第一層能抓到第二層抓不到的案例：「單方漏報彼此重疊」——phase A 越界改了
+> B 地盤的檔案，但 B 這次剛好沒改到同一檔案（或漏報了 Files Changed），
+> 跨 phase 重疊比對看不到任何交集，唯有對照 A 自己的 touches 宣告才會現形。
+
+**第二層：跨 Phase Files Changed 重疊比對（既有）**
+
+比對所有平行 phase 的 `Files Changed` 清單：
 
 | 情況 | 處理 |
 |------|------|
@@ -342,7 +372,7 @@ verify
 5. **Gate 沒過不 commit** — 只有 PASS 才觸發 post-build
 6. **Gate 沒過不繼續** — FAIL 停止 phase loop
 7. **Phase retry 最多 2 輪** — 超過交給使用者
-8. **平行 phase 完成後必須 conflict detection** — 有衝突就停
+8. **平行 phase 完成後必須 conflict detection（兩層）** — 先對照各 phase 自己的 touches 宣告（ownership violation），再做跨 phase Files Changed 重疊比對；任一層命中就停
 9. **可平行的 phase 必須同一次回應送出** — 不可序列化呼叫，否則喪失平行
 10. **不在 flow agent 內 sleep 輪詢** — background 模式靠 harness 主動通知，foreground 模式靠 tool result 同步返回
 11. **TaskCreate 只做 UX 投影** — mini-handoff 仍是 gate 判定的唯一真相來源

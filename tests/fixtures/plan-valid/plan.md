@@ -4,27 +4,44 @@ phases:
   - id: "01"
     name: Requirement Analysis
     depends_on: []
+    touches:
+      files: ["specs/discovery/**"]
   - id: "02"
     name: Entity Modeling
     depends_on: ["01"]
+    touches:
+      files: ["specs/entity/**"]
   - id: "03"
     name: BDD Analysis
     depends_on: ["02"]
+    touches:
+      files: ["specs/features/**"]
   - id: "04"
     name: API Contract
     depends_on: ["03"]
+    touches:
+      files: ["specs/api/**"]
   - id: "05"
     name: Backend TDD Track
     depends_on: ["04"]
+    touches:
+      files: ["src/backend/**", "tests/backend/**"]
+      resources: ["db-migration-sequence"]
   - id: "06"
     name: Frontend Build Track
     depends_on: ["04"]
+    touches:
+      files: ["src/frontend/**"]
   - id: "07"
     name: Frontend E2E
     depends_on: ["06"]
+    touches:
+      files: ["tests/e2e/**"]
   - id: "08"
     name: Integration Validation
     depends_on: ["05", "07"]
+    touches:
+      files: ["reports/integration/**"]
 status_source: folders
 ---
 

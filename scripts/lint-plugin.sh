@@ -155,6 +155,46 @@ else
   fi
 fi
 
+# ---------- 5b. Plan validator touches self-test ----------
+step "validate_plan.py touches / independence-overlap self-test"
+if [ ! -f "$VALIDATOR" ] || [ ! -d "$FIXTURE" ]; then
+  fail "touches self-test skipped: $VALIDATOR or $FIXTURE missing"
+else
+  # (a) positive: fixture declares touches on every phase → --require-touches passes
+  out="$(python3 "$VALIDATOR" --require-touches "$FIXTURE" 2>&1)"
+  if [ $? -eq 0 ]; then
+    ok "$VALIDATOR --require-touches passes on $FIXTURE"
+  else
+    fail "$VALIDATOR --require-touches failed on $FIXTURE:"
+    echo "$out" | sed 's/^/     /'
+  fi
+  # (b) negative: make phases 05 and 06 (parallel-eligible) touch the same glob
+  #     → validator must exit 1 and mention the overlap
+  tmpneg="$(mktemp -d)"
+  cp -R "$FIXTURE" "$tmpneg/plan-overlap"
+  python3 - "$tmpneg/plan-overlap/plan.md" <<'PY'
+import sys
+path = sys.argv[1]
+text = open(path, encoding="utf-8").read()
+new = text.replace('files: ["src/frontend/**"]', 'files: ["src/backend/**"]', 1)
+assert new != text, "fixture no longer declares phase 06 glob src/frontend/**"
+open(path, "w", encoding="utf-8").write(new)
+PY
+  if [ $? -ne 0 ]; then
+    fail "could not prepare overlap fixture copy in $tmpneg"
+  else
+    out="$(python3 "$VALIDATOR" "$tmpneg/plan-overlap" 2>&1)"
+    rc=$?
+    if [ "$rc" -eq 1 ] && grep -qi "overlap" <<<"$out"; then
+      ok "$VALIDATOR rejects overlapping touches on parallel phases (exit 1, mentions overlap)"
+    else
+      fail "$VALIDATOR negative test: expected exit 1 mentioning 'overlap', got exit $rc:"
+      echo "$out" | sed 's/^/     /'
+    fi
+  fi
+  rm -rf "$tmpneg"
+fi
+
 # ---------- 6. Status renderer self-test ----------
 step "render_status.py fixture self-test"
 RENDERER="scripts/render_status.py"
