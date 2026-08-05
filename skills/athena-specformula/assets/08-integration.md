@@ -1,9 +1,9 @@
-# Phase 07: Integration Validation ★
+# Phase 08: Integration Validation ★
 
 ## 審查進度
 
-- [ ] 07.1 相關規格已審查 — **簽名**: ___
-- [ ] 07.2 交付物已審查 — **簽名**: ___
+- [ ] 08.1 相關規格已審查 — **簽名**: ___
+- [ ] 08.2 交付物已審查 — **簽名**: ___
 
 ## 目的 (What)
 
@@ -16,20 +16,20 @@
 
 核心動作：前端關閉 MSW mock → rewrite proxy → 打真實後端 API。
 
-**IMPL_IMPACT 感知**：若 Phase 05 或 Phase 06 有任何 Targeted Fix，Phase 07 自動觸發完整重驗（不可跳過）。Targeted Fix 改了前後端的局部，整合驗證確認局部修復沒有破壞全局。
+**IMPL_IMPACT 感知**：若 Phase 05 或 Phase 06 有任何 Targeted Fix，Phase 08 自動觸發完整重驗（不可跳過）。Targeted Fix 改了前後端的局部，整合驗證確認局部修復沒有破壞全局。
 
-**依賴**：Phase 05 + Phase 06 都必須在 `done/` 中。
+**依賴**：Phase 05 + Phase 07 都必須在 `done/` 中（07 依賴 06，故前端 build 亦必然完成）。
 
 ## 相關規格
 
 | # | 規格 | 來源 | 說明 |
 |---|------|------|------|
 | 1 | api.yml | Phase 04 | 契約 = 驗證基準 |
-| 2 | Chrome Test Guard 測試計畫 | Phase 06 | 同一份測試計畫，換 real backend 重跑 |
+| 2 | E2E 測試計畫 | Phase 07 | 同一份測試計畫，換 real backend 重跑 |
 
 ## 交付物
 
-carry-on Step 07.2 觸發時：
+carry-on Step 08.2 觸發時：
 
 ### 1. 啟動後端
 
@@ -65,7 +65,7 @@ BACKEND_URL=http://localhost:${PORT}
 
 ### 4. Chrome E2E 重跑
 
-用 Chrome E2E 重跑 Phase 06 的 Chrome Test Guard 測試計畫（real backend mode）。
+用 Chrome E2E 重跑 Phase 07 的 E2E 測試計畫（real backend mode）。
 
 ### 5. 問題修正迴圈
 
@@ -73,8 +73,8 @@ BACKEND_URL=http://localhost:${PORT}
 
 | # | 交付物 | 路徑 | 狀態 |
 |---|--------|------|------|
-| 07.1 | Chrome E2E 結果（real backend） | 全通過 | PENDING |
-| 07.2 | 驗證矩陣通過紀錄 | 5/5 全通過 | PENDING |
+| 08.1 | Chrome E2E 結果（real backend） | 全通過 | PENDING |
+| 08.2 | 驗證矩陣通過紀錄 | 5/5 全通過 | PENDING |
 
 ### 驗收點
 

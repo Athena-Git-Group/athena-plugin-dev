@@ -40,7 +40,7 @@ description: >
 
 ## 啟動流程
 
-1. **讀取 `plan.md`** → 取得 Dependency Graph 表格。
+1. **讀取 `plan.md`** → 取得 Dependency Graph 表格。執行前先跑 `skills/athena-specformula/scripts/validate_plan.py` 驗 plan 完整性（frontmatter schema、depends_on 引用、卡片與 phases 對應）。
 2. **掃描三個資料夾**：
    - `done/` → 已完成的 Phase
    - `doing/` → 正在執行中的 Phase（可能是自己中斷的，或另一個 AI 正在做）
@@ -50,7 +50,13 @@ description: >
    - 排除 `doing/` 中的 Phase（其他 AI 正在處理）。
    - 若有多個候選，按 plan.md 中的線性執行順序挑第一個。
    - 若無候選（全部被依賴或被占用），告知使用者並等待。
-4. **移動卡片**：`mv todo/{NN}-{slug}.md → doing/{NN}-{slug}.md`
+4. **移動卡片**：`mv todo/{NN}-{slug}.md → doing/{NN}-{slug}.md`，並**立即在卡片頂部加一行 claim metadata**：
+
+   ```
+   <!-- claim: owner={session 識別或使用者名} started_at={ISO timestamp} -->
+   ```
+
+   這行是 crash 恢復的依據（規則 6 的 stale 判定靠 `started_at`）。卡片移回 `todo/`（重派或 done/ 退回）時移除此行。
 5. **建立當前 Phase 的 TodoWrite**（只建當前 Phase，不建後續 Phase）：
    ```
    Phase {NN}: {名稱} [doing]
@@ -142,7 +148,7 @@ Feedback Loop 中產生實際改動後觸發：
 ## 平行執行（多 AI 協作）
 
 1. **每個 AI 獨立掃描資料夾**，判斷自己可以做什麼。
-2. **`doing/` 中的卡片視為已被占用**——不搶、不重複執行。
+2. **`doing/` 中的卡片視為已被占用**——不搶、不重複執行（stale 卡片的處理見規則 6：只能經使用者確認後 mv 回 `todo/`）。
 3. **各 AI 只修改自己正在處理的卡片**。
 4. **plan.md 不被修改**。
 5. 若所有候選 Phase 都在 `doing/` 中，告知使用者。
@@ -169,8 +175,8 @@ plan.md 狀態已更新為：COMPLETED
 3. **立即持久化。** 簽核 → 寫入卡片 → 更新任務。不批量處理。
 4. **(A) 時客觀審查。** 不要橡皮圖章。挑戰產物的正確性。
 5. **簽名格式固定。** `YYYY-MM-DD HH:mm`（只有日期時間，不含姓名）。
-6. **恢復優先。** 若對話恢復或 context 被壓縮，重新掃描資料夾 + 讀取 plan.md + TodoWrite 找到當前狀態。`doing/` 中的卡片一律視為被占用（規則 8），不接手——僅從 `todo/` 中依正常流程選取下一個可執行的 Phase。若無候選，告知使用者並等待。
+6. **恢復優先。** 若對話恢復或 context 被壓縮，重新掃描資料夾 + 讀取 plan.md + TodoWrite 找到當前狀態。`doing/` 中的卡片預設視為被占用（規則 8），不接手——僅從 `todo/` 中依正常流程選取下一個可執行的 Phase。**唯一例外：stale doing 卡。** 若卡片頂部 claim metadata 的 `started_at` 明顯過期（例如超過 24h）且無對應進行中工作的跡象（owner 非當前 session、交付物無近期變動），可向使用者列出該卡的 owner/started_at 證據，**在使用者明確確認後**將其 `mv doing/ → todo/`（移除 claim 行）重派；**絕不默默接手或直接續做**。無 claim metadata 的舊卡片同樣只能經使用者確認後處理。若無候選，告知使用者並等待。
 7. **絕對路徑。** 展示時所有產物路徑一律使用絕對路徑。
-8. **不搶 doing。** 看到 `doing/` 中有卡片，一律視為其他 AI 正在處理，跳過。
+8. **不搶 doing。** 看到 `doing/` 中有卡片，預設視為其他 AI 正在處理，跳過。唯一放行路徑是規則 6 的 stale 判定 + 使用者明確確認後 mv 回 `todo/` 重派——絕不默默接手。
 9. **Consistency Check 不可跳過。** Feedback Loop 中每次修改後必須觸發。
 10. **TodoWrite 只建當前 Phase。** 下一 Phase 進入時才建立下一組任務。

@@ -190,7 +190,7 @@ Flow 讀取 `plan.md` 的 Dependency Graph，將 implementation phases 拆解為
 | 項目 | 說明 |
 |------|------|
 | **職責** | 根據計畫執行實作（後端/前端/全端），以 phase 為單位 |
-| **輸入** | `handoffs/<slug>-plan.md` + `plans/<slug>/plan.md`（Dependency Graph）+ `plans/<slug>/phase-cards/` |
+| **輸入** | `handoffs/<slug>-plan.md` + `plans/<slug>/plan.md`（YAML frontmatter = Dependency Graph 機械真相）+ `plans/<slug>/todo/` 的 phase 卡（執行時 flow mv 至 `doing/`，gate PASS 後 mv 至 `done/`） |
 | **執行方式** | Flow 驅動的 phase loop — 每個 phase 由 fresh agent 執行 |
 | **Phase 輸出** | 每個 phase 寫 `handoffs/<slug>-build-phase-<NN>.md`（mini-handoff） |
 | **Phase Gate** | 每個 phase agent 執行 smoke test，結果寫入 mini-handoff |

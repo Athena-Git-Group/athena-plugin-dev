@@ -113,23 +113,42 @@ Anthropic prompt cache TTL 約 5 分鐘。輪詢間隔選擇：
     }
   },
   "in_flight": [
-    { "slug": "ci-fix-run-1234", "branch": "feature/x", "trigger": "ci-red-on-pr", "started": "2026-06-25T14:41:00Z" }
+    { "slug": "ci-fix-run-1234", "branch": "feature/x", "trigger": "ci-red-on-pr", "started_at": "2026-06-25T14:41:00Z" }
   ]
 }
 ```
 
 - `seen` / `dispatched`：dedup 依據（可定期裁剪保留最近 N 筆）。
 - `in_flight`：single-flight 依據；flow 完成通知到達後移除對應項。
+- `started_at`（**必填**，ISO timestamp）：dispatch 當下寫入。是 §8 in_flight GC 的
+  crash 恢復依據——沒有它，一次 crash 遺留的條目會永久鎖死該 slug/branch。
 
 ## 8. Housekeeping GC（接 Step 1 的掃尾保險）
 
-每 N tick 跑一次，回收 crash/放棄 run 留下的孤兒 handoff：
+每 N tick 跑一次，回收 crash/放棄 run 留下的殘留狀態。
+
+### 8a. 孤兒 handoff GC
 
 1. 讀 `.athena/traces/runs.jsonl`，找出 outcome 為 `shipped`/`done` 的 run。
 2. 對 `handoffs/` 內的散檔，若其 slug **已有對應 shipped/done trace** 且**超過 X 天**（預設 7）→ 刪除。
 3. **絕不刪** in-flight（在 state.in_flight）或無 shipped trace（可能未解）的 run 的 handoff。
 
 規則與 `athena-flow/references/run-trace.md` 的 Handoff Retention Policy 一致。
+
+### 8b. in_flight GC（crash 恢復）
+
+flow run 若 crash，完成通知永遠不會到，`in_flight` 條目就永久卡住——single-flight
+會從此鎖死該 slug/branch。每次 housekeeping 逐條檢查 `state.in_flight`：
+
+1. **已完成證據**：`.athena/traces/runs.jsonl` 已有**同 slug** 且 `ts > started_at`
+   的 trace → 該 run 實際已收尾（只是完成通知遺失），清除該條目。
+2. **Stale 判定**：`started_at` 距今 **> 24h** 且無上述 trace → 視為 crash/放棄，
+   清除該條目，並在本 tick 的 dispatcher 回報中**列一行通知使用者**
+   （例：`stale in-flight 已清除: <slug>（started_at <ts>，無對應 trace）`），
+   讓人可以判斷要不要重新觸發。
+3. 兩者皆不符 → 保留，維持 single-flight。
+
+清除只動 `state.json` 的 `in_flight` 條目，不動 trace、不動 handoff（handoff 走 §8a）。
 
 ## 9. 非協商規則
 
@@ -138,6 +157,7 @@ Anthropic prompt cache TTL 約 5 分鐘。輪詢間隔選擇：
 3. **Single-flight by slug/branch** — 不併發同一目標。
 4. **autonomy 預設 notify、auto-* 顯式 opt-in、絕不自動 push（除非 auto-full）**。
 5. **intake 不預設路由** — 一律交 point 分流。
-6. **GC 只刪已完成 run** — 見 §8。
+6. **GC 只刪已完成 run** — 見 §8a。
 7. **triggers.yml / state.json 缺失採安全預設** — 缺 triggers.yml 引導後停；缺 state 視為空（首次全部當新事件，但仍依 autonomy，預設只 notify 不會誤改 code）。
+8. **in_flight 條目必帶 `started_at`，且不許永久卡死** — 清除只依 §8b 的兩個判準（同 slug 較新 trace，或 stale > 24h）；stale 清除必須在回報中通知使用者，絕不無聲吞掉。
 </content>

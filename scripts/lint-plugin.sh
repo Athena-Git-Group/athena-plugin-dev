@@ -137,6 +137,24 @@ for f in hooks/*.sh scripts/*.sh; do
   if [ -x "$f" ]; then ok "$f executable"; else fail "$f not executable"; fi
 done
 
+# ---------- 5. Plan validator self-test ----------
+step "validate_plan.py fixture self-test"
+VALIDATOR="skills/athena-specformula/scripts/validate_plan.py"
+FIXTURE="tests/fixtures/plan-valid"
+if [ ! -f "$VALIDATOR" ]; then
+  fail "$VALIDATOR missing"
+elif [ ! -d "$FIXTURE" ]; then
+  fail "$FIXTURE missing"
+else
+  out="$(python3 "$VALIDATOR" "$FIXTURE" 2>&1)"
+  if [ $? -eq 0 ]; then
+    ok "$VALIDATOR passes on $FIXTURE"
+  else
+    fail "$VALIDATOR failed on $FIXTURE:"
+    echo "$out" | sed 's/^/     /'
+  fi
+fi
+
 echo ""
 if [ "$FAIL" -eq 0 ]; then
   echo "🎉 All lint checks passed."

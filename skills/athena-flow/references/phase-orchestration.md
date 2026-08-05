@@ -35,51 +35,67 @@ Standard Stage（spec, plan, build, verify, review, ship）
 
 - **Stage** = flow 的一級調度單位（fresh agent + handoff artifact）
 - **Phase** = Build 內的二級調度單位（fresh agent + mini-handoff）
-- Phase 的定義來自 `plan.md` 的 Dependency Graph，不是 flow 硬編碼
-- Flow 只認 Dependency Graph 中 `狀態` 欄位為 `todo` 的 implementation phase
+- Phase 的定義來自 `plan.md` 的 YAML frontmatter，不是 flow 硬編碼
+- Flow 只認 phase 卡位於 `plans/<slug>/todo/` 的 implementation phase（位置即狀態）
 
-## Phase 識別
+## 解析 Dependency Graph
 
-Flow 從 `plans/<slug>/plan.md` 的 Dependency Graph 表格中識別 implementation phases：
+Flow 讀取 `plans/<slug>/plan.md` 的 **YAML frontmatter** 作為 Dependency Graph 的**唯一機械真相**。Schema 固定如下：
 
-```markdown
-| Phase | Name | Depends On | 狀態 |
-|-------|------|------------|------|
-| 01 | Requirement Analysis | — | done |
-| 02 | Entity Modeling | 01 | done |
-| 03 | BDD Analysis | 02 | done |
-| 04 | API Contract | 03 | done |
-| 05 | Backend TDD Track | 04 | todo |    ← implementation phase
-| 06 | Frontend Build Track | 04 | todo | ← implementation phase
-| 07 | Integration Validation | 05, 06 | todo | ← implementation phase
+```yaml
+---
+plan: <slug>
+phases:
+  - id: "01"
+    name: Strategic
+    depends_on: []
+  - id: "06"
+    name: Frontend Build
+    depends_on: ["04"]
+  - id: "08"
+    name: Integration
+    depends_on: ["05", "07"]
+status_source: folders
+---
 ```
 
+- `id` 為兩位數字字串；`depends_on` 只准引用存在的 `id`
+- `status_source: folders` 表示 **`todo/` / `doing/` / `done/` 資料夾位置是 phase 狀態的唯一真相**——plan.md 內的任何狀態欄位只是人類視圖
+- plan.md 正文中的 markdown 表格（若有）**僅為人類視圖**；與 frontmatter 衝突時，**以 frontmatter 為準**
+
 **識別規則：**
-1. 狀態為 `done` 的 phase 跳過（spec/plan 階段已完成的外部品質 phase）
-2. 狀態為 `todo` 的 phase 進入 phase loop
-3. 依照 `Depends On` 欄位建立執行順序
+1. 卡片在 `done/` 的 phase 跳過（已完成，含 spec/plan 階段完成的外部品質 phase）
+2. 卡片在 `doing/` 的 phase 視為被占用，不重複調度
+3. 卡片在 `todo/` 的 phase 進入 phase loop
+4. 依照 frontmatter 的 `depends_on` 建立執行順序
 
 ## Phase Loop 執行流程
 
 ```
-Flow 讀 plan.md → 識別 todo phases → 建立依賴圖
+Flow 讀 plan.md frontmatter → 掃描 todo/doing/done/ → 建立依賴圖
     │
     ├── 順序執行（預設）
     │   for each phase in dependency order:
-    │     1. 開 fresh agent
-    │     2. 載入 build skill + phase card
-    │     3. Agent 讀取前一個 phase 的 mini-handoff（若有）
-    │     4. Agent 讀取指定的 spec sections（由 phase card 標明）
-    │     5. Agent 執行實作
-    │     6. Agent 執行 smoke test（phase card 中定義的指令）
-    │     7. Agent 寫 mini-handoff（含 smoke test 結果）
-    │     8. Flow 讀 mini-handoff → 檢查 Gate Verdict
-    │     9. PASS → post-build commit（per-phase）→ 繼續
-    │     10. FAIL → 停止 phase loop → 進入 phase retry
+    │     1. mv plans/<slug>/todo/<NN>-<name>.md → plans/<slug>/doing/（即鎖，spawn 前執行）
+    │     2. 開 fresh agent
+    │     3. 載入 build skill + phase card（doing/ 中的卡）
+    │     4. Agent 讀取前一個 phase 的 mini-handoff（若有）
+    │     5. Agent 讀取指定的 spec sections（由 phase card 標明）
+    │     6. Agent 執行實作
+    │     7. Agent 執行 smoke test（phase card 中定義的指令）
+    │     8. Agent 寫 mini-handoff（含 smoke test 結果）
+    │     9. Flow 讀 mini-handoff → 檢查 Gate Verdict
+    │     10. PASS → post-build commit（per-phase）→ mv doing/<NN>-<name>.md → done/ → 繼續
+    │     11. FAIL → 停止 phase loop → 進入 phase retry（卡片留在 doing/）
     │
     └── 平行執行（當依賴允許時）
         見「平行 Phase 執行」段落
 ```
+
+**Phase 卡狀態語意（位置即狀態、mv 即鎖）：**
+- spawn phase agent **前**，flow 先 `mv todo/<NN>-*.md → doing/`
+- gate PASS 後，flow `mv doing/<NN>-*.md → done/`
+- 平行 spawn 前，先把該平行集合的**所有**卡片 mv 到 `doing/`（即鎖），再送出 agents
 
 ## Phase Agent 的載入內容
 
@@ -88,7 +104,7 @@ Flow 讀 plan.md → 識別 todo phases → 建立依賴圖
 | 資料 | 路徑 | 說明 |
 |------|------|------|
 | Build skill | `.athena/skills/<build-skill>/SKILL.md` | 團隊的 build skill（同一份，每個 phase 都讀） |
-| Phase card | `plans/<slug>/phase-cards/<NN>-<name>.md` | 該 phase 的具體任務卡片 |
+| Phase card | `plans/<slug>/doing/<NN>-<name>.md` | 該 phase 的具體任務卡片（flow 已在 spawn 前從 `todo/` mv 過來） |
 | 前一個 phase 的 mini-handoff | `handoffs/<slug>-build-phase-<prev-NN>.md` | 知道上一個 phase 做了什麼（首個 phase 無此項） |
 | Spec（指定 section） | 由 phase card 的 `spec_sections` 欄位指定 | 只讀需要的 section，不全讀 |
 | Plan handoff | `handoffs/<slug>-plan.md` | 整體計畫的概覽（只讀一次，不用每個 phase 都讀） |
@@ -100,7 +116,7 @@ Flow 讀 plan.md → 識別 todo phases → 建立依賴圖
 
 讀取以下資料：
 1. .athena/skills/<build-skill>/SKILL.md（你的 build skill）
-2. plans/<slug>/phase-cards/<NN>-<name>.md（你的任務卡片）
+2. plans/<slug>/doing/<NN>-<name>.md（你的任務卡片）
 3. handoffs/<slug>-build-phase-<prev-NN>.md（上一個 phase 的交接）
 4. spec 的 Section <X>, <Y>（phase card 中 spec_sections 指定的）
 
@@ -184,11 +200,17 @@ Flow 依「同時可啟動的 phase 數量」與「預估執行時間落差」�
 1. **同一次回應啟動所有可平行 phase**——不要序列化「先送一個 Agent、等回來再送下一個」，否則喪失平行
 2. **完成順序與啟動順序解耦**——讀 mini-handoff 才是判定依據，不靠回傳順序
 3. **不在 flow agent 內 `sleep` 輪詢**——background 模式靠 harness 主動通知，foreground 模式靠 tool result 同步返回
+4. **平行 spawn 前先鎖卡**——把該平行集合的所有卡片全部 `mv todo/ → doing/` 之後才送出 agents（即鎖）
+5. **平行集合登記到 flow-context**——同時 spawn >1 個 phase agent 前，flow 必須把 `parallel_phases:<N>` 寫入 `.athena/.flow-context.json`；全部收斂（所有平行 phase 的 gate 判定與 conflict detection 完成）後移除該欄位（hook 端契約見 `flow-context.md`）
 
 ### Background 平行的執行流程
 
 ```
 04 完成 → flow 識別 {05, 06} 為可平行 phase set
+    ↓
+flow 先鎖卡與登記：
+  mv todo/05-*.md doing/ && mv todo/06-*.md doing/
+  寫入 .athena/.flow-context.json：parallel_phases: 2
     ↓
 flow 在單一回應中送出：
   Agent(run_in_background=true, prompt=phase-05 …)
@@ -201,7 +223,9 @@ flow 進入 "wait & merge" 心智模式：
     ↓
 Conflict Detection（同下節）
     ↓
-全部安全 → 各自 commit → 觸發下游 phase（07 依賴 05 + 06）
+全部安全 → 各自 commit → mv doing/ → done/ → 移除 flow-context 的 parallel_phases 欄位
+    ↓
+觸發下游 phase（07 依賴 05 + 06）
 ```
 
 ### Progress Tracking（搭配 TaskCreate）
@@ -245,7 +269,7 @@ Background 模式下，conflict detection 在「全部完成通知抵達後」�
 ### 處理方式
 
 - 跳過的 phase 在 Build Handoff 中標記為 `skipped (deferred to verify)`
-- phase card 仍保留在 `plans/<slug>/phase-cards/` 中，供 verify agent 參考
+- phase card 由 flow `mv todo/ → done/` 並在卡片頂部標記 `deferred to verify`，供 verify agent 參考（避免其他執行者重複認領）
 - Verify agent 可讀取被跳過的 phase card，了解原計畫的驗證內容
 
 ---
@@ -262,7 +286,7 @@ build
 
 ## Inputs Used
 - handoffs/<slug>-plan.md
-- plans/<slug>/phase-cards/
+- plans/<slug>/done/（各 phase 卡）
 
 ## Phase Summary
 | Phase | Gate | Commit |
@@ -286,7 +310,8 @@ verify
 
 ## 非協商規則
 
-1. **Phase 定義來自 plan.md** — flow 不硬編碼 phase 列表
+1. **Phase 定義來自 plan.md 的 YAML frontmatter** — flow 不硬編碼 phase 列表；markdown 表格僅為人類視圖
+1a. **位置即狀態、mv 即鎖** — phase 狀態的唯一真相是 `todo/doing/done/` 資料夾位置；spawn 前 mv 到 `doing/`，gate PASS 後 mv 到 `done/`
 2. **每個 phase 一個 fresh agent** — 不共享 context
 3. **Mini-handoff 是唯一交接管道** — 不靠 agent 記憶
 4. **Phase agent 自己跑 smoke test** — 不另開 agent

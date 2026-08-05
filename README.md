@@ -316,22 +316,26 @@ mkdir -p .athena && touch .athena/skip-point-gate
   "branch_name": "feature/...",
   "ticket": "",
   "phase_number": "05",
+  "parallel_phases": 3,
   "expires_at": "2026-05-13T15:00:00Z"
 }
 ```
+
+（`parallel_phases` 為選填，僅在平行 phase 情境寫入，見下方說明。）
 
 Hook 行為：
 
 1. 讀 marker → `mode != "hook"` 或 marker 不存在 → no-op
 2. `expires_at` 過期 → 清除 marker，no-op
-3. 找對應 handoff（`handoffs/<slug>-build.md` 等）
-4. handoff 的 `## Gate Verdict` 不是 PASS → no-op
-5. PASS → `git add -A && git commit`（不 push、不 amend、不 rebase）
-6. 刪掉 marker（避免重複觸發）
+3. `parallel_phases` > 1 → no-op（commit 讓位給 flow 層，見下方說明）
+4. 找對應 handoff（`handoffs/<slug>-build.md` 等）
+5. handoff 的 `## Gate Verdict` 不是 PASS → no-op
+6. PASS → `git add -A && git commit`（不 push、不 amend、不 rebase）
+7. 刪掉 marker（避免重複觸發）
 
 Marker schema 與 mode 選擇建議詳見 `skills/athena-flow/references/flow-context.md`。
 
-> v1 限制：平行 phase 共用單一 marker，無法區分。Full Weight 平行 phase 想用 hook 模式時建議拆 per-phase marker；目前的 reference impl 預設仍用 inline post-build skill。
+> 平行 phase：marker 有選填欄位 `parallel_phases`（flow 在同時 spawn >1 個 phase agent 前寫入）。值 >1 時 hook 不 commit，log「parallel phase mode — commit deferred to flow」後讓位給 flow 層「全部 phase 完成 → conflict check → 依序 commit」；序列情境（欄位不存在、0 或 1）行為不變。
 
 ## 給 Contributor
 

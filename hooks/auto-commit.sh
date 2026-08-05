@@ -17,6 +17,7 @@
 #           "branch_name": "feature/main_...",
 #           "ticket": "",
 #           "phase_number": "05",                 # only when build-phase-NN
+#           "parallel_phases": 3,                 # optional; >1 → hook defers commit to flow
 #           "expires_at": "2026-05-13T15:00:00Z"  # monotonic guard
 #         }
 #   2. After Agent completes, harness fires SubagentStop, which calls
@@ -59,6 +60,16 @@ if [ -n "$EXPIRES_AT" ]; then
     rm -f "$CONTEXT_FILE"
     exit 0
   fi
+fi
+
+# Parallel phase guard — when flow runs >1 phase agent concurrently
+# (parallel_phases written by flow before spawning), a commit here would
+# sweep up other agents' in-flight edits. Defer to the flow-level flow:
+# all phases complete → conflict check → ordered commits.
+PARALLEL_PHASES="$(jq -r '.parallel_phases // 0' "$CONTEXT_FILE" 2>/dev/null || echo 0)"
+if [ "$PARALLEL_PHASES" -gt 1 ] 2>/dev/null; then
+  echo "athena auto-commit: parallel phase mode (parallel_phases=${PARALLEL_PHASES}) — commit deferred to flow" >&2
+  exit 0
 fi
 
 TRIGGERING_STAGE="$(jq -r '.triggering_stage // empty' "$CONTEXT_FILE")"
@@ -122,8 +133,9 @@ PREFIX=""
 MSG_HEAD="${PREFIX}${TYPE}: ${DESC}"
 [ -n "$PHASE_TAG" ] && MSG_HEAD="${MSG_HEAD} ${PHASE_TAG}"
 
-# Stage everything currently modified — flow guarantees that the
-# subagent's edits are the only diff at this point.
+# Stage everything currently modified. This is only safe in sequential
+# mode — the parallel_phases guard above has already bailed out when
+# multiple phase agents may have concurrent in-flight edits.
 git -C "$CWD" add -A
 git -C "$CWD" commit -m "$MSG_HEAD" -m "auto-commit via athena post-build hook (${TRIGGERING_STAGE})" >/dev/null 2>&1 || true
 

@@ -97,7 +97,7 @@ handoffs/<slug>-build-phase-<NN>.md
 <phase 編號與名稱>
 
 ## Inputs Used
-- plans/<slug>/phase-cards/<NN>-<name>.md
+- plans/<slug>/doing/<NN>-<name>.md
 - handoffs/<slug>-build-phase-<prev-NN>.md（若有）
 - spec Section <X>, <Y>
 

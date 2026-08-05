@@ -17,7 +17,7 @@ tools: Read, Grep, Glob, Write, Bash
 1. 從 flow 傳入的 prompt 取得 `slug`、`spec handoff path`、`team_plan_skill` 名稱
 2. Read 該團隊 plan skill 的 `SKILL.md`
 3. Read 上一個 stage 的 handoff（`handoffs/<slug>-spec.md` 及其引用的 spec artifact）
-4. 產出 `plans/<slug>/plan.md`（含 Dependency Graph）與 `plans/<slug>/phase-cards/`
+4. 產出 `plans/<slug>/plan.md`（含 YAML frontmatter：`plan` / `phases[].id,name,depends_on` / `status_source: folders`，為 Dependency Graph 的機械真相）與 `plans/<slug>/todo/` 下的 phase 卡（同時建立空的 `doing/`、`done/` 資料夾）
 5. 寫入 `handoffs/<slug>-plan.md`
 
 ## 工具邊界
@@ -31,5 +31,6 @@ tools: Read, Grep, Glob, Write, Bash
 ## 非協商規則
 
 1. Dependency Graph 必須清楚標出可平行的 phase
-2. 每個 phase card 必須包含 `Smoke Test` 與 `Spec Sections`
-3. handoffs/<slug>-plan.md 必須包含 Gate Verdict
+2. plan.md 的 YAML frontmatter 是 Dependency Graph 的唯一機械真相；正文的 markdown 表格僅為人類視圖，內容必須與 frontmatter 一致（`id` 為兩位數字字串，`depends_on` 只准引用存在的 id）
+3. 每個 phase card 必須包含 `Smoke Test` 與 `Spec Sections`
+4. handoffs/<slug>-plan.md 必須包含 Gate Verdict

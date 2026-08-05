@@ -24,6 +24,7 @@ context 寫到 `<cwd>/.athena/.flow-context.json`。SubagentStop hook
   "branch_name": "feature/main_hap3621_harness_p3",
   "ticket": "3621",
   "phase_number": "05",
+  "parallel_phases": 3,
   "expires_at": "2026-05-13T15:00:00Z"
 }
 ```
@@ -36,6 +37,7 @@ context 寫到 `<cwd>/.athena/.flow-context.json`。SubagentStop hook
 | `branch_name` | 必要 | 由 pre-build inline skill 寫入 |
 | `ticket` | 可空 | 從分支名稱推斷出來的 HAP ticket |
 | `phase_number` | 條件必要 | 僅當 triggering_stage 為 `build-phase-NN` / `verify-fix-phase-NN` 時必要 |
+| `parallel_phases` | 選填 | 整數。flow 在**同時 spawn >1 個 phase agent 之前**寫入，全部 phase 收斂後移除或歸零。hook 看到值 >1 就不 commit（見下方「並行 phase 行為」）；欄位不存在、為 0 或 1 時行為不變 |
 | `expires_at` | 必要 | ISO-8601 UTC；建議設定為「subagent 啟動時間 + 預估執行 + 10 分鐘 buffer」 |
 
 ## Life cycle
@@ -62,15 +64,18 @@ flow agent: 即將 spawn build phase 05 subagent
 |------|----------|
 | 預設 / 不確定 | `inline`（與舊行為一致） |
 | 想要 commit 與 subagent stop 嚴格同步 | `hook` |
-| Full Weight phase loop 平行執行 | `hook`（每個 phase 自己的 marker） |
+| Full Weight phase loop 平行執行 | `hook` 可留著不拆（hook 讀 `parallel_phases` 自動讓位，commit 由 flow 層執行） |
 | Debug 或 CI（不希望意外 commit） | `inline` 或直接不寫 marker |
 
-## 並行 phase 注意事項
+## 並行 phase 行為
 
-Full Weight 中可平行的 phase 各自需要獨立 marker，避免相互覆寫。
-實作建議：把 marker 檔名加上 phase 編號 `.athena/.flow-context-phase-NN.json`
-並由 flow 在每個 Agent 啟動前寫對應 marker、hook 依照 stop event 中的
-subagent identifier 找對應 marker。
+Full Weight 允許多個 phase agent 平行執行。此時任一 agent 先結束就
+`git add -A` 會把其他 agent 的半成品一起 commit，違反 phase-orchestration
+「全部完成 → conflict check → 才依序 commit」的規則。因此 hook 在並行時
+**自動讓位給 flow 層 commit**：
 
-> v1 hook 目前讀取單一 `.flow-context.json`；多 phase 平行使用 hook 模式
-> 是 known limitation，要落地時需要擴充 schema 與 hook 邏輯。
+- marker 的 `parallel_phases` 存在且 >1 → hook 不 commit，log 一行
+  「parallel phase mode — commit deferred to flow」後 exit 0
+  （marker 保留，不消費）。commit 改由 flow 層在全部 phase 收斂、
+  conflict check 通過後依序執行。
+- 欄位不存在、為 0 或 1（序列情境）→ hook 行為不變，照常 commit。
