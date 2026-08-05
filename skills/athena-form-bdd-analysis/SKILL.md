@@ -17,6 +17,16 @@ description: >
 
 **Reconciler 合約**：啟動時 Read `athena-core/references/reconciler-contract.md`，全程遵循。
 
+## Gherkin 語言（zh-TW）
+
+所有 `.feature` 一律使用 zh-TW 中文關鍵字，第一行必為 `# language: zh-TW`。
+本 skill 文件中的 Given / When / Then 等字樣指涉**句型類別**（抽象角色分類），
+對應 `.feature` 內的實際關鍵字：`假設`（Given）/ `當`（When）/ `那麼`（Then）/
+`而且`（And）/ `但是`（But）/ `場景`（Scenario）/ `場景大綱`（Scenario Outline）/
+`例子`（Examples）；`Rule:` 在 zh-TW 無中文對應，保留英文。
+**任何對 `.feature` 內容的字串比對、句型 diff 或覆蓋矩陣統計，必須以 zh-TW 關鍵字進行**，
+不得以英文關鍵字 grep / 計數（會 silent mismatch）。
+
 ## 核心概念：Boundary → Operation → Handler
 
 | 層級 | 定義 | 範例 |
@@ -181,7 +191,7 @@ Read `assets/sentence-model.template.md` 取得模板。
 
 ### 撰寫規則
 
-Read `references/feature-writing-rules.md` 取得完整 9 條規則。
+Read `references/feature-writing-rules.md` 取得完整撰寫規則。
 
 ### 填入策略
 

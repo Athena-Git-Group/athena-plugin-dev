@@ -1,5 +1,14 @@
 # Feature File 撰寫規則
 
+## 0. 語言：zh-TW 中文關鍵字
+
+每支 `.feature` 第一行必為 `# language: zh-TW`。關鍵字只用 zh-TW 對照表：
+`功能`（Feature）/ `背景`（Background）/ `場景`（Scenario）/ `場景大綱`（Scenario Outline）/
+`例子`（Examples）/ `假設`（Given）/ `當`（When）/ `那麼`（Then）/ `而且`（And）/ `但是`（But）。
+`Rule:` 在 zh-TW 無中文對應，保留英文 `Rule:`。混用英文中文關鍵字會 parse 失敗。
+
+> 本檔後續條文以 Given / When / Then 指涉句型**類別**，`.feature` 內的實際步驟關鍵字一律用上表的中文。
+
 ## 1. 句型最少化，但剛好必要
 
 句型數量 = 行為形狀數量，不是操作數量。一個句型覆蓋所有「形狀相同但資料不同」的操作。但當行為形狀 genuinely 不同時，給它專屬句型，不強行塞進同一個。
@@ -76,18 +85,19 @@ Then 斷言必須是具體的值（`version 為 2`），不可是行為描述（
 
 同一 Feature 內，所有「前置」Rule 排在「後置」Rule 上方。
 
-## 9. Rule 底下用 `Example` 不用 `Scenario`
+## 9. Rule 底下單行案例用 `場景`，多行 data-driven 用 `場景大綱`
 
-在 `Rule:` 區塊內，單行測試案例使用 `Example` 關鍵字，不用 `Scenario`。`Scenario Outline` 保持不變。
+在 `Rule:` 區塊內，單行測試案例使用 `場景` 關鍵字（zh-TW 中 Scenario 與 Example
+同為 `場景`，不存在英文 `Example:` 關鍵字）；多行 data-driven 案例用 `場景大綱` + `例子`。
 
 ```gherkin
 Rule: 前置（參數）- 房間代碼必須為四位數字
-  Example: 房間代碼格式不正確時操作失敗       # ← Example，不是 Scenario
+  場景: 房間代碼格式不正確時操作失敗          # ← 單行案例用 場景
     ...
 
-  Scenario Outline: 多種格式驗證             # ← Outline 保持不變
+  場景大綱: 多種格式驗證                     # ← 多行 data-driven 用 場景大綱
     ...
-    Examples:
+    例子:
       | ... |
 ```
 

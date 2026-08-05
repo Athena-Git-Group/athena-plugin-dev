@@ -56,19 +56,19 @@ Given/When 語句執行**寫入操作**（Command）。
 ### When + Command
 
 ```gherkin
-When 用戶 "Alice" 更新課程 1 的影片進度為 80%
+當 用戶 "Alice" 更新課程 1 的影片進度為 80%
 ```
 
 ### Given + Command（前置操作）
 
 ```gherkin
-Given 用戶 "Alice" 已訂閱課程 1
+假設 用戶 "Alice" 已訂閱課程 1
 ```
 
 ### DataTable + Command
 
 ```gherkin
-When 用戶 "Alice" 批量更新以下商品數量：
+當 用戶 "Alice" 批量更新以下商品數量：
   | productId | quantity |
   | PROD-001  | 3        |
   | PROD-002  | 1        |

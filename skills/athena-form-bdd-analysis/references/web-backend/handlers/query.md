@@ -45,19 +45,19 @@ When 語句執行**讀取操作**（Query）。
 ### 基本查詢
 
 ```gherkin
-When 用戶 "Alice" 查詢課程 1 的進度
+當 用戶 "Alice" 查詢課程 1 的進度
 ```
 
 ### 帶 Query Parameters 的查詢
 
 ```gherkin
-When 用戶 "Alice" 查詢第 1 章的所有課程
+當 用戶 "Alice" 查詢第 1 章的所有課程
 ```
 
 ### 列表查詢
 
 ```gherkin
-When 用戶 "Alice" 查詢購物車中的所有商品
+當 用戶 "Alice" 查詢購物車中的所有商品
 ```
 
 ## URL 構建規則
