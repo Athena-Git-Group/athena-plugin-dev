@@ -81,6 +81,7 @@ gate 在 run 內抓到 = failure tag；人事後抓到 = feedback kind。
 | `skill-defect` | team skill | 立 eval case + 修 |
 | `flaky` | verify / smoke | quarantine、標 xfail 並寫移除條件 |
 | `env` | kickoff / 環境文件 | 補環境前置檢查 |
+| `parallel_speedup` 持平於 ~1 **且** trace 的 `phases[]` 顯示 `parallel_group` 皆為單元素（可平行集未被使用）、或 plan 的 Dependency Graph 過度串鏈 | plan skill / dependency graph 規則 | 💡 提案平行化候選：指出可平行的 phase 組、放寬過度串鏈的依賴標註 |
 
 回饋 taxonomy（`feedback.jsonl` 的 `kind`）→ 改進目標：
 
@@ -177,7 +178,7 @@ gate 在 run 內抓到 = failure tag；人事後抓到 = feedback kind。
 每輪 retro append 一行，讓「hill」可量測：
 
 ```json
-{"ts":"2026-06-25T02:00:00Z","window_runs":18,"gate_first_pass_rate":0.72,"verify_retry_rate":0.22,"scope_accuracy":0.83,"mean_agents_per_run":5.1,"human_intervention_rate":0.28,"post_ship_defect_rate":0.11,"mean_coverage":0.81,"regression_set_size":17,"by_tag":{"integration-mismatch":4,"scope-underestimate":3},"by_kind":{"post-ship-defect":2,"low-coverage":1}}
+{"ts":"2026-06-25T02:00:00Z","window_runs":18,"gate_first_pass_rate":0.72,"verify_retry_rate":0.22,"scope_accuracy":0.83,"mean_agents_per_run":5.1,"mean_wall_seconds":1840,"parallel_speedup":1.6,"human_intervention_rate":0.28,"post_ship_defect_rate":0.11,"mean_coverage":0.81,"regression_set_size":17,"by_tag":{"integration-mismatch":4,"scope-underestimate":3},"by_kind":{"post-ship-defect":2,"low-coverage":1}}
 ```
 
 | 指標 | 定義 |
@@ -185,7 +186,9 @@ gate 在 run 內抓到 = failure tag；人事後抓到 = feedback kind。
 | `gate_first_pass_rate` | 各 stage gate 第一次就 PASS 的比率 |
 | `verify_retry_rate` | 進入 verify-retry 的 run 比率 |
 | `scope_accuracy` | point verdict 與實際是否 escalate 相符的比率 |
-| `mean_agents_per_run` | 平均 agent 數（成本代理指標） |
+| `mean_agents_per_run` | 平均 agent 數——**僅成本面參考**。吞吐面看 `parallel_speedup` 與 `mean_wall_seconds`，兩面搭配判讀；**不得單以 agents 數上升判定退步**（並行化本來就會推高 agents 數）|
+| `mean_wall_seconds` | 平均 wall-clock 秒數（來自 trace 的 `wall_seconds`，見 run-trace.md Stage Metrics）；分母 = 窗口內 outcome ∈ {shipped, done} 且**帶有** `wall_seconds` 的 run。無任何合格 run → `null` |
+| `parallel_speedup` | 同時帶有 `agent_seconds` 與 `wall_seconds` 的 run 之 `agent_seconds ÷ wall_seconds` 平均；**>1 表示並行有效**。無任何合格 run → `null` |
 | `human_intervention_rate` | 有人工中途介入的 run 比率 |
 | `post_ship_defect_rate` | 事後缺陷率，定義見下方公式（分母為 0 時為 `null`）|
 | `mean_coverage` | 窗口內所有「帶 `coverage` 的 stage」的平均覆蓋率；無任何 coverage → `null` |
@@ -206,6 +209,22 @@ post_ship_defect_rate =
 - **分母為 0**（窗口內無 shipped run）→ 值為 `null`，避免「沒 ship 過卻顯示 0% 缺陷」的誤導。
 - **只算 `shipped`**：post-ship 顧名思義只對已 ship 的 run 有意義。
 - `minor` 不計入分子；`low-coverage`/`perf`/`style` 不是「缺陷」，不進此指標（它們走 `by_kind` 趨勢）。
+
+### 時間指標的缺欄位規則（非協商）
+
+`mean_wall_seconds` 與 `parallel_speedup` 只以**帶有對應時間欄位**的 run 計算：
+
+- 舊 trace（schema 升級前寫入）缺 `wall_seconds` / `agent_seconds` → **排除在分母外，絕不當 0 或 1**——
+  當 0 會偽造「瞬間完成」、當 1 會偽造「並行無效」的假訊號。
+- 窗口內**沒有任何** run 帶時間欄位 → 該指標為 `null`，不示警、不列入趨勢——
+  與既有 `post_ship_defect_rate`／`mean_coverage` 的「分母為 0 → `null`，避免誤導」慣例同一原則：
+  **缺資料就縮小分母或給 `null`，不編造數值**。
+
+### `mean_wall_seconds` 趨勢示警
+
+- **連續兩輪 `mean_wall_seconds` 上升** → 在報告列為 **🟡（系統性問題）**，提示「吞吐正在退坡」——
+  搭配 `parallel_speedup` 與 `mean_agents_per_run` 判讀是並行失效還是任務本身變重。
+- `mean_wall_seconds = null`（無時間資料）的輪次 → 不示警、不列入趨勢。
 
 ### `mean_coverage` 趨勢示警
 
@@ -234,4 +253,3 @@ post_ship_defect_rate =
 7. **資料不足（新 trace < 5）就停**。
 8. **棘輪 append-only** — regression set 只增不減；`retired` 僅人工 + reason 且不刪檔（見 §5.5.3）。
 9. **採納前必過退步 gate** — 已修好的 ≥ 門檻通過且不低於上輪 baseline，否則不採納（見 §5.5.2）。
-</content>

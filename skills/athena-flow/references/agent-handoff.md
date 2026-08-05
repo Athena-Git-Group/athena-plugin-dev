@@ -75,6 +75,23 @@ trace 的 `stages[].metrics`（schema 見 `run-trace.md` 的 Stage Metrics 段�
 - 適合 verify（覆蓋率、lint）與 build（測試數）；非數字描述放 handoff 本文，不放這裡。
 - 解析失敗（非法 JSON / 含非數字 value）由 emit-trace **安靜降級**，不影響 gate 與 run 結局。
 
+## Timing 欄位（選填，所有 handoff 通用）
+
+stage handoff 與 mini-handoff 皆可選擇性附帶一個 `## Timing` 區塊，記錄 agent 的
+起訖時間（ISO-8601 UTC，agent 用 `date -u +%Y-%m-%dT%H:%M:%SZ` 取）：
+
+```markdown
+## Timing
+- Started At: 2026-08-05T14:02:11Z
+- Ended At: 2026-08-05T14:18:47Z
+```
+
+- agent 在**開工第一步**取 `Started At:`，寫 handoff 前取 `Ended At:`。
+- emit-trace 解析後填入 trace：stage handoff → `stages[].started_at` / `stages[].ended_at`；
+  mini-handoff → build stage `phases[].started_at` / `phases[].ended_at`（schema 見 `run-trace.md`）。
+- **選填、additive、缺就缺**——沒有此區塊或只有其中一個欄位皆合法，舊 handoff 不需補。
+- 解析失敗（格式不符 ISO-8601 等）由 emit-trace **安靜降級**，不影響 gate 與 run 結局。
+
 ## Phase-Level Handoff（Build 內部）
 
 Build stage 被拆解為多個 phase，每個 phase 由 fresh agent 執行。
@@ -117,6 +134,10 @@ handoffs/<slug>-build-phase-<NN>.md
 ## Gate Verdict
 <PASS / FAIL + 原因>
 
+## Timing
+- Started At: <ISO-8601 UTC，選填>
+- Ended At: <ISO-8601 UTC，選填>
+
 ## Notes for Next Phase
 [下一個 phase agent 需要知道的資訊，如實際 API path、schema 細節等]
 ```
@@ -131,6 +152,7 @@ handoffs/<slug>-build-phase-<NN>.md
 | Spec Deviations | 必要 | 防止下游在錯誤基礎上繼續 |
 | Smoke Test Result | 必要 | Gate 判定依據 |
 | Gate Verdict | 必要 | Flow 讀取此欄位決定是否繼續 |
+| Timing（Started At / Ended At） | 選填 | ISO-8601 UTC 起訖時間，emit-trace 填入 `phases[].started_at` / `ended_at`（見上方 Timing 段）|
 | Notes for Next Phase | 選填 | 跨 phase 的實作細節傳遞 |
 
 ### Build Handoff 合成

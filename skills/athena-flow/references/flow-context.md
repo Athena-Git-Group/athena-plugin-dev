@@ -25,6 +25,7 @@ context 寫到 `<cwd>/.athena/.flow-context.json`。SubagentStop hook
   "ticket": "3621",
   "phase_number": "05",
   "parallel_phases": 3,
+  "started_at": "2026-05-13T14:20:00Z",
   "expires_at": "2026-05-13T15:00:00Z"
 }
 ```
@@ -38,6 +39,7 @@ context 寫到 `<cwd>/.athena/.flow-context.json`。SubagentStop hook
 | `ticket` | 可空 | 從分支名稱推斷出來的 HAP ticket |
 | `phase_number` | 條件必要 | 僅當 triggering_stage 為 `build-phase-NN` / `verify-fix-phase-NN` 時必要 |
 | `parallel_phases` | 選填 | 整數。flow 在**同時 spawn >1 個 phase agent 之前**寫入，全部 phase 收斂後移除或歸零。hook 看到值 >1 就不 commit（見下方「並行 phase 行為」）；欄位不存在、為 0 或 1 時行為不變 |
+| `started_at` | 選填 | ISO-8601 UTC **run 開始時間**。flow 第一次建立 marker 時寫入，後續重寫 marker 沿用同值不更新；emit-trace 讀取填入 trace run 層的 `started_at`（見 `run-trace.md`）。hook 不讀此欄位；缺失即略，不影響任何行為 |
 | `expires_at` | 必要 | ISO-8601 UTC；建議設定為「subagent 啟動時間 + 預估執行 + 10 分鐘 buffer」 |
 
 ## Life cycle

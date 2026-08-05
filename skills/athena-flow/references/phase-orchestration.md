@@ -114,6 +114,8 @@ Flow 讀 plan.md frontmatter → 掃描 todo/doing/done/ → 建立依賴圖
 ```
 你正在執行 Phase <NN>: <Phase Name>。
 
+開工第一步：執行 `date -u +%Y-%m-%dT%H:%M:%SZ`，記下作為 Started At。
+
 讀取以下資料：
 1. .athena/skills/<build-skill>/SKILL.md（你的 build skill）
 2. plans/<slug>/doing/<NN>-<name>.md（你的任務卡片）
@@ -122,8 +124,12 @@ Flow 讀 plan.md frontmatter → 掃描 todo/doing/done/ → 建立依賴圖
 
 完成實作後：
 1. 執行 smoke test：<phase card 中的 smoke_test 指令>
-2. 寫 mini-handoff 到 handoffs/<slug>-build-phase-<NN>.md
+2. 再執行一次 `date -u +%Y-%m-%dT%H:%M:%SZ` 取得 Ended At
+3. 寫 mini-handoff 到 handoffs/<slug>-build-phase-<NN>.md，
+   含選填的 `## Timing` 區塊（Started At / Ended At，格式見 agent-handoff.md）
 ```
+
+> Timing 是**選填**欄位——agent 漏記不算 gate 失敗，emit-trace 缺就略。
 
 ## Smoke Test Gate
 
@@ -247,6 +253,24 @@ Conflict Detection（同下節）
 | 有重疊且修改同一檔案 | 停止流程，報告衝突檔案，交給使用者 |
 
 Background 模式下，conflict detection 在「全部完成通知抵達後」才執行；不可在第一個完成的 phase 就 commit，否則衝突檔案會被先 commit 的版本覆寫，後到者得做 merge。
+
+## Phase 拓撲彙整（供 emit-trace，選填）
+
+phase loop 收斂後（所有 phase gate 判定與 conflict detection 完成），flow 把並行觀測
+資料彙整起來，供收尾的 emit-trace 步驟填入 build stage 的 `phases` / `conflicts` 欄位
+（schema 見 `run-trace.md`「時間與拓撲欄位」）。資料來源：
+
+| 欄位 | 來源 |
+|------|------|
+| `phases[].id` / `name` | plan.md frontmatter 的 phase 定義 |
+| `phases[].started_at` / `ended_at` | 各 phase mini-handoff 的 `## Timing` 區塊（`Started At:` / `Ended At:`，選填） |
+| `phases[].mode` | flow 自己知道——spawn 該 phase 時用的是 foreground 還是 background 平行 |
+| `phases[].parallel_group` | flow 自己知道——同一次回應中一起 spawn 的 phase id 集合（**含自己**）；序列執行的 phase 為 `["<NN>"]` |
+| `phases[].gate` / `retries` | flow 的 gate 判定與 retry 紀錄 |
+| `conflicts[]` | Conflict Detection 的結果：`{"phases":[...],"files":[...],"resolution":"clean"|"user"}` |
+
+規則：**全部選填、缺失即略**——mini-handoff 沒有 Timing 就不帶時間欄位，
+彙整或解析失敗安靜降級，絕不影響 gate 判定、commit 順序或 trace 寫入。
 
 ## Verification Phase Dedup
 

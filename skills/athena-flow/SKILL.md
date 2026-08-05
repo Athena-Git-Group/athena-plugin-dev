@@ -292,6 +292,18 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
           計數類（lint_*／tests_*）取**加總**
         > **非協商**：metrics 蒐集是 emit-trace 裡最低優先的附加動作；解析失敗只代表「少記一個數字」，
         > **絕不**影響 trace 寫入或 run 結局。metrics 不參與任何 gate 判定。
+    a3. **蒐集時間與拓撲欄位（全部選填、同為最低優先）**：
+        - run 層 `started_at`：讀 flow-context marker 的選填 `started_at`（見 `references/flow-context.md`）
+        - `stages[].started_at` / `ended_at`：讀各 stage handoff 的選填 `## Timing` 區塊
+          （`Started At:` / `Ended At:`，見 `references/agent-handoff.md`）
+        - build stage 的 `phases[]` 與 `conflicts[]`（僅 Full Weight）：時間來自各 mini-handoff 的
+          Timing 區塊；`mode` / `parallel_group` 來自 flow 自己的 spawn 分組紀錄；`conflicts` 來自
+          conflict detection 結果（彙整方式見 `references/phase-orchestration.md`「Phase 拓撲彙整」）
+        - 計算三個選填 metrics（掛在 build stage 的 `metrics`，schema 見 `references/run-trace.md`）：
+          `wall_seconds`（`ts` − `started_at`）、`agent_seconds`（phases 時長總和；缺 phases 時
+          退回 stages 時長總和）、`max_parallel_width`（最大 `parallel_group` 大小）
+        > **非協商**：所有時間與拓撲欄位皆選填、缺失即略；任何解析或計算失敗**安靜降級**
+        > （該欄位不寫即可），**絕不**影響 trace 寫入或 run 結局。
     b. Append 一筆 JSON 到 `.athena/traces/runs.jsonl`（不存在則建立）
     c. 依 **Handoff Retention Policy** 做 GC（詳見 `references/run-trace.md`）：
        - outcome 為 `shipped` / `done` → 刪除該 slug 的所有 handoff（含 mini-handoff）

@@ -36,11 +36,12 @@ flow 在 run 結束前，以 **flow-inline 步驟**（不開 agent，因為這�
 | `run_id` | string | 全域唯一，建議 `<date>-<slug>-<seq>` |
 | `slug` | string | 對應 point-report 的 slug |
 | `ts` | string | ISO-8601 完成時間 |
+| `started_at` | string | **選填**。ISO-8601 UTC run 開始時間（flow 建 flow-context marker 時寫入，emit-trace 讀取；見 `flow-context.md`。缺失即略） |
 | `trigger` | enum | `manual` / `ci` / `pr-review` / `cron` / `inbox`（**source 類別**；手動跑為 `manual`。具體 trigger name 記在 dispatcher state，不進此欄位，以利 Loop 3 聚合） |
 | `point` | object | `{ verdict, score, dimensions{} }` |
 | `weight` | enum | `Minimal` / `Lightweight` / `Full` |
 | `route` | string | 實走路線（如 `point -> build -> verify -> review-ship`） |
-| `stages[]` | array | 每個 stage：`{ stage, skill, gate, retries, agents, metrics? }`（`metrics` 選填，見下方 Stage Metrics）|
+| `stages[]` | array | 每個 stage：`{ stage, skill, gate, retries, agents, started_at?, ended_at?, metrics?, phases?, conflicts? }`（`started_at` / `ended_at` **選填** ISO-8601 UTC；`metrics` 選填，見下方 Stage Metrics；`phases` / `conflicts` **選填**、僅 build stage，見下方「時間與拓撲欄位」）|
 | `failures[]` | array | 每筆：`{ tag, stage, affected_phase?, note }`（`tag` 見 Failure Taxonomy） |
 | `human_interventions` | int | 使用者中途修正 / 否決次數 |
 | `outcome` | enum | `shipped` / `done` / `stopped@<stage>` / `handed-to-human` |
@@ -55,6 +56,44 @@ flow 在 run 結束前，以 **flow-inline 步驟**（不開 agent，因為這�
 
 ```json
 {"run_id":"2026-06-25-approval-01","slug":"approval-workflow","ts":"2026-06-25T16:10:00Z","trigger":"manual","point":{"verdict":"PASS-SPEC-FIRST","score":19,"dimensions":{}},"weight":"Full","route":"point -> spec -> plan -> build -> verify","stages":[{"stage":"build","skill":"team-build","gate":"PASS","retries":1,"agents":3},{"stage":"verify","skill":"team-verify","gate":"FAIL","retries":2,"agents":1}],"failures":[{"tag":"integration-mismatch","stage":"verify","affected_phase":"06","note":"frontend calls /api/approval, backend exposes /api/approvals"}],"human_interventions":1,"outcome":"handed-to-human"}
+```
+
+## 時間與拓撲欄位（選填，並行觀測）
+
+讓 Loop 3 能評估並行是否有效的時間與拓撲維度。**所有時間欄位皆為選填、缺失即略、
+絕不擋 emit**——emit-trace 解析失敗一律安靜降級（比照 Stage Metrics 的設計哲學），
+舊 trace 無此欄位仍合法，不需遷移。
+
+- **run 層 `started_at`**（選填，ISO-8601 UTC）：flow 建 flow-context marker 時寫入，
+  emit-trace 讀回（見 `flow-context.md`）。
+- **`stages[].started_at` / `stages[].ended_at`**（選填，ISO-8601 UTC）：來自 stage handoff
+  的選填 `Started At:` / `Ended At:` 欄位（見 `agent-handoff.md` Timing 段）。
+- **build stage 的 `phases`**（選填，陣列）：Full Weight phase loop 的逐 phase 觀測，每筆：
+
+  ```json
+  {"id":"05","name":"Backend TDD","started_at":"2026-06-25T14:02:11Z","ended_at":"2026-06-25T14:18:47Z","mode":"foreground","gate":"PASS","retries":0,"parallel_group":["05","06"]}
+  ```
+
+  | 欄位 | 說明 |
+  |------|------|
+  | `id` / `name` | 對應 plan.md frontmatter 的 phase id 與名稱 |
+  | `started_at` / `ended_at` | **選填**，來自該 phase mini-handoff 的 `Started At:` / `Ended At:` |
+  | `mode` | `"foreground"` / `"background"`（flow 自己知道用哪種模式 spawn） |
+  | `gate` / `retries` | `"PASS"` / `"FAIL"` 與 retry 次數（flow 的 gate 判定紀錄） |
+  | `parallel_group` | 與該 phase **同時 spawn** 的 phase id 集合（**含自己**）；序列執行時為 `["05"]` |
+
+- **build stage 的 `conflicts`**（選填，陣列）：conflict detection 的結果，每筆：
+
+  ```json
+  {"phases":["05","06"],"files":["src/router.ts"],"resolution":"user"}
+  ```
+
+  `resolution`：`"clean"`（無實質重疊，各自 commit）/ `"user"`（重疊修改同檔，交使用者）。
+
+### 範例（build stage 帶 phases 的完整 trace 行）
+
+```json
+{"run_id":"2026-08-05-approval-02","slug":"approval-workflow","ts":"2026-08-05T15:10:00Z","started_at":"2026-08-05T14:00:00Z","trigger":"manual","point":{"verdict":"PASS-SPEC-FIRST","score":19,"dimensions":{}},"weight":"Full","route":"point -> spec -> plan -> build -> verify -> review -> ship","stages":[{"stage":"build","skill":"team-build","gate":"PASS","retries":0,"agents":3,"started_at":"2026-08-05T14:00:30Z","ended_at":"2026-08-05T14:50:00Z","phases":[{"id":"05","name":"Backend TDD","started_at":"2026-08-05T14:02:11Z","ended_at":"2026-08-05T14:18:47Z","mode":"foreground","gate":"PASS","retries":0,"parallel_group":["05","06"]},{"id":"06","name":"Frontend Build","started_at":"2026-08-05T14:02:15Z","ended_at":"2026-08-05T14:25:03Z","mode":"foreground","gate":"PASS","retries":0,"parallel_group":["05","06"]},{"id":"07","name":"Integration","started_at":"2026-08-05T14:26:00Z","ended_at":"2026-08-05T14:49:12Z","mode":"foreground","gate":"PASS","retries":0,"parallel_group":["07"]}],"conflicts":[{"phases":["05","06"],"files":[],"resolution":"clean"}],"metrics":{"wall_seconds":4200,"agent_seconds":3756,"max_parallel_width":2}},{"stage":"verify","skill":"team-verify","gate":"PASS","retries":0,"agents":1,"started_at":"2026-08-05T14:51:00Z","ended_at":"2026-08-05T15:05:00Z"}],"failures":[],"human_interventions":0,"outcome":"shipped"}
 ```
 
 ## Stage Metrics（選填）
@@ -75,6 +114,13 @@ flow 在 run 結束前，以 **flow-inline 步驟**（不開 agent，因為這�
 | `lint_warnings` | integer ≥0 | lint 警告數 |
 | `lint_errors` | integer ≥0 | lint 錯誤數（選填）|
 | `tests_passed` / `tests_failed` | integer ≥0 | 測試通過/失敗數（選填）|
+| `wall_seconds` | number ≥0 | **選填**。run 牆鐘時間（`ts` − run 層 `started_at`，秒）|
+| `agent_seconds` | number ≥0 | **選填**。agent 工作時間總和（`phases` 各 phase 時長加總；缺 `phases` 時退回各 stage `started_at`/`ended_at` 時長加總）|
+| `max_parallel_width` | integer ≥1 | **選填**。最大 `parallel_group` 大小（並行寬度）|
+
+> 上述三個 key **不來自 handoff 的 `## Metrics` 區塊**，由 emit-trace 從時間與拓撲欄位
+> 自行計算，慣例掛在 build stage 的 `metrics`。任一來源欄位缺失就略過該 key（安靜降級），
+> 絕不擋 emit。
 
 > **前向相容**：允許其他 snake_case + 數字 value 的 key；未知 key 消費端（hill-climb）忽略不報錯。
 
