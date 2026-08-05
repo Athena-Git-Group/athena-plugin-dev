@@ -155,6 +155,34 @@ else
   fi
 fi
 
+# ---------- 6. Status renderer self-test ----------
+step "render_status.py fixture self-test"
+RENDERER="scripts/render_status.py"
+if [ ! -f "$RENDERER" ]; then
+  fail "$RENDERER missing"
+elif [ ! -d "$FIXTURE" ]; then
+  fail "$FIXTURE missing"
+else
+  tmproot="$(mktemp -d)"
+  mkdir -p "$tmproot/plans"
+  cp -R "$FIXTURE" "$tmproot/plans/plan-valid"
+  out_html="$tmproot/status.html"
+  if python3 "$RENDERER" "$tmproot" --output "$out_html" >/dev/null 2>&1 && [ -f "$out_html" ]; then
+    missing_phases=""
+    for pid in 01 02 03 04 05 06 07 08; do
+      grep -q "data-phase=\"$pid\"" "$out_html" || missing_phases="$missing_phases $pid"
+    done
+    if [ -z "$missing_phases" ]; then
+      ok "$RENDERER renders fixture with all 8 phase ids"
+    else
+      fail "$RENDERER output missing phase id(s):$missing_phases"
+    fi
+  else
+    fail "$RENDERER failed on $tmproot (fixture copy of $FIXTURE)"
+  fi
+  rm -rf "$tmproot"
+fi
+
 echo ""
 if [ "$FAIL" -eq 0 ]; then
   echo "🎉 All lint checks passed."

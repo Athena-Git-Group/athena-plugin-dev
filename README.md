@@ -88,6 +88,7 @@ Subagent description 標註「only via athena-flow」以避免 main agent 繞過
 |----------|------|------|
 | `PreToolUse` (Edit / Write / MultiEdit / NotebookEdit) | `hooks/require-point.sh` | 沒有 `points/*.md` 就 block 編輯——強制執行「先跑 /athena-point」 |
 | `SubagentStop` | `hooks/auto-commit.sh` | 看 `.athena/.flow-context.json`；`mode: hook` 才接管 commit，否則由 flow-inline post-build skill 處理 |
+| `SubagentStop` | `hooks/render-status.sh` | 重新產生 `.athena/status.html` 狀態看板（機械投影，非強制 hook；無 `.athena/` 或 `plans/` 時靜默 no-op） |
 
 詳細觸發範圍、自我保護路徑與 escape hatch 見下方「Hooks 機制」段。
 
@@ -269,7 +270,7 @@ Flow 根據 point 評分自動決定流程重量，避免小任務走過重的�
 
 ## Hooks 機制
 
-Plugin 透過兩條 harness hook 把流程契約落到 runtime 強制：一條檢查事前（point gate），一條接管事後（auto-commit）。兩者都列在 `hooks/hooks.json`。
+Plugin 透過兩條 harness hook 把流程契約落到 runtime 強制：一條檢查事前（point gate），一條接管事後（auto-commit）。另有一條非強制的 `SubagentStop` hook（`hooks/render-status.sh`）負責重渲染狀態看板，見「狀態看板」一節。三者都列在 `hooks/hooks.json`。
 
 ### 1. Point Gate（強制，always-on）
 
@@ -336,6 +337,27 @@ Hook 行為：
 Marker schema 與 mode 選擇建議詳見 `skills/athena-flow/references/flow-context.md`。
 
 > 平行 phase：marker 有選填欄位 `parallel_phases`（flow 在同時 spawn >1 個 phase agent 前寫入）。值 >1 時 hook 不 commit，log「parallel phase mode — commit deferred to flow」後讓位給 flow 層「全部 phase 完成 → conflict check → 依序 commit」；序列情境（欄位不存在、0 或 1）行為不變。
+
+## 狀態看板（Status Dashboard）
+
+打開 **`.athena/status.html`** 就能看到目前所有 flow 的進行狀況：每個
+`plans/<slug>/` 一個 section（DAG 依賴圖 SVG、todo/doing/done 三欄看板、
+gate verdict 表），加上最近 10 筆歷史 run。頁面每 5 秒自動重新載入，
+支援亮／暗主題，完全 self-contained（無任何外部資源）。
+
+- **產生時機**：`SubagentStop` hook（`hooks/render-status.sh`）在每個
+  subagent 結束後自動重渲染；渲染失敗不會中斷 hook chain。
+- **手動產生**：
+  ```bash
+  python3 scripts/render_status.py .   # 輸出到 .athena/status.html
+  ```
+- **核心原則——機械投影，勿手編**：看板是
+  `plans/*/plan.md` frontmatter（DAG）、`plans/*/todo|doing|done/`
+  （phase 狀態唯一真相）、`handoffs/<slug>-*.md`（gate verdict）、
+  `.athena/.flow-context.json`（當前 stage）、`.athena/traces/runs.jsonl`
+  （歷史 run）的**純函數**，由 `scripts/render_status.py` 唯讀產生。
+  任何手動編輯都會在下次渲染被整頁覆蓋；看板不對就修狀態或修 script，
+  不准改 HTML。
 
 ## 給 Contributor
 

@@ -22,6 +22,7 @@ __pycache__/
 # proposals). Runtime-only, accumulated per consumer; never committed.
 /.athena/traces/
 /.athena/hill-climb/
+/.athena/status.html
 
 # /codemap (graphify) runtime artifacts — per-user knowledge graph cache.
 # Each consumer regenerates locally; never commit.
