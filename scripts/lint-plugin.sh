@@ -177,6 +177,26 @@ else
     else
       fail "$RENDERER output missing phase id(s):$missing_phases"
     fi
+    # Interactive dashboard invariants:
+    #   - embedded JSON detail blob (drawer data, no fetch at runtime)
+    #   - dependency edges drawn (fixture DAG has 8 edges; require >= 7)
+    #   - no external resource references (self-contained, file:// safe)
+    if grep -q 'type="application/json" id="athena-status-data"' "$out_html"; then
+      ok "$RENDERER embeds phase-detail JSON blob"
+    else
+      fail "$RENDERER output missing embedded JSON blob (athena-status-data)"
+    fi
+    edge_count="$(grep -oE '<(line|path)[^>]*class="dag-edge"' "$out_html" | wc -l | tr -d ' ')"
+    if [ "$edge_count" -ge 7 ]; then
+      ok "$RENDERER draws $edge_count dependency edges (>= 7)"
+    else
+      fail "$RENDERER output has only $edge_count dependency edges (expected >= 7)"
+    fi
+    if grep -qE '(src|href)="https?://' "$out_html"; then
+      fail "$RENDERER output references external resources (must be self-contained)"
+    else
+      ok "$RENDERER output is self-contained (no external src/href)"
+    fi
   else
     fail "$RENDERER failed on $tmproot (fixture copy of $FIXTURE)"
   fi

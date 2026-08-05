@@ -20,8 +20,12 @@ Inputs (all read-only):
 
 Output:
   - .athena/status.html (default) — fully self-contained: no external
-    resources, auto-reloads via <meta http-equiv="refresh">, light/dark
-    via prefers-color-scheme.
+    resources (works over file://), auto-reloads via inline JS
+    (~5 s, paused while the detail drawer is open), light/dark via
+    prefers-color-scheme. DAG nodes and kanban cards are clickable and
+    open a detail drawer; all detail data is embedded at render time in
+    a <script type="application/json"> blob (mechanical projection —
+    the page never fetches anything).
 
 Zero third-party dependencies (Python stdlib only).
 
@@ -148,6 +152,7 @@ def collect_cards(plan_dir):
                 "folder": folder,
                 "file": card.name,
                 "meta": read_card_meta(card),
+                "path": card,
             })
     return cards
 
@@ -283,6 +288,168 @@ def phase_state(pid, plan, handoffs):
 
 
 # ---------------------------------------------------------------------------
+# Detail-drawer data (embedded JSON, rendered at projection time)
+# ---------------------------------------------------------------------------
+
+_MD_HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
+_MD_LIST_RE = re.compile(r"^(?:[-*+]|\d+[.)])\s+(.*)$")
+_MD_INLINE_CODE_RE = re.compile(r"`([^`]+)`")
+_MD_BOLD_RE = re.compile(r"\*\*([^*]+)\*\*")
+
+
+def _md_inline(escaped):
+    """Inline markdown on already-HTML-escaped text (code spans, bold)."""
+    escaped = _MD_INLINE_CODE_RE.sub(r"<code>\1</code>", escaped)
+    escaped = _MD_BOLD_RE.sub(r"<strong>\1</strong>", escaped)
+    return escaped
+
+
+def md_lite(text):
+    """Minimal, safe markdown -> HTML: everything is HTML-escaped first;
+    headings / lists / code fences / inline code / bold get light styling.
+    Deliberately NOT a full markdown parser — readable is enough."""
+    out, in_list, in_code, code_buf = [], False, False, []
+
+    def close_list():
+        nonlocal in_list
+        if in_list:
+            out.append("</ul>")
+            in_list = False
+
+    for raw in text.splitlines():
+        stripped = raw.strip()
+        if stripped.startswith("```"):
+            if in_code:
+                out.append("<pre>" + esc("\n".join(code_buf)) + "</pre>")
+                code_buf, in_code = [], False
+            else:
+                close_list()
+                in_code = True
+            continue
+        if in_code:
+            code_buf.append(raw)
+            continue
+        hm = _MD_HEADING_RE.match(stripped)
+        lm = _MD_LIST_RE.match(stripped)
+        if hm:
+            close_list()
+            lvl = min(len(hm.group(1)), 4)
+            out.append(f'<div class="md-h md-h{lvl}">{_md_inline(esc(hm.group(2)))}</div>')
+        elif lm:
+            if not in_list:
+                out.append("<ul>")
+                in_list = True
+            out.append("<li>" + _md_inline(esc(lm.group(1))) + "</li>")
+        elif not stripped:
+            close_list()
+        else:
+            close_list()
+            out.append("<p>" + _md_inline(esc(stripped)) + "</p>")
+    if in_code:
+        out.append("<pre>" + esc("\n".join(code_buf)) + "</pre>")
+    close_list()
+    return "".join(out)
+
+
+_FILES_CHANGED_RE = re.compile(r"files\s+changed", re.IGNORECASE)
+_RISKS_RE = re.compile(r"\brisks?\b", re.IGNORECASE)
+
+
+def extract_md_section(text, title_re):
+    """Return the body of the first heading whose title matches title_re,
+    up to the next heading of the same or higher level. None if absent."""
+    out, level = None, 0
+    for line in text.splitlines():
+        m = _MD_HEADING_RE.match(line.strip())
+        if m and out is None:
+            if title_re.search(m.group(2)):
+                out, level = [], len(m.group(1))
+            continue
+        if m and out is not None and len(m.group(1)) <= level:
+            break
+        if out is not None:
+            out.append(line)
+    if out is None:
+        return None
+    return "\n".join(out).strip() or None
+
+
+def phase_gate(pid, handoffs):
+    """Last handoff whose stage mentions this phase, or None."""
+    hit = None
+    for h in handoffs:
+        if f"phase-{pid}" in h["stage"]:
+            hit = h
+    return hit
+
+
+def build_phase_details(plan, handoffs, root):
+    """Per-phase detail model for the drawer, keyed by phase id.
+    Pure read-time projection: card markdown and mini-handoff excerpts are
+    pre-rendered (escaped) HTML strings embedded into the JSON blob."""
+    dependents = {}
+    for p in plan["phases"]:
+        for d in p["depends_on"]:
+            dependents.setdefault(d, []).append(p["id"])
+    details = {}
+
+    def base_detail(pid, name, state, depends_on):
+        card = plan["cards"].get(pid)
+        meta = card["meta"] if card else {}
+        d = {
+            "id": pid,
+            "name": name,
+            "state": state,
+            "state_label": STATE_LABEL[state],
+            "depends_on": depends_on,
+            "dependents": sorted(dependents.get(pid, [])),
+            "folder": card["folder"] if card else None,
+            "card_file": card["file"] if card else None,
+            "owner": meta.get("owner"),
+            "started_at": meta.get("started_at"),
+            "gate": None,
+            "card_html": None,
+            "handoff": None,
+        }
+        g = phase_gate(pid, handoffs)
+        if g:
+            d["gate"] = {"verdict": g["verdict"], "raw": g["raw"], "file": g["file"]}
+        if card:
+            try:
+                d["card_html"] = md_lite(
+                    card["path"].read_text(encoding="utf-8", errors="replace")
+                )
+            except OSError:
+                pass
+        hpath = root / "handoffs" / f"{plan['slug']}-build-phase-{pid}.md"
+        if hpath.is_file():
+            try:
+                htext = hpath.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                htext = None
+            if htext is not None:
+                fc = extract_md_section(htext, _FILES_CHANGED_RE)
+                rk = extract_md_section(htext, _RISKS_RE)
+                d["handoff"] = {
+                    "file": hpath.name,
+                    "files_changed_html": md_lite(fc) if fc else None,
+                    "risks_html": md_lite(rk) if rk else None,
+                }
+        return d
+
+    for p in plan["phases"]:
+        pid = p["id"]
+        details[pid] = base_detail(
+            pid, p["name"], phase_state(pid, plan, handoffs), p["depends_on"]
+        )
+    # Orphan cards (present in todo|doing|done but absent from the DAG)
+    for pid, card in plan["cards"].items():
+        if pid not in details:
+            details[pid] = base_detail(pid, card["file"], card["folder"], [])
+    return details
+
+
+# ---------------------------------------------------------------------------
 # SVG DAG (pure-python, Kahn layering, left-to-right)
 # ---------------------------------------------------------------------------
 
@@ -353,16 +520,19 @@ def render_dag_svg(plan, handoffs, uid):
 
     parts = []
     parts.append(
-        f'<svg class="dag" role="img" width="{width}" height="{height}" '
+        f'<svg class="dag" id="dag-{uid}" role="img" width="{width}" height="{height}" '
         f'viewBox="0 0 {width} {height}" '
         f'aria-label="Dependency graph for {esc(plan["slug"])}">'
     )
     parts.append(
         f'<defs><marker id="arrow-{uid}" viewBox="0 0 10 10" refX="9" refY="5" '
         f'markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
-        f'<path class="dag-arrowhead" d="M0,0 L10,5 L0,10 z"/></marker></defs>'
+        f'<path class="dag-arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>'
+        f'<marker id="arrow-hl-{uid}" viewBox="0 0 10 10" refX="9" refY="5" '
+        f'markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
+        f'<path class="dag-arrowhead-hl" d="M0,0 L10,5 L0,10 z"/></marker></defs>'
     )
-    # edges first (under nodes)
+    # edges first (under nodes); data-from/data-to drive JS highlight
     for pid in sorted(deps):
         x2, y2 = pos[pid]
         for d in deps[pid]:
@@ -371,7 +541,8 @@ def render_dag_svg(plan, handoffs, uid):
             ex, ey = x2, y2 + NODE_H / 2
             mx = (sx + ex) / 2
             parts.append(
-                f'<path class="dag-edge" marker-end="url(#arrow-{uid})" '
+                f'<path class="dag-edge" data-from="{esc(d)}" data-to="{esc(pid)}" '
+                f'marker-end="url(#arrow-{uid})" '
                 f'd="M{sx:.1f},{sy:.1f} C{mx:.1f},{sy:.1f} {mx:.1f},{ey:.1f} {ex - 2:.1f},{ey:.1f}"/>'
             )
     # nodes
@@ -380,7 +551,11 @@ def render_dag_svg(plan, handoffs, uid):
         state = phase_state(pid, plan, handoffs)
         label = STATE_LABEL[state]
         name = name_by_id.get(pid, "")
-        parts.append(f'<g class="dag-node st-{state}" data-phase="{esc(pid)}">')
+        parts.append(
+            f'<g class="dag-node st-{state}" data-phase="{esc(pid)}" data-uid="{uid}" '
+            f'role="button" tabindex="0" '
+            f'aria-label="{esc(pid)} {esc(name)}，狀態 {esc(label)}，按 Enter 看詳情">'
+        )
         parts.append(f'<title>{esc(pid)} {esc(name)} — {esc(label)}</title>')
         parts.append(
             f'<rect class="card" x="{x}" y="{y}" width="{NODE_W}" height="{NODE_H}" rx="7"/>'
@@ -407,7 +582,7 @@ def render_dag_svg(plan, handoffs, uid):
 # HTML sections
 # ---------------------------------------------------------------------------
 
-def render_kanban(plan):
+def render_kanban(plan, uid):
     name_by_id = {p["id"]: p["name"] for p in plan["phases"]}
     cols = []
     for folder in STATUS_FOLDERS:
@@ -424,7 +599,8 @@ def render_kanban(plan):
                 extra += f'<div class="card-meta">started: {esc(meta["started_at"])}</div>'
             title = name_by_id.get(pid) or c["file"]
             cards_html.append(
-                f'<li class="kcard" data-phase="{esc(pid)}">'
+                f'<li class="kcard" data-phase="{esc(pid)}" data-uid="{uid}" '
+                f'role="button" tabindex="0">'
                 f'<span class="kcard-id">{esc(pid)}</span> {esc(title)}{extra}</li>'
             )
         body = "".join(cards_html) or '<li class="kempty">—</li>'
@@ -497,7 +673,7 @@ def render_plan_section(plan, handoffs, active, ctx, uid):
         parts.append(f'<p class="warn">{esc(plan["parse_error"])}</p>')
     if plan["phases"]:
         parts.append('<div class="dag-wrap">' + render_dag_svg(plan, handoffs, uid) + "</div>")
-    parts.append(render_kanban(plan))
+    parts.append(render_kanban(plan, uid))
     parts.append("<h3>Gate Verdicts</h3>")
     parts.append(render_gate_table(handoffs))
     parts.append("</section>")
@@ -509,7 +685,7 @@ CSS = """
   color-scheme: light dark;
   --page: #f9f9f7; --surface: #fcfcfb;
   --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
-  --grid: #e1e0d9; --border: rgba(11,11,11,.10); --edge: #a9a89f;
+  --grid: #e1e0d9; --border: rgba(11,11,11,.10); --edge: #91907f;
   --st-todo: #898781; --st-doing: #2a78d6; --st-done: #0ca30c;
   --st-fail: #d03b3b; --st-none: #898781;
 }
@@ -517,7 +693,7 @@ CSS = """
   :root {
     --page: #0d0d0d; --surface: #1a1a19;
     --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
-    --grid: #2c2c2a; --border: rgba(255,255,255,.10); --edge: #55544f;
+    --grid: #2c2c2a; --border: rgba(255,255,255,.10); --edge: #7d7c72;
     --st-doing: #3987e5;
   }
 }
@@ -587,6 +763,296 @@ td.raw { color: var(--ink2); }
 .badge.v-pass .dot { background: var(--st-done); }
 .badge.v-fail .dot { background: var(--st-fail); }
 footer { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+.skip-note { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+
+/* ---- interactivity: clickable nodes / cards ---- */
+.dag-node, .kcard[role="button"] { cursor: pointer; }
+.dag-node:focus { outline: none; }
+.dag-node:focus rect.card, .dag-node:hover rect.card { stroke-width: 2.5; }
+.kcard[role="button"]:hover { border-color: var(--st-doing); }
+.kcard[role="button"]:focus-visible, .chip:focus-visible, .drawer-close:focus-visible
+  { outline: 2px solid var(--st-doing); outline-offset: 2px; }
+
+/* ---- selection highlight: upstream/downstream edges pop, rest dim ---- */
+svg.dag.has-selection .dag-node { opacity: .35; }
+svg.dag.has-selection .dag-node.selected,
+svg.dag.has-selection .dag-node.adjacent { opacity: 1; }
+svg.dag.has-selection .dag-edge { opacity: .18; }
+svg.dag.has-selection .dag-edge.hl {
+  opacity: 1; stroke: var(--st-doing); stroke-width: 2.4;
+}
+.dag-arrowhead-hl { fill: var(--st-doing); }
+svg.dag .dag-node.selected rect.card { stroke-width: 3; }
+
+/* ---- detail drawer ---- */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.38); z-index: 40;
+}
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 92vw);
+  background: var(--surface); border-left: 1px solid var(--border);
+  box-shadow: -8px 0 28px rgba(0,0,0,.18); z-index: 50;
+  overflow-y: auto; padding: 16px 20px 24px;
+}
+.drawer-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin: 0 0 6px;
+}
+.drawer-head h3 { margin: 0; font-size: 15px; color: var(--ink); }
+.drawer-close {
+  border: 1px solid var(--border); background: none; color: var(--ink2);
+  border-radius: 6px; font-size: 16px; line-height: 1; padding: 4px 9px;
+  cursor: pointer;
+}
+.drawer-close:hover { color: var(--ink); border-color: var(--ink2); }
+.dsec { margin: 14px 0 0; }
+.dsec-title {
+  font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--muted); margin: 0 0 5px;
+}
+.dsub { font-size: 12px; font-weight: 600; color: var(--ink2); margin: 8px 0 3px; }
+.drow { font-size: 13px; color: var(--ink2); margin: 2px 0; overflow-wrap: anywhere; }
+.drow.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.st-badge {
+  display: inline-block; font-size: 11px; font-weight: 600;
+  border: 1px solid; border-radius: 999px; padding: 1px 9px; margin: 0 0 4px;
+}
+.st-badge.st-todo, .st-badge.st-none { color: var(--st-todo); }
+.st-badge.st-doing { color: var(--st-doing); }
+.st-badge.st-done { color: var(--st-done); }
+.st-badge.st-fail { color: var(--st-fail); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1px solid var(--grid); background: none; color: var(--ink);
+  border-radius: 999px; font-size: 12px; padding: 2px 10px; cursor: pointer;
+}
+.chip:hover { border-color: var(--st-doing); color: var(--st-doing); }
+.md {
+  border: 1px solid var(--grid); border-radius: 8px; padding: 8px 12px;
+  font-size: 12.5px; color: var(--ink2); overflow-wrap: anywhere;
+}
+.md p { margin: 4px 0; }
+.md ul { margin: 4px 0; padding-left: 18px; }
+.md li { margin: 2px 0; }
+.md pre {
+  background: var(--page); border: 1px solid var(--grid); border-radius: 6px;
+  padding: 6px 9px; overflow-x: auto; font-size: 11.5px;
+}
+.md .md-h { font-weight: 600; color: var(--ink); margin: 8px 0 3px; }
+.md .md-h1 { font-size: 14px; } .md .md-h2 { font-size: 13.5px; }
+.md .md-h3, .md .md-h4 { font-size: 12.5px; }
+
+/* ---- auto-refresh pause pill ---- */
+.pause-pill {
+  position: fixed; left: 14px; bottom: 14px; z-index: 60;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--ink2); font-size: 12px; border-radius: 999px;
+  padding: 4px 12px; box-shadow: 0 2px 10px rgba(0,0,0,.15);
+}
+[hidden] { display: none !important; }
+"""
+
+# Inline behaviour script. Zero external requests: detail data comes from the
+# embedded JSON blob, auto-refresh is a plain location.reload() so the page
+# works over file:// exactly like over http.
+JS = r"""
+(function () {
+  "use strict";
+  var RELOAD_MS = 5000;
+  var dataEl = document.getElementById("athena-status-data");
+  var DATA = {};
+  try { DATA = dataEl ? JSON.parse(dataEl.textContent) : {}; } catch (e) { DATA = {}; }
+
+  var drawer = document.getElementById("phase-drawer");
+  var overlay = document.getElementById("drawer-overlay");
+  var body = document.getElementById("drawer-body");
+  var title = document.getElementById("drawer-title");
+  var closeBtn = document.getElementById("drawer-close");
+  var pill = document.getElementById("pause-pill");
+
+  var reloadTimer = null;
+  function scheduleReload() {
+    if (reloadTimer) clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(function () { location.reload(); }, RELOAD_MS);
+  }
+  function cancelReload() {
+    if (reloadTimer) { clearTimeout(reloadTimer); reloadTimer = null; }
+  }
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  function clearHighlight() {
+    Array.prototype.forEach.call(
+      document.querySelectorAll("svg.dag.has-selection"),
+      function (svg) {
+        svg.classList.remove("has-selection");
+        Array.prototype.forEach.call(svg.querySelectorAll(".dag-edge.hl"), function (e) {
+          e.classList.remove("hl");
+          if (e.dataset.marker) e.setAttribute("marker-end", e.dataset.marker);
+        });
+        Array.prototype.forEach.call(
+          svg.querySelectorAll(".dag-node.selected, .dag-node.adjacent"),
+          function (n) { n.classList.remove("selected"); n.classList.remove("adjacent"); }
+        );
+      }
+    );
+  }
+
+  function highlight(uid, pid) {
+    clearHighlight();
+    var svg = document.getElementById("dag-" + uid);
+    if (!svg) return;
+    var adjacent = {};
+    Array.prototype.forEach.call(svg.querySelectorAll(".dag-edge"), function (e) {
+      if (e.dataset.from === pid || e.dataset.to === pid) {
+        e.classList.add("hl");
+        if (!e.dataset.marker) e.dataset.marker = e.getAttribute("marker-end") || "";
+        e.setAttribute("marker-end", "url(#arrow-hl-" + uid + ")");
+        adjacent[e.dataset.from] = true;
+        adjacent[e.dataset.to] = true;
+      }
+    });
+    svg.classList.add("has-selection");
+    Array.prototype.forEach.call(svg.querySelectorAll(".dag-node"), function (n) {
+      var p = n.dataset.phase;
+      if (p === pid) n.classList.add("selected");
+      else if (adjacent[p]) n.classList.add("adjacent");
+    });
+  }
+
+  function section(name) {
+    var s = el("div", "dsec");
+    s.appendChild(el("div", "dsec-title", name));
+    return s;
+  }
+
+  function depChips(uid, ids, plan) {
+    var wrap = el("div", "chips");
+    if (!ids || !ids.length) {
+      wrap.appendChild(el("span", "muted", "—"));
+      return wrap;
+    }
+    ids.forEach(function (id) {
+      var d = plan && plan.phases ? plan.phases[id] : null;
+      var b = el("button", "chip", d && d.name ? id + " · " + d.name : id);
+      b.type = "button";
+      b.addEventListener("click", function () { openPhase(uid, id); });
+      wrap.appendChild(b);
+    });
+    return wrap;
+  }
+
+  function mdBlock(htmlStr) {
+    var n = el("div", "md");
+    n.innerHTML = htmlStr; // pre-rendered + escaped at projection time
+    return n;
+  }
+
+  function openPhase(uid, pid) {
+    var plan = DATA[uid];
+    var d = (plan && plan.phases && plan.phases[pid]) || {
+      id: pid, name: "", state: "none", state_label: "no card",
+      depends_on: [], dependents: []
+    };
+    title.textContent = d.name ? pid + " · " + d.name : pid;
+    body.innerHTML = "";
+
+    var meta = section("狀態");
+    meta.appendChild(el("span", "st-badge st-" + d.state, d.state_label));
+    if (d.owner) meta.appendChild(el("div", "drow", "owner: " + d.owner));
+    if (d.started_at) meta.appendChild(el("div", "drow", "started: " + d.started_at));
+    if (d.card_file) {
+      meta.appendChild(el("div", "drow mono", (d.folder || "?") + "/" + d.card_file));
+    }
+    body.appendChild(meta);
+
+    var dep = section("依賴 depends_on");
+    dep.appendChild(depChips(uid, d.depends_on, plan));
+    body.appendChild(dep);
+    var rdep = section("被依賴 dependents");
+    rdep.appendChild(depChips(uid, d.dependents, plan));
+    body.appendChild(rdep);
+
+    var gate = section("Gate Verdict");
+    if (d.gate) {
+      var gtxt = d.gate.raw || d.gate.verdict;
+      if (d.gate.raw &&
+          d.gate.raw.toUpperCase().indexOf(d.gate.verdict.toUpperCase()) !== 0) {
+        gtxt = d.gate.verdict + " — " + d.gate.raw;
+      }
+      gate.appendChild(el("div", "drow", gtxt));
+      gate.appendChild(el("div", "drow mono", "handoffs/" + d.gate.file));
+    } else {
+      gate.appendChild(el("div", "drow muted", "尚無 gate 紀錄"));
+    }
+    body.appendChild(gate);
+
+    if (d.card_html) {
+      var card = section("Phase 卡");
+      card.appendChild(mdBlock(d.card_html));
+      body.appendChild(card);
+    }
+    if (d.handoff) {
+      var h = section("Mini-handoff · " + d.handoff.file);
+      if (d.handoff.files_changed_html) {
+        h.appendChild(el("div", "dsub", "Files Changed"));
+        h.appendChild(mdBlock(d.handoff.files_changed_html));
+      }
+      if (d.handoff.risks_html) {
+        h.appendChild(el("div", "dsub", "Risks"));
+        h.appendChild(mdBlock(d.handoff.risks_html));
+      }
+      if (!d.handoff.files_changed_html && !d.handoff.risks_html) {
+        h.appendChild(el("div", "drow muted", "（無 Files Changed / Risks 段）"));
+      }
+      body.appendChild(h);
+    }
+
+    drawer.hidden = false;
+    overlay.hidden = false;
+    pill.hidden = false;
+    cancelReload();
+    highlight(uid, pid);
+    drawer.scrollTop = 0;
+    closeBtn.focus();
+  }
+
+  function closeDrawer() {
+    if (drawer.hidden) return;
+    drawer.hidden = true;
+    overlay.hidden = true;
+    pill.hidden = true;
+    clearHighlight();
+    scheduleReload();
+  }
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-phase][data-uid]"),
+    function (n) {
+      n.addEventListener("click", function () {
+        openPhase(n.dataset.uid, n.dataset.phase);
+      });
+      n.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter" || ev.key === " ") {
+          ev.preventDefault();
+          openPhase(n.dataset.uid, n.dataset.phase);
+        }
+      });
+    }
+  );
+  overlay.addEventListener("click", closeDrawer);
+  closeBtn.addEventListener("click", closeDrawer);
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Escape") closeDrawer();
+  });
+
+  scheduleReload();
+})();
 """
 
 
@@ -602,16 +1068,40 @@ def render_page(root):
 
     runs = load_runs(root)
     now = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %z")
+    detail_data = {}
 
     body = []
     body.append("<h1>Athena Flow 狀態看板</h1>")
-    body.append(f'<p class="gen-meta">產生時間 {esc(now)} · 每 5 秒自動重新載入</p>')
+    body.append(
+        f'<p class="gen-meta">產生時間 {esc(now)} · 每 5 秒自動重新載入'
+        "（開啟詳情面板時暫停）</p>"
+    )
     body.append(
         '<p class="principle">此頁為機械投影（由 <code>scripts/render_status.py</code> '
         "從 plans/ · handoffs/ · .athena/ 唯讀產生），請勿手動編輯——任何手改都會在下次渲染被覆蓋。</p>"
     )
 
-    if not plan_dirs:
+    # Only plans whose plan.md carries machine-parseable frontmatter (a
+    # drawable DAG) get a full section. Legacy-format plans are skipped but
+    # never silently: they are listed in a one-line note near the footer.
+    skipped = []
+    uid = 0
+    for d in plan_dirs:
+        plan = load_plan(d)
+        if plan["parse_error"]:
+            skipped.append(plan["slug"])
+            continue
+        handoffs = collect_handoffs(root, plan["slug"])
+        body.append(
+            render_plan_section(plan, handoffs, plan["slug"] == active_slug, ctx, uid)
+        )
+        detail_data[str(uid)] = {
+            "slug": plan["slug"],
+            "phases": build_phase_details(plan, handoffs, root),
+        }
+        uid += 1
+
+    if uid == 0:
         body.append(
             '<section class="plan"><h2>目前沒有進行中的計畫</h2>'
             '<p class="muted">看板會在 <code>plans/&lt;slug&gt;/plan.md</code> 出現後自動顯示。'
@@ -621,28 +1111,46 @@ def render_page(root):
             "<code>.athena/.flow-context.json</code>（當前 stage）、"
             "<code>.athena/traces/runs.jsonl</code>（歷史 run）。</p></section>"
         )
-    else:
-        for uid, d in enumerate(plan_dirs):
-            plan = load_plan(d)
-            handoffs = collect_handoffs(root, plan["slug"])
-            body.append(
-                render_plan_section(plan, handoffs, plan["slug"] == active_slug, ctx, uid)
-            )
 
     body.append('<section class="runs"><h2>歷史 Run（最近 10 筆）</h2>')
     body.append(render_runs_table(runs))
     body.append("</section>")
+    if skipped:
+        body.append(
+            f'<p class="skip-note">{len(skipped)} 個舊格式 plan 未顯示'
+            "（plan.md 缺機械 frontmatter）："
+            + esc("、".join(skipped)) + "</p>"
+        )
     body.append("<footer>athena-dev-plugin status dashboard — mechanical projection, do not hand-edit.</footer>")
+
+    # Detail data for the drawer, embedded at projection time (no fetch).
+    # "</" is escaped so markdown content can never terminate the script tag.
+    blob = json.dumps(detail_data, ensure_ascii=False).replace("</", "<\\/")
+
+    drawer_html = (
+        '<div class="overlay" id="drawer-overlay" hidden></div>\n'
+        '<aside class="drawer" id="phase-drawer" hidden role="dialog" '
+        'aria-modal="true" aria-labelledby="drawer-title">\n'
+        '<div class="drawer-head"><h3 id="drawer-title"></h3>'
+        '<button type="button" class="drawer-close" id="drawer-close" '
+        'aria-label="關閉詳情面板">×</button></div>\n'
+        '<div class="drawer-body" id="drawer-body"></div>\n'
+        "</aside>\n"
+        '<div class="pause-pill" id="pause-pill" hidden>auto-refresh paused</div>'
+    )
 
     return (
         "<!DOCTYPE html>\n"
         '<html lang="zh-Hant">\n<head>\n'
         '<meta charset="utf-8">\n'
-        '<meta http-equiv="refresh" content="5">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         "<title>Athena Flow 狀態看板</title>\n"
         f"<style>{CSS}</style>\n"
-        "</head>\n<body>\n<main>\n" + "\n".join(body) + "\n</main>\n</body>\n</html>\n"
+        "</head>\n<body>\n<main>\n" + "\n".join(body) + "\n</main>\n"
+        + drawer_html + "\n"
+        f'<script type="application/json" id="athena-status-data">{blob}</script>\n'
+        f"<script>{JS}</script>\n"
+        "</body>\n</html>\n"
     )
 
 

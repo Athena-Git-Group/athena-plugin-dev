@@ -342,8 +342,16 @@ Marker schema 與 mode 選擇建議詳見 `skills/athena-flow/references/flow-co
 
 打開 **`.athena/status.html`** 就能看到目前所有 flow 的進行狀況：每個
 `plans/<slug>/` 一個 section（DAG 依賴圖 SVG、todo/doing/done 三欄看板、
-gate verdict 表），加上最近 10 筆歷史 run。頁面每 5 秒自動重新載入，
-支援亮／暗主題，完全 self-contained（無任何外部資源）。
+gate verdict 表），加上最近 10 筆歷史 run。頁面每 5 秒自動重新載入
+（inline JS），支援亮／暗主題，完全 self-contained（無任何外部資源，
+`file://` 直開即可用）。
+
+看板是互動式的：點任一 DAG 節點或看板卡片（滑鼠或 Tab + Enter）會開啟
+側邊詳情面板——狀態、depends_on／被依賴（可點跳轉）、claim owner、gate
+verdict、phase 卡原文與對應 mini-handoff 的 Files Changed / Risks 摘要；
+同時該節點的上下游邊與相鄰節點會高亮、其餘淡化。Esc 或點遮罩關閉；
+面板開啟期間自動重載暫停（頁角顯示 auto-refresh paused），關閉後恢復。
+所有詳情資料都在渲染時嵌入頁面（JSON blob），開啟面板不會讀任何檔案。
 
 - **產生時機**：`SubagentStop` hook（`hooks/render-status.sh`）在每個
   subagent 結束後自動重渲染；渲染失敗不會中斷 hook chain。
