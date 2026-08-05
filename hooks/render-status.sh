@@ -7,8 +7,10 @@
 # stops; it never mutates flow state.
 #
 # Contract:
-#   - Fast, silent no-op when the cwd is not an Athena project with plans
-#     (no .athena/ or no plans/ -> exit 0, print nothing).
+#   - Fast, silent no-op when the cwd is not an Athena project
+#     (no .athena/ -> exit 0, print nothing). plans/ is NOT required:
+#     minimal flows have no plan stage, and the renderer already shows an
+#     empty-state section plus the runs-history table without plans/.
 #   - NEVER exits non-zero: a rendering failure must not break the hook
 #     chain. On failure it writes a single line to stderr and still exits 0.
 
@@ -24,7 +26,6 @@ fi
 
 # Fast silent no-op outside Athena projects.
 [ -d "$CWD/.athena" ] || exit 0
-[ -d "$CWD/plans" ] || exit 0
 command -v python3 >/dev/null 2>&1 || exit 0
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
