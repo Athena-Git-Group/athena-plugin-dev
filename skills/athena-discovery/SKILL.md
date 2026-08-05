@@ -375,7 +375,7 @@ DELEGATE 給 `/athena-form-bdd-analysis` 將 Rules 骨架擴展為含 Examples �
    b. 標記 Step 8 → `pending`，**Step 6 → `in_progress`**（觸發回退）
    c. 重跑 Step 6 → Step 7 → Step 8 直到 bdd-analysis 不再產出新 CiC
    d. **最大回退次數 = 3**（防無限迴圈，超過交給使用者）
-5. 全部 `.feature` 確認移除 `@ignore` + 含 Examples → 標記 Step 8 → `completed`
+5. 全部 `.feature` 確認移除 `@ignore` + 含 Examples + 首行為 `# language: zh-TW` → 標記 Step 8 → `completed`
 
 ### 回退保護機制（防無限迴圈）
 
@@ -480,5 +480,5 @@ specs/
 - 所有 .feature 無未解便條紙、無 `(待澄清)` 佔位
 - F1-F6 面向覆蓋率全部 Clear
 - Execution Plan 產出，涵蓋 Phase 02-08 的 scope
-- **Step 8 已完成**：所有 `.feature` 移除 `@ignore` tag、包含具體 Examples、句型 single source of truth 在 `{domain}/句型.md`
+- **Step 8 已完成**：所有 `.feature` 移除 `@ignore` tag、包含具體 Examples、首行為 `# language: zh-TW`（zh-TW 中文關鍵字）、句型 single source of truth 在 `{domain}/句型.md`
 - `features/系統抽象.md` 已產出

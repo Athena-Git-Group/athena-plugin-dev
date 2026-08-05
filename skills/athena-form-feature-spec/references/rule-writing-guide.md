@@ -38,19 +38,19 @@ Rule: 前置（狀態）- 商品庫存必須大於 0 且商品狀態必須為上
 
 每個 Feature **至少**必須有一條「前置（參數）」Rule 驗證必要參數。
 
-所有「缺少必要參數」的檢查可合併為單一 Rule，使用 Scenario Outline：
+所有「缺少必要參數」的檢查可合併為單一 Rule，使用場景大綱（Scenario Outline）：
 
 ```gherkin
 Rule: 前置（參數）- 必要參數必須提供
 
-  Scenario Outline: 缺少 <缺少參數> 時操作失敗
-    Given 系統中有以下用戶：
+  場景大綱: 缺少 <缺少參數> 時操作失敗
+    假設 系統中有以下用戶：
       | userId | name  |
       | 1      | Alice |
-    When 用戶 "Alice" 將商品 <商品ID> 加入購物車，數量 <數量>
-    Then 操作失敗，錯誤為"必要參數未提供"
+    當 用戶 "Alice" 將商品 <商品ID> 加入購物車，數量 <數量>
+    那麼 操作失敗，錯誤為"必要參數未提供"
 
-    Examples:
+    例子:
       | 缺少參數 | 商品ID | 數量 |
       | 商品 ID  |        | 1    |
       | 數量     | 1      |      |
@@ -66,32 +66,32 @@ Rule: 前置（參數）- 必要參數必須提供
 
 **正確示範：**
 ```gherkin
-Given 系統中有以下用戶：
+假設 系統中有以下用戶：
   | name  | email          | level | exp |
   | Alice | alice@test.com | 1     | 0   |
-When 用戶 "Alice" 更新課程 1 的影片進度為 80%
-Then 操作成功
-And 課程 1 的進度應為：
+當 用戶 "Alice" 更新課程 1 的影片進度為 80%
+那麼 操作成功
+而且 課程 1 的進度應為：
   | lessonId | progress | status |
   | 1        | 80       | 進行中 |
 ```
 
 **規則：**
-- Given：使用 datatable 提供所有相關屬性的具體值
-- When：明確指定用戶名稱/ID、資源 ID、參數值
-- Then：使用 datatable 驗證具體的預期值，禁止模糊描述如「已改變」
-- Then：失敗場景必須指定具體錯誤訊息：`Then 操作失敗，錯誤為"<具體錯誤訊息>"`
+- 假設（Given）：使用 datatable 提供所有相關屬性的具體值
+- 當（When）：明確指定用戶名稱/ID、資源 ID、參數值
+- 那麼（Then）：使用 datatable 驗證具體的預期值，禁止模糊描述如「已改變」
+- 那麼（Then）：失敗場景必須指定具體錯誤訊息：`那麼 操作失敗，錯誤為"<具體錯誤訊息>"`
 - **錯誤訊息一致性**：同一類失敗跨 Feature 使用同一條錯誤訊息
-- **禁止在 datatable 中使用 JSON 字串**，複雜資料應拆分為多個 Given/And 步驟
+- **禁止在 datatable 中使用 JSON 字串**，複雜資料應拆分為多個 假設/而且 步驟
 
 ---
 
-## Given 設定方式
+## 假設（Given）設定方式
 
 ### 選擇 A：直接設定 Aggregate State
 
 ```gherkin
-Given 訂單 "ORDER-123" 的狀態為：
+假設 訂單 "ORDER-123" 的狀態為：
   | orderId   | status | totalAmount |
   | ORDER-123 | 已付款  | 1500        |
 ```
@@ -101,8 +101,8 @@ Given 訂單 "ORDER-123" 的狀態為：
 ### 選擇 B：透過 Commands 設定
 
 ```gherkin
-Given 用戶 "Alice" 建立訂單 "ORDER-123"，購買課程 1
-And 用戶 "Alice" 完成訂單 "ORDER-123" 的付款，金額 1500 元
+假設 用戶 "Alice" 建立訂單 "ORDER-123"，購買課程 1
+而且 用戶 "Alice" 完成訂單 "ORDER-123" 的付款，金額 1500 元
 ```
 
 適用：Aggregate 有複雜的 Invariant（如「總金額 = Σ品項金額 + 運費 - 折扣」）。
@@ -138,9 +138,9 @@ And 用戶 "Alice" 完成訂單 "ORDER-123" 的付款，金額 1500 元
 
 ---
 
-## When 步驟格式
+## 當（When）步驟格式
 
 | 類型 | 格式 | 範例 |
 |------|------|------|
-| Command | `用戶 "<key>" <動詞＋參數>` | `When 用戶 "Alice" 更新課程 1 的影片進度為 80%` |
-| Query | `用戶 "<key>" 查詢 <目標＋參數>` | `When 用戶 "Alice" 查詢課程 1 的進度` |
+| Command | `用戶 "<key>" <動詞＋參數>` | `當 用戶 "Alice" 更新課程 1 的影片進度為 80%` |
+| Query | `用戶 "<key>" 查詢 <目標＋參數>` | `當 用戶 "Alice" 查詢課程 1 的進度` |

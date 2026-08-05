@@ -38,19 +38,19 @@ Given 語句描述 **Aggregate 的存在狀態**，即定義 Aggregate 的屬性
 ### 單一 Aggregate
 
 ```gherkin
-Given 用戶 "Alice" 的購物車中商品 "PROD-001" 的數量為 2
+假設 用戶 "Alice" 的購物車中商品 "PROD-001" 的數量為 2
 ```
 
 ### 複合主鍵 Aggregate
 
 ```gherkin
-Given 用戶 "Alice" 在課程 1 的進度為 70%，狀態為 "進行中"
+假設 用戶 "Alice" 在課程 1 的進度為 70%，狀態為 "進行中"
 ```
 
 ### DataTable 批量建立
 
 ```gherkin
-Given 系統中有以下用戶：
+假設 系統中有以下用戶：
   | userId | name  | email           |
   | 1      | Alice | alice@test.com  |
   | 2      | Bob   | bob@test.com    |
@@ -59,7 +59,7 @@ Given 系統中有以下用戶：
 ### DocString（多行文字）
 
 ```gherkin
-Given 用戶 "Alice" 的個人簡介為：
+假設 用戶 "Alice" 的個人簡介為：
   """
   我是一個軟體工程師，喜歡學習新技術。
   """

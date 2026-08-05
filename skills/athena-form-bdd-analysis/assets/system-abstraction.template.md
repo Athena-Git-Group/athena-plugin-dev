@@ -19,7 +19,7 @@
 
 | 部件 | 資料型別 | 建置方式 | 內部子結構 | Given 句型 |
 |------|---------|---------|-----------|-----------|
-| ... | ... | Data Table / Doc String / JSON | 有：(列出子部件) / 無 | `Given ...` |
+| ... | ... | Data Table / Doc String / JSON | 有：(列出子部件) / 無 | `假設 ...` |
 
 > **遞迴拆解原則**：若部件有內部子結構，需逐層拆解直到每個子部件都有明確的建置方式。
 > Given 句型數量 = 葉子部件數量。
@@ -29,13 +29,13 @@
 ### Creation
 
 **When 句型模板**：
-  `When {operation}:`（接 Data Table）
+  `當 {operation}:`（接 Data Table）
 
 **Then 句型模板（成功）**：
-  `Then {result_assertion}:`（接 Data Table）
+  `那麼 {result_assertion}:`（接 Data Table）
 
 **Then 句型模板（失敗）**：
-  `Then 操作失敗，violation_type 為 "<violation>"`
+  `那麼 操作失敗，violation_type 為 "<violation>"`
 
 （每個分類重複此結構）
 

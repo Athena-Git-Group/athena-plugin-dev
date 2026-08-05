@@ -16,6 +16,8 @@
 
 > 該 domain 所需的所有 Given / When / Then 句型統一列出。
 > 句型的 single source of truth 在此，不從系統抽象複製。
+> 「類別」欄為抽象分類（Given / When / Then）；「句型」欄填 `.feature` 中的
+> 實際 zh-TW 句子（以 `假設` / `當` / `那麼` 開頭），不寫英文關鍵字。
 
 | # | 類別 | 句型 | Handler | 參數槽 |
 |---|------|------|---------|-------|

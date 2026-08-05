@@ -17,7 +17,7 @@ user-invocable: true
 
 | 檔案 | 何時載入 | 內容 |
 |------|---------|------|
-| `references/rule-writing-guide.md` | 撰寫 Rule + Example | Rule 命名原子化、資料驅動原則、Given 設定、Key 識別、When 格式 |
+| `references/rule-writing-guide.md` | 撰寫 Rule + 場景 | Rule 命名原子化、資料驅動原則、假設（Given）設定、Key 識別、當（When）格式 |
 | `references/coverage-checklist.md` | Quality Gate（F1-F6） | 6 面向覆蓋率清單，被 /discovery Step 7 調用 |
 
 ---
@@ -34,7 +34,7 @@ user-invocable: true
 1. 讀取骨架中的所有便條紙（`CiC(<CATEGORY>): ...`），整理成待澄清清單
 2. 能直接推斷的便條紙（如格式明顯的假設）靜默處理，直接填入 + 刪除便條紙
 3. 無法推斷的便條紙進入澄清模式，逐一解決
-4. 所有便條紙解決後，填入完整的 Rule + Example，移除所有 `(待澄清)` 佔位
+4. 所有便條紙解決後，填入完整的 Rule + 場景，移除所有 `(待澄清)` 佔位
 
 **輸入來源二：`${ES_SPEC_PATH}`（Event Storming spec）**
 
@@ -56,7 +56,7 @@ user-invocable: true
 
 **當 ES 項目無 `(待澄清)` 標記時，AI 直接根據 ES 的 Rules、參數、Aggregate 生成完整的 Feature File 草稿，不逐條提問。**
 
-- ES 中的每條原子規則 → 對應一條 Gherkin Rule + Example
+- ES 中的每條原子規則 → 對應一條 Gherkin Rule + 場景
 - AI 自行推斷具體的 datatable 測試資料（如用戶名 `Alice`、商品 ID `1`、價格 `50`）
 - 草稿產出後由協調器統一展示，用戶審閱確認或糾正
 
@@ -85,87 +85,104 @@ user-invocable: true
 
 ## Feature File 格式
 
-**關鍵字一律使用英文：Feature / Rule / Example / Given / When / Then / And / But。檔案開頭不標註語言。**
+**Gherkin 一律使用 zh-TW 中文關鍵字。每支 Feature File 第一行必為 `# language: zh-TW`（缺標頭，Cucumber 無法以中文關鍵字解析）。**
 
-**本關注點產出的所有 Feature File 必須在最上方標註 `@ignore @command`（Command 類型）或 `@ignore @query`（Query 類型）。**
+zh-TW 關鍵字對照（只用這些，混用英文中文會 parse 失敗）：
+
+| 概念 | 英文 | 中文關鍵字（本版採用） |
+|---|---|---|
+| Feature | Feature | `功能` |
+| Rule | Rule | `Rule`（⚠️ zh-TW 無中文 Rule 字，保留英文 `Rule:`） |
+| Background | Background | `背景` |
+| Scenario / Example | Scenario / Example | `場景` |
+| Scenario Outline | Scenario Outline | `場景大綱` |
+| Examples | Examples | `例子` |
+| Given | Given | `假設` |
+| When | When | `當` |
+| Then | Then | `那麼` |
+| And | And | `而且` |
+| But | But | `但是` |
+
+**本關注點產出的所有 Feature File 必須在語言標頭之後、`功能:` 之前標註 `@ignore @command`（Command 類型）或 `@ignore @query`（Query 類型）。**
 
 ```gherkin
+# language: zh-TW
 @ignore @command
-Feature: <功能名（Command 類型）>
+功能: <功能名（Command 類型）>
 
-  Background:
-    Given <全部 Example 共用的前置條件，使用具體 datatable>
+  背景:
+    假設 <全部場景共用的前置條件，使用具體 datatable>
 
   Rule: 前置（狀態）- <主詞>必須<單一條件>
 
-    Example: <情境條件>時<預期結果>
-      Given <前置條件>
-      When <操作>
-      Then 操作失敗，錯誤為"<具體錯誤訊息>"
+    場景: <情境條件>時<預期結果>
+      假設 <前置條件>
+      當 <操作>
+      那麼 操作失敗，錯誤為"<具體錯誤訊息>"
 
   Rule: 前置（參數）- <主詞>必須<單一條件>
 
-    Example: <情境條件>時<預期結果>
-      Given <前置條件>
-      When <帶有不合法參數的操作>
-      Then 操作失敗，錯誤為"<具體錯誤訊息>"
+    場景: <情境條件>時<預期結果>
+      假設 <前置條件>
+      當 <帶有不合法參數的操作>
+      那麼 操作失敗，錯誤為"<具體錯誤訊息>"
 
   Rule: 後置（回應）- <主詞>應<單一條件>（用於 Query）
 
-    Example: <情境描述>
-      Given <前置條件>
-      When <操作>
-      Then 操作成功
-      And 查詢結果應包含：
+    場景: <情境描述>
+      假設 <前置條件>
+      當 <操作>
+      那麼 操作成功
+      而且 查詢結果應包含：
         | 欄位1 | 欄位2 |
         | 值1   | 值2   |
 
   Rule: 後置（狀態）- <主詞>應<單一條件>（用於 Command）
 
-    Example: <情境描述>
-      Given <前置條件>
-      When <操作>
-      Then 操作成功
-      And <狀態驗證>
+    場景: <情境描述>
+      假設 <前置條件>
+      當 <操作>
+      那麼 操作成功
+      而且 <狀態驗證>
 ```
 
-### Example 步驟數量
+### 場景步驟數量
 
-每個 Example 建議 3-5 步（不含 Background）。超過 5 步時，檢查是否：
-- 某些 Given 可以提取到 Background
-- 多個 Then/And 斷言可以合併為一個 datatable 驗證
-- 該 Example 其實在測試多個行為，應拆分為多個 Example
+每個場景建議 3-5 步（不含背景 Background）。超過 5 步時，檢查是否：
+- 某些前置（假設）步驟可以提取到背景
+- 多個 那麼/而且 斷言可以合併為一個 datatable 驗證
+- 該場景其實在測試多個行為，應拆分為多個場景
 
-### Example 標題命名
+### 場景標題命名
 
-Example 標題描述「什麼情境 → 什麼結果」，讓測試失敗時能立刻定位問題。
+場景標題描述「什麼情境 → 什麼結果」，讓測試失敗時能立刻定位問題。
 
 **句型：** `<情境條件>時<預期結果>`（失敗場景）或 `<操作描述>後<預期結果>`（成功場景）
 
 **正確：**
 ```gherkin
-Example: 已購買旅程的用戶再次購買時操作失敗
-Example: 使用已過期折扣券時操作失敗
-Example: 影片進度達到 100% 時課程自動完成
-Example: 建立多個商品的訂單後總價正確計算
+場景: 已購買旅程的用戶再次購買時操作失敗
+場景: 使用已過期折扣券時操作失敗
+場景: 影片進度達到 100% 時課程自動完成
+場景: 建立多個商品的訂單後總價正確計算
 ```
 
 **錯誤（模糊）：**
 ```gherkin
-Example: 使用折扣券
-Example: 測試失敗場景
-Example: 正常情況
+場景: 使用折扣券
+場景: 測試失敗場景
+場景: 正常情況
 ```
 
-### Background 節制原則
+### 背景（Background）節制原則
 
-Background 僅包含「所有 Example 都需要」的共用前置條件。逐條檢查 Background 中的每個 Given 步驟及 datatable 中的每一行資料，確認它被多數 Example 引用。若某筆資料只被 1-2 個 Example 使用，應移入那些 Example 的 Given 中。
+背景僅包含「所有場景都需要」的共用前置條件。逐條檢查背景中的每個假設步驟及 datatable 中的每一行資料，確認它被多數場景引用。若某筆資料只被 1-2 個場景使用，應移入那些場景的假設步驟中。
 
-**原則：讀者在讀一個 Example 時，不應為了理解它而去 Background 中搜尋只跟這個 Example 有關的資料。**
+**原則：讀者在讀一個場景時，不應為了理解它而去背景中搜尋只跟這個場景有關的資料。**
 
 ---
 
-**Rule 撰寫指南**：Read `references/rule-writing-guide.md`（Rule 命名原子化、資料驅動原則、Given 設定方式、Key 識別規則、When 步驟格式）。
+**Rule 撰寫指南**：Read `references/rule-writing-guide.md`（Rule 命名原子化、資料驅動原則、假設（Given）設定方式、Key 識別規則、當（When）步驟格式）。
 
 ---
 
@@ -175,7 +192,7 @@ Background 僅包含「所有 Example 都需要」的共用前置條件。逐條
 
 **Feature file 的讀者是不了解功能細節的人。** 每一步都應該用業務語言描述，不依賴讀者對系統內部模型的理解。
 
-**每個 Example 獨立執行。** Example 之間不共享可變狀態、不依賴執行順序。
+**每個場景獨立執行。** 場景之間不共享可變狀態、不依賴執行順序。
 
 ---
 

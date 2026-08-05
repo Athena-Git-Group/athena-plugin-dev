@@ -39,19 +39,19 @@ Then 語句驗證 **Aggregate 的屬性狀態**（從資料庫/Repository 查詢
 ### 驗證單一屬性
 
 ```gherkin
-And 用戶 "Alice" 的購物車中商品 "PROD-001" 的數量應為 2
+而且 用戶 "Alice" 的購物車中商品 "PROD-001" 的數量應為 2
 ```
 
 ### 驗證多個屬性
 
 ```gherkin
-And 用戶 "Alice" 在課程 1 的進度應為 80%，狀態應為 "進行中"
+而且 用戶 "Alice" 在課程 1 的進度應為 80%，狀態應為 "進行中"
 ```
 
 ### DataTable 驗證
 
 ```gherkin
-Then 用戶 "Alice" 的購物車應包含以下商品：
+那麼 用戶 "Alice" 的購物車應包含以下商品：
   | productId | quantity |
   | PROD-001  | 3        |
   | PROD-002  | 1        |
