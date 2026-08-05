@@ -44,9 +44,14 @@ retro 對**空湖**沒有意義。開跑前先看 `.athena/traces/runs.jsonl`：
    **再讀 `feedback.jsonl`，以 LEFT JOIN on `run_id` 把回饋掛到對應 run**（每筆 run 多一個
    `feedback[]`，可能為空）。於是當時 `gate=PASS`、`outcome=shipped` 的乾淨 run，若事後有回饋，
    也會進入 retro 視野——這正是回饋 channel 的目的。
+   同時收集 trace 的時間欄位（`wall_seconds` / `agent_seconds`）供吞吐指標用；
+   **舊 trace 缺這些欄位 → 排除在時間指標分母外，絕不當 0 或 1**（見 `references/hill-climb.md` §7）。
 
 2. **Diagnose**：**只挑重複出現**的系統問題（非一次性），每條附 trace 證據（run_ids）。
    例：「`integration-mismatch` 在 9 條 Full run 命中 4 條，全在 05↔06 endpoint 命名」。
+   吞吐面看 `parallel_speedup` 與 `mean_wall_seconds`（`mean_agents_per_run` 僅成本面參考，
+   **不得單以 agents 數上升判定退步**）；`parallel_speedup` ~1 且 `phases[]` 的 `parallel_group`
+   皆為單元素 → 💡 提案平行化候選（映射見 `references/hill-climb.md` §4）。
 
 3. **Propose**：每個診斷映射到**具體系統改動 + 目標物件**（build skill / point rubric /
    stage contract / team skill / verify 規則 / memory）。映射表見 `references/hill-climb.md`。
@@ -66,7 +71,8 @@ retro 對**空湖**沒有意義。開跑前先看 `.athena/traces/runs.jsonl`：
    只增不刪——見 `references/hill-climb.md` §5.5.3）。這就是棘輪：系統再也回不到比已解決更差的狀態。
 
 6. **Measure**：把本輪 flow-health 指標 append 到 `.athena/hill-climb/metrics.jsonl`
-   （gate 一次過率、verify-retry 率、scope 準確率、平均 agents/run、人工介入率、
+   （gate 一次過率、verify-retry 率、scope 準確率、平均 agents/run（僅成本面）、
+   **`mean_wall_seconds`** 與 **`parallel_speedup`**——吞吐面（缺時間欄位的 run 排除在分母外）、人工介入率、
    **`post_ship_defect_rate`**——事後缺陷率、**`mean_coverage`**——平均測試覆蓋率、
    **`regression_set_size`**——棘輪健康度（應單調不減），定義見 `references/hill-climb.md` §7），
    在報告裡秀趨勢，讓人看出改動是爬坡還是退坡。
@@ -90,4 +96,3 @@ retro 對**空湖**沒有意義。開跑前先看 `.athena/traces/runs.jsonl`：
 6. **唯讀 trace/feedback + 只寫 proposal/metrics/state/regression** — 不對 src/ 或 skill 本體寫入。
 7. **棘輪 append-only** — regression set 只增不減；採納前必過退步 gate（≥ 門檻且不低於上輪 baseline）；`retired` 僅人工 + reason 且不刪檔。
 7. **資料不足就停** — 不對空湖或極少樣本硬產提案。
-</content>

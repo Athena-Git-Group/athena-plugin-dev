@@ -172,3 +172,4 @@ Risks
 6. 若尚未查證必要知識庫，不得發出 `PASS-DIRECT-BUILD`
 7. codemap（`graphify-out/`）只能用於蒐證，不得作為翻轉 route 的單一理由；codemap 缺席時必須能照原流程完成評分
 8. 不得執行任何寫盤的 graphify 子指令（`install` / `clone` / `add` / 重建 / `--update` / `merge-graphs` / `extract`），只允許唯讀的 `query` / `path` / `explain`
+9. **不實作程式碼**——只評分、只分流、只寫 point-report。除了 `points/<slug>.md` 之外不得寫入或修改任何檔案（含 `src/`、測試、設定）。需求看起來多小都一樣：實作是 `/build` 的工作

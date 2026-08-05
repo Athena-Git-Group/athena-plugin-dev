@@ -61,9 +61,9 @@ git_context:
 |------|------|
 | **職責** | 將規格轉換為可執行的工程計畫 |
 | **輸入** | `handoffs/<slug>-spec.md` + spec 階段產出的規格文件 |
-| **必要輸出** | `plans/<slug>/plan.md`（含 Dependency Graph）+ Phase 卡片 |
+| **必要輸出** | `plans/<slug>/plan.md`（含 Dependency Graph，frontmatter 每個 phase 含 `touches` 所有權宣告：`files` glob + `resources`）+ Phase 卡片 |
 | **Handoff** | `handoffs/<slug>-plan.md`，包含計畫路徑、phase 列表 |
-| **Gate 條件** | plan.md 存在且 Dependency Graph 完整 |
+| **Gate 條件** | plan.md 存在且 Dependency Graph 完整，並已通過 `validate_plan.py --require-touches`（可平行 pair 的 touches 互斥） |
 
 ### build（Minimal — PASS-TRIVIAL）
 
@@ -190,7 +190,7 @@ Flow 讀取 `plan.md` 的 Dependency Graph，將 implementation phases 拆解為
 | 項目 | 說明 |
 |------|------|
 | **職責** | 根據計畫執行實作（後端/前端/全端），以 phase 為單位 |
-| **輸入** | `handoffs/<slug>-plan.md` + `plans/<slug>/plan.md`（Dependency Graph）+ `plans/<slug>/phase-cards/` |
+| **輸入** | `handoffs/<slug>-plan.md` + `plans/<slug>/plan.md`（YAML frontmatter = Dependency Graph 機械真相）+ `plans/<slug>/todo/` 的 phase 卡（執行時 flow mv 至 `doing/`，gate PASS 後 mv 至 `done/`） |
 | **執行方式** | Flow 驅動的 phase loop — 每個 phase 由 fresh agent 執行 |
 | **Phase 輸出** | 每個 phase 寫 `handoffs/<slug>-build-phase-<NN>.md`（mini-handoff） |
 | **Phase Gate** | 每個 phase agent 執行 smoke test，結果寫入 mini-handoff |

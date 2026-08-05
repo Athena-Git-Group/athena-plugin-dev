@@ -226,9 +226,20 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
    d. **可平行的 phase 必須在同一次回應內全部送出 Agent 呼叫**：
       - ≤ 2 個可平行 phase 用 foreground 平行（多個 `Agent` tool calls 在同一回應）
       - ≥ 3 個或時間落差大用 background 平行（`Agent(run_in_background: true)` + harness 完成通知）
+      - **平行集 ≥ 2 一律帶 `isolation: "worktree"`**（每個 phase agent 獨立 git worktree）。
+        prompt 必須注入主樹絕對路徑——雙路徑規則：code 走 worktree cwd、artifact
+        （phase 卡 / spec / mini-handoff）一律走主樹絕對路徑。phase agent 無論 gate 結果
+        都 commit 到 worktree 分支（PASS 正常格式、FAIL 用 `wip:` 前綴）並在 mini-handoff
+        回報 `Worktree Branch:`；選項不可用時走 fallback 鏈（手動 worktree 協議 →
+        shared-tree），序列 phase 不用 worktree——詳見 `phase-orchestration.md`「Worktree 隔離」
       - 啟動前用 `TaskCreate` 為每個 phase 建立 task 作為 UX 投影，完成通知到達時 `TaskUpdate`
       - 不在 flow agent 內 `sleep` 輪詢，背景模式靠 harness 通知
-   e. 所有可平行 phase 完成後再做 conflict detection；衝突就停，無衝突才依序 commit
+   e. 所有可平行 phase 完成後再做 conflict detection（兩層）；衝突就停。
+      - **worktree 模式**：通過後 flow 在主樹按拓撲序對各 `Worktree Branch:` 執行
+        `git merge --no-ff`（**只 merge latest gate = PASS 的分支**），成功後 `git branch -d`；
+        merge conflict 是第三層安全網，停止交使用者，不自動解；下游 phase 一律等上游
+        平行集全部 merge-back 完成後才 spawn，不提早觸發（詳見 `phase-orchestration.md`）
+      - **shared-tree 模式**：無衝突才依序 commit（原行為）
    f. 所有 phase 完成 → 合成 `handoffs/<slug>-build.md`
 9. **Verify stage**（跳過 `PASS-DIRECT-BUILD`，該路由無 verify）：
    a. 開新 agent 執行 verify skill
@@ -292,6 +303,19 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
           計數類（lint_*／tests_*）取**加總**
         > **非協商**：metrics 蒐集是 emit-trace 裡最低優先的附加動作；解析失敗只代表「少記一個數字」，
         > **絕不**影響 trace 寫入或 run 結局。metrics 不參與任何 gate 判定。
+    a3. **蒐集時間與拓撲欄位（全部選填、同為最低優先）**：
+        - run 層 `started_at`：讀 flow-context marker 的選填 `started_at`（見 `references/flow-context.md`）
+        - `stages[].started_at` / `ended_at`：讀各 stage handoff 的選填 `## Timing` 區塊
+          （`Started At:` / `Ended At:`，見 `references/agent-handoff.md`）
+        - build stage 的 `phases[]` 與 `conflicts[]`（僅 Full Weight）：時間來自各 mini-handoff 的
+          Timing 區塊；`mode` / `isolation`（`"worktree"` / `"shared"`，選填）/ `parallel_group`
+          來自 flow 自己的 spawn 分組紀錄；`conflicts` 來自
+          conflict detection 結果（彙整方式見 `references/phase-orchestration.md`「Phase 拓撲彙整」）
+        - 計算三個選填 metrics（掛在 build stage 的 `metrics`，schema 見 `references/run-trace.md`）：
+          `wall_seconds`（`ts` − `started_at`）、`agent_seconds`（phases 時長總和；缺 phases 時
+          退回 stages 時長總和）、`max_parallel_width`（最大 `parallel_group` 大小）
+        > **非協商**：所有時間與拓撲欄位皆選填、缺失即略；任何解析或計算失敗**安靜降級**
+        > （該欄位不寫即可），**絕不**影響 trace 寫入或 run 結局。
     b. Append 一筆 JSON 到 `.athena/traces/runs.jsonl`（不存在則建立）
     c. 依 **Handoff Retention Policy** 做 GC（詳見 `references/run-trace.md`）：
        - outcome 為 `shipped` / `done` → 刪除該 slug 的所有 handoff（含 mini-handoff）
@@ -320,7 +344,7 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
 7. 不使用 plugin 內建 skill 作為 standard stage 替代——standard stage skill 必須由團隊提供
 8. Flow-inline stage 在 flow agent 中內聯執行，不開 fresh agent
 9. Flow-inline stage 缺少團隊版本時，使用 plugin 預設繼續執行
-10. Gate 沒過不 commit——只有 PASS 才觸發 post-build
+10. Gate 沒過不 commit——只有 PASS 才觸發 post-build（例外：worktree 平行 phase 無論 gate 結果都在 worktree 分支 commit，FAIL 用 `wip:` 前綴且該分支絕不 merge，見 phase-orchestration.md）
 11. **只有 Ship 可以 push** — pre-build 和 post-build 僅做 local 操作（**例外**：Minimal 路由由使用者自行 push）
 12. 冪等——分支已存在就切換，commit 無變更就跳過
 13. **Per-phase commit** — 每個 build phase 獨立 commit，不合併多個 phase（僅 Full Weight）
@@ -333,3 +357,4 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
 20. **flow agent 不 sleep 輪詢** — background 模式靠 harness 通知，foreground 模式靠 tool result 同步返回
 21. **每次 run 必須 emit 一筆 trace** — 不論成敗，步驟 12 是強制收尾，append 到 `.athena/traces/runs.jsonl`
 22. **GC 先 emit trace 後刪、且只刪已完成 run** — 絕不刪 in-flight 或未解 run 的 handoff（見 `references/run-trace.md`）
+23. **平行集 ≥ 2 一律 worktree 隔離** — spawn 帶 `isolation: "worktree"`，merge-back 用 `git merge --no-ff` + `git branch -d`；merge conflict 停止交使用者；不可用時走 fallback 鏈（僅 Full Weight，詳見 `references/phase-orchestration.md`「Worktree 隔離」）

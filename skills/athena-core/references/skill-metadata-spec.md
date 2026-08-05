@@ -11,7 +11,10 @@
 name: <string>          # 必填。Skill 識別名稱，英文小寫 + 連字號（如 my-team-build）
 description: <string>   # 必填。說明此 skill 做什麼、何時觸發
 stage: <string>         # 條件必填。對應 pipeline stage（見下方列表）
-user-invocable: <bool>  # 選填。是否可被使用者直接呼叫，預設 false
+user-invocable: <bool>  # 選填。是否可被使用者直接呼叫，**預設 true**
+                        # （2026-08-04 實測 v2.1.221：未宣告此欄位的 skill 可被斜線呼叫；
+                        #   明設 false 者呼叫時靜默不解析，且不會回 "Unknown command"。
+                        #   要禁止使用者直接呼叫必須顯式寫 false）
 ---
 ```
 

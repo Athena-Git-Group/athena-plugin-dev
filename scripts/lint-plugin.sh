@@ -137,6 +137,112 @@ for f in hooks/*.sh scripts/*.sh; do
   if [ -x "$f" ]; then ok "$f executable"; else fail "$f not executable"; fi
 done
 
+# ---------- 5. Plan validator self-test ----------
+step "validate_plan.py fixture self-test"
+VALIDATOR="skills/athena-specformula/scripts/validate_plan.py"
+FIXTURE="tests/fixtures/plan-valid"
+if [ ! -f "$VALIDATOR" ]; then
+  fail "$VALIDATOR missing"
+elif [ ! -d "$FIXTURE" ]; then
+  fail "$FIXTURE missing"
+else
+  out="$(python3 "$VALIDATOR" "$FIXTURE" 2>&1)"
+  if [ $? -eq 0 ]; then
+    ok "$VALIDATOR passes on $FIXTURE"
+  else
+    fail "$VALIDATOR failed on $FIXTURE:"
+    echo "$out" | sed 's/^/     /'
+  fi
+fi
+
+# ---------- 5b. Plan validator touches self-test ----------
+step "validate_plan.py touches / independence-overlap self-test"
+if [ ! -f "$VALIDATOR" ] || [ ! -d "$FIXTURE" ]; then
+  fail "touches self-test skipped: $VALIDATOR or $FIXTURE missing"
+else
+  # (a) positive: fixture declares touches on every phase → --require-touches passes
+  out="$(python3 "$VALIDATOR" --require-touches "$FIXTURE" 2>&1)"
+  if [ $? -eq 0 ]; then
+    ok "$VALIDATOR --require-touches passes on $FIXTURE"
+  else
+    fail "$VALIDATOR --require-touches failed on $FIXTURE:"
+    echo "$out" | sed 's/^/     /'
+  fi
+  # (b) negative: make phases 05 and 06 (parallel-eligible) touch the same glob
+  #     → validator must exit 1 and mention the overlap
+  tmpneg="$(mktemp -d)"
+  cp -R "$FIXTURE" "$tmpneg/plan-overlap"
+  python3 - "$tmpneg/plan-overlap/plan.md" <<'PY'
+import sys
+path = sys.argv[1]
+text = open(path, encoding="utf-8").read()
+new = text.replace('files: ["src/frontend/**"]', 'files: ["src/backend/**"]', 1)
+assert new != text, "fixture no longer declares phase 06 glob src/frontend/**"
+open(path, "w", encoding="utf-8").write(new)
+PY
+  if [ $? -ne 0 ]; then
+    fail "could not prepare overlap fixture copy in $tmpneg"
+  else
+    out="$(python3 "$VALIDATOR" "$tmpneg/plan-overlap" 2>&1)"
+    rc=$?
+    if [ "$rc" -eq 1 ] && grep -qi "overlap" <<<"$out"; then
+      ok "$VALIDATOR rejects overlapping touches on parallel phases (exit 1, mentions overlap)"
+    else
+      fail "$VALIDATOR negative test: expected exit 1 mentioning 'overlap', got exit $rc:"
+      echo "$out" | sed 's/^/     /'
+    fi
+  fi
+  rm -rf "$tmpneg"
+fi
+
+# ---------- 6. Status renderer self-test ----------
+step "render_status.py fixture self-test"
+RENDERER="scripts/render_status.py"
+if [ ! -f "$RENDERER" ]; then
+  fail "$RENDERER missing"
+elif [ ! -d "$FIXTURE" ]; then
+  fail "$FIXTURE missing"
+else
+  tmproot="$(mktemp -d)"
+  mkdir -p "$tmproot/plans"
+  cp -R "$FIXTURE" "$tmproot/plans/plan-valid"
+  out_html="$tmproot/status.html"
+  if python3 "$RENDERER" "$tmproot" --output "$out_html" >/dev/null 2>&1 && [ -f "$out_html" ]; then
+    missing_phases=""
+    for pid in 01 02 03 04 05 06 07 08; do
+      grep -q "data-phase=\"$pid\"" "$out_html" || missing_phases="$missing_phases $pid"
+    done
+    if [ -z "$missing_phases" ]; then
+      ok "$RENDERER renders fixture with all 8 phase ids"
+    else
+      fail "$RENDERER output missing phase id(s):$missing_phases"
+    fi
+    # Interactive dashboard invariants:
+    #   - embedded JSON detail blob (drawer data, no fetch at runtime)
+    #   - dependency edges drawn (fixture DAG has 8 edges; require >= 7)
+    #   - no external resource references (self-contained, file:// safe)
+    if grep -q 'type="application/json" id="athena-status-data"' "$out_html"; then
+      ok "$RENDERER embeds phase-detail JSON blob"
+    else
+      fail "$RENDERER output missing embedded JSON blob (athena-status-data)"
+    fi
+    edge_count="$(grep -oE '<(line|path)[^>]*class="dag-edge"' "$out_html" | wc -l | tr -d ' ')"
+    if [ "$edge_count" -ge 7 ]; then
+      ok "$RENDERER draws $edge_count dependency edges (>= 7)"
+    else
+      fail "$RENDERER output has only $edge_count dependency edges (expected >= 7)"
+    fi
+    if grep -qE '(src|href)="https?://' "$out_html"; then
+      fail "$RENDERER output references external resources (must be self-contained)"
+    else
+      ok "$RENDERER output is self-contained (no external src/href)"
+    fi
+  else
+    fail "$RENDERER failed on $tmproot (fixture copy of $FIXTURE)"
+  fi
+  rm -rf "$tmproot"
+fi
+
 echo ""
 if [ "$FAIL" -eq 0 ]; then
   echo "🎉 All lint checks passed."

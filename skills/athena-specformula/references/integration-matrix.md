@@ -1,6 +1,6 @@
 # Integration Validation 驗證矩陣
 
-Phase 04 的核心 — 驗證前端（Phase 03）與後端（Phase 02）透過真實 HTTP 連線能正確協作。
+Phase 08 的核心 — 驗證前端（Phase 06 建置、Phase 07 mock E2E 通過）與後端（Phase 05）透過真實 HTTP 連線能正確協作。
 
 ## 來源
 
@@ -17,7 +17,7 @@ Phase 04 的核心 — 驗證前端（Phase 03）與後端（Phase 02）透過�
 
 ## 環境切換
 
-| 設定 | Mock 模式 (Phase 03) | Real 模式 (Phase 04) |
+| 設定 | Mock 模式 (Phase 07) | Real 模式 (Phase 08) |
 |------|----------------------|----------------------|
 | `NEXT_PUBLIC_MOCK_API` | `true` | `false` |
 | `BACKEND_URL` | — | `http://localhost:{PORT}` |
@@ -65,11 +65,11 @@ Phase 04 的核心 — 驗證前端（Phase 03）與後端（Phase 02）透過�
 1. 啟動後端（`docker-compose up` 或 `venv + uvicorn`）
 2. 健康檢查通過
 3. 前端環境切換（`.env.development` 修改）
-4. 用 Chrome E2E 重跑 Phase 03 的 Activity Test Plan
+4. 用 Chrome E2E 重跑 Phase 07 的 E2E 測試計畫
 5. 逐項核對上述 5 項驗證
 6. 發現問題 → 定位前端/後端/契約 → 修正 → 重跑
 
 ## 判定標準
 
-- 5 項全部通過 → Phase 04 完成
+- 5 項全部通過 → Phase 08 完成
 - 任一失敗 → 修正後重跑，直到全部通過

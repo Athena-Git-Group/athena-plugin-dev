@@ -19,6 +19,14 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto-commit.sh"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/render-status.sh"
+          }
+        ]
       }
     ]
   }

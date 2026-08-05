@@ -55,8 +55,10 @@ dispatcher **絕不**自己改 code。命中事件時只「製造一張 intake�
    - `auto-to-gate` → 呼叫 `/athena-flow`（intake 內註明「**停在 ship 前**，不要 push/merge」），state 記 in-flight
    - `auto-full` → 呼叫 `/athena-flow` 跑完整流程，state 記 in-flight
 5. **傳遞 trigger 來源**：intake 內標明 `trigger: <source>`（source 類別 `manual`/`ci`/`pr-review`/`cron`/`inbox`），讓 flow 的 emit-trace 把 trace 的 `trigger` 欄位填為 source 類別；具體 trigger name 記在 dispatcher state，不進 trace 欄位
-6. **更新 state.json**：標記 seen/dispatched/in-flight；flow 完成通知回來時清掉 in-flight
-7. **Housekeeping（每 N tick 一次）**：GC 孤兒 handoff —— 刪掉「已有對應 `shipped`/`done` trace 且超過 X 天」的 handoff（補 `run-trace.md` 掃尾保險那段）。**只刪有 shipped trace 的；絕不刪 in-flight 或未解 run。**
+6. **更新 state.json**：標記 seen/dispatched/in-flight（in_flight 條目**必帶 `started_at`** ISO timestamp）；flow 完成通知回來時清掉 in-flight
+7. **Housekeeping（每 N tick 一次）**，兩件事（詳見 `references/event-triggers.md` §8）：
+   - **GC 孤兒 handoff**：刪掉「已有對應 `shipped`/`done` trace 且超過 X 天」的 handoff（補 `run-trace.md` 掃尾保險那段）。**只刪有 shipped trace 的；絕不刪 in-flight 或未解 run。**
+   - **GC 卡死的 in_flight**（crash 恢復）：若 runs.jsonl 已有同 slug 且 `ts > started_at` 的 trace → 清除該條目；若 `started_at` 距今 > 24h 且無 trace → 視為 stale，清除並在回報中列一行通知使用者。
 8. **排下次喚醒**：用 `ScheduleWakeup`，**cache-aware**——有活躍事件（如 CI 跑中）用 <5min（270s）保持 cache 溫；閒置拉到 20–30min。**不在迴圈內 `sleep` 輪詢。**
 
 ## 啟動方式
@@ -70,7 +72,7 @@ dispatcher **絕不**自己改 code。命中事件時只「製造一張 intake�
 - 本 tick 評估了哪些 trigger、各自命中與否
 - 命中者：採取的 autonomy 行動（notified / dispatched-to-gate / dispatched-full）與對應 intake 摘要
 - 被 dedup / single-flight 跳過的項目（讓使用者知道沒有漏，是刻意跳過）
-- housekeeping 這次刪了哪些孤兒 handoff（若有）
+- housekeeping 這次刪了哪些孤兒 handoff、清了哪些卡死/stale 的 in_flight 條目（若有；stale 清除必須明列讓使用者知道）
 - 下次喚醒的時間與理由
 
 ## 非協商規則
@@ -83,4 +85,4 @@ dispatcher **絕不**自己改 code。命中事件時只「製造一張 intake�
 6. **唯讀探測 source** — tick 評估只用唯讀 CLI，不在探測階段做任何寫入或 git 操作。
 7. **GC 只刪已完成 run** — housekeeping 絕不刪 in-flight 或未解 run 的 handoff（見 `references/event-triggers.md` 與 `athena-flow/references/run-trace.md`）。
 8. **triggers.yml 缺失不報錯硬闖** — 引導使用者建立後再跑，不自行臆測 trigger。
-</content>
+9. **in_flight 不許永久卡死** — 條目必帶 `started_at`；清除只依兩個判準（同 slug 較新 trace，或 stale > 24h），stale 清除必在回報中通知使用者，絕不無聲吞掉（見 `references/event-triggers.md` §8b）。

@@ -9,7 +9,7 @@
    The flow has a Minimal path (PASS-TRIVIAL) for truly simple tasks, so overhead is low.
 
    This rule is enforced by a `PreToolUse` hook (`hooks/require-point.sh`):
-   missing `points/*.md` will block `Edit` / `Write` / `MultiEdit`. See the
+   missing `points/*.md` will block `Edit` / `Write` / `MultiEdit` / `NotebookEdit`. See the
    README "強制規則" section for scope, self-protection paths, and escape hatches.
 
 2. After point evaluation, follow the verdict:

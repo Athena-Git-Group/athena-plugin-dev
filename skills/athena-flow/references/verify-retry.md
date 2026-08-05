@@ -114,7 +114,7 @@ Re-Verify：開 fresh verify agent → 完整重跑
 
 讀取以下資料：
 1. .athena/skills/<build-skill>/SKILL.md
-2. plans/<slug>/phase-cards/<NN>-<name>.md
+2. plans/<slug>/doing/<NN>-<name>.md（修復期間卡片由 flow 從 done/ mv 回 doing/；若原本就 FAIL 未離開 doing/ 則原地讀取）
 3. handoffs/<slug>-build-phase-<NN>.md（你上次的 mini-handoff）
 4. 以下是 Verify 發現的問題：
 

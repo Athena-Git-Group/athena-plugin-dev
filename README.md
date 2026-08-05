@@ -88,6 +88,7 @@ Subagent description 標註「only via athena-flow」以避免 main agent 繞過
 |----------|------|------|
 | `PreToolUse` (Edit / Write / MultiEdit / NotebookEdit) | `hooks/require-point.sh` | 沒有 `points/*.md` 就 block 編輯——強制執行「先跑 /athena-point」 |
 | `SubagentStop` | `hooks/auto-commit.sh` | 看 `.athena/.flow-context.json`；`mode: hook` 才接管 commit，否則由 flow-inline post-build skill 處理 |
+| `SubagentStop` | `hooks/render-status.sh` | 重新產生 `.athena/status.html` 狀態看板（機械投影，非強制 hook；無 `.athena/` 或 `plans/` 時靜默 no-op） |
 
 詳細觸發範圍、自我保護路徑與 escape hatch 見下方「Hooks 機制」段。
 
@@ -241,6 +242,17 @@ Flow 根據 point 評分自動決定流程重量，避免小任務走過重的�
 - **Lightweight**：review + ship 合併為一個 agent
 - **Full**：完整流程，build 內部依 plan.md 拆分 phase loop
 
+> **平行 phase 的 worktree 隔離**：Full Weight 平行集 ≥ 2 時，flow spawn phase agent
+> 一律帶 `isolation: "worktree"`——每個 phase 在獨立 git worktree 中物理隔離（artifact
+> 如 handoff/plans 仍走主樹絕對路徑），收尾無論 gate 結果都 commit 到自己的 worktree
+> 分支（FAIL 用 `wip:` 前綴、絕不 merge）並在 mini-handoff 回報 `Worktree Branch:`，
+> flow 在主樹按拓撲序 `git merge --no-ff` 合回、成功後 `git branch -d`。安全網共三層：第一層
+> ownership violation（對照 touches 宣告）、第二層跨 phase Files Changed 重疊比對、
+> 第三層 merge conflict（立即停止、交使用者）。isolation 選項不可用時 fallback 到手動
+> `git worktree add .athena/worktrees/<slug>-<NN> -b athena/phase/<slug>-<NN>` 協議；
+> 連 worktree 都不可用則退回 shared-tree 模式（touches 分區 + conflict detection）。
+> 詳見 `skills/athena-flow/references/phase-orchestration.md`「Worktree 隔離」。
+
 ## 流程概覽
 
 ```
@@ -269,7 +281,7 @@ Flow 根據 point 評分自動決定流程重量，避免小任務走過重的�
 
 ## Hooks 機制
 
-Plugin 透過兩條 harness hook 把流程契約落到 runtime 強制：一條檢查事前（point gate），一條接管事後（auto-commit）。兩者都列在 `hooks/hooks.json`。
+Plugin 透過兩條 harness hook 把流程契約落到 runtime 強制：一條檢查事前（point gate），一條接管事後（auto-commit）。另有一條非強制的 `SubagentStop` hook（`hooks/render-status.sh`）負責重渲染狀態看板，見「狀態看板」一節。三者都列在 `hooks/hooks.json`。
 
 ### 1. Point Gate（強制，always-on）
 
@@ -316,22 +328,55 @@ mkdir -p .athena && touch .athena/skip-point-gate
   "branch_name": "feature/...",
   "ticket": "",
   "phase_number": "05",
+  "parallel_phases": 3,
   "expires_at": "2026-05-13T15:00:00Z"
 }
 ```
+
+（`parallel_phases` 為選填，僅在平行 phase 情境寫入，見下方說明。）
 
 Hook 行為：
 
 1. 讀 marker → `mode != "hook"` 或 marker 不存在 → no-op
 2. `expires_at` 過期 → 清除 marker，no-op
-3. 找對應 handoff（`handoffs/<slug>-build.md` 等）
-4. handoff 的 `## Gate Verdict` 不是 PASS → no-op
-5. PASS → `git add -A && git commit`（不 push、不 amend、不 rebase）
-6. 刪掉 marker（避免重複觸發）
+3. `parallel_phases` > 1 → no-op（commit 讓位給 flow 層，見下方說明）
+4. 找對應 handoff（`handoffs/<slug>-build.md` 等）
+5. handoff 的 `## Gate Verdict` 不是 PASS → no-op
+6. PASS → `git add -A && git commit`（不 push、不 amend、不 rebase）
+7. 刪掉 marker（避免重複觸發）
 
 Marker schema 與 mode 選擇建議詳見 `skills/athena-flow/references/flow-context.md`。
 
-> v1 限制：平行 phase 共用單一 marker，無法區分。Full Weight 平行 phase 想用 hook 模式時建議拆 per-phase marker；目前的 reference impl 預設仍用 inline post-build skill。
+> 平行 phase：marker 有選填欄位 `parallel_phases`（flow 在同時 spawn >1 個 phase agent 前寫入）。值 >1 時 hook 不 commit，log「parallel phase mode — commit deferred to flow」後讓位給 flow 層「全部 phase 完成 → conflict check → 依序 commit」；序列情境（欄位不存在、0 或 1）行為不變。worktree 平行模式下主樹 marker 照寫 `parallel_phases` 當保險；worktree 內沒有 marker（untracked 不跟隨 worktree），hook 自然 no-op，per-phase commit 由 phase agent 在 worktree 分支自己做。
+
+## 狀態看板（Status Dashboard）
+
+打開 **`.athena/status.html`** 就能看到目前所有 flow 的進行狀況：每個
+`plans/<slug>/` 一個 section（DAG 依賴圖 SVG、todo/doing/done 三欄看板、
+gate verdict 表），加上最近 10 筆歷史 run。頁面每 5 秒自動重新載入
+（inline JS），支援亮／暗主題，完全 self-contained（無任何外部資源，
+`file://` 直開即可用）。
+
+看板是互動式的：點任一 DAG 節點或看板卡片（滑鼠或 Tab + Enter）會開啟
+側邊詳情面板——狀態、depends_on／被依賴（可點跳轉）、claim owner、gate
+verdict、phase 卡原文與對應 mini-handoff 的 Files Changed / Risks 摘要；
+同時該節點的上下游邊與相鄰節點會高亮、其餘淡化。Esc 或點遮罩關閉；
+面板開啟期間自動重載暫停（頁角顯示 auto-refresh paused），關閉後恢復。
+所有詳情資料都在渲染時嵌入頁面（JSON blob），開啟面板不會讀任何檔案。
+
+- **產生時機**：`SubagentStop` hook（`hooks/render-status.sh`）在每個
+  subagent 結束後自動重渲染；渲染失敗不會中斷 hook chain。
+- **手動產生**：
+  ```bash
+  python3 scripts/render_status.py .   # 輸出到 .athena/status.html
+  ```
+- **核心原則——機械投影，勿手編**：看板是
+  `plans/*/plan.md` frontmatter（DAG）、`plans/*/todo|doing|done/`
+  （phase 狀態唯一真相）、`handoffs/<slug>-*.md`（gate verdict）、
+  `.athena/.flow-context.json`（當前 stage）、`.athena/traces/runs.jsonl`
+  （歷史 run）的**純函數**，由 `scripts/render_status.py` 唯讀產生。
+  任何手動編輯都會在下次渲染被整頁覆蓋；看板不對就修狀態或修 script，
+  不准改 HTML。
 
 ## 給 Contributor
 

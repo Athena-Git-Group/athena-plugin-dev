@@ -19,9 +19,16 @@ user-invocable: false
 > 本 skill 不執行。若 marker 不存在或為 `mode: inline`，仍由本 skill 處理。
 > Marker schema 詳見 `../athena-flow/references/flow-context.md`。
 
+> **Worktree 平行模式（Full Weight）**：平行集以 `isolation: "worktree"` 隔離時，
+> per-phase commit 發生在 **worktree 分支、由 phase agent 自己執行**（無論 gate 結果
+> 都 commit——FAIL 用 `wip:` 前綴——並回報 `Worktree Branch:`），主樹的整合點是 flow merge-back 的 merge commit
+> （`git merge --no-ff`）。**本 skill 不對這些平行 phase 重複 commit**——flow 不會為
+> 它們以 `triggering_stage: build-phase-<NN>` 呼叫本 skill。序列 phase 與 shared-tree
+> fallback 情境行為不變。詳見 `../athena-flow/references/phase-orchestration.md`「Worktree 隔離」。
+
 你會在以下時間點被呼叫：
 1. **Lightweight build gate 通過後** — `triggering_stage: build-lightweight`
-2. **每個 build phase gate 通過後（Full Weight）** — `triggering_stage: build-phase-<NN>`
+2. **每個 build phase gate 通過後（Full Weight）** — `triggering_stage: build-phase-<NN>`（worktree 平行 phase 除外，見上方說明）
 3. **verify stage 通過後** — `triggering_stage: verify`
 4. **verify fix 完成後（Lightweight）** — `triggering_stage: verify-fix-lightweight`
 5. **verify fix 完成後（Full Weight）** — `triggering_stage: verify-fix-phase-<NN>`

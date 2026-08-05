@@ -50,6 +50,7 @@ def resolve_variables(args_data: dict, slug: str, summary: str, project_root: Pa
     lang, strategy = detect_tech_stack(args_data)
 
     return {
+        "PLAN_SLUG": slug,
         "REQUIREMENT_TITLE": slug,
         "REQUIREMENT_SUMMARY": summary,
         "DATE": date.today().isoformat(),
