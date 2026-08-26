@@ -148,11 +148,60 @@ flow 在 run 結束前，以 **flow-inline 步驟**（不開 agent，因為這�
 | `scope-underestimate` | point 低估（如 trivial 路由但實際需要 spec） |
 | `scope-overestimate` | point 高估（如 full 路由給一行改動） |
 | `review-finding` | review 階段提出需修正的品質/正確性問題（handoff 顯示為 `request-changes`）；與 verify FAIL 的區別靠 `stages[].stage` 而非 tag |
+| `rule-conflict` | 兩條**各自有效**的規則互斥，agent 無法同時遵守（遵守任一邊必然違反另一邊）。來源可能跨層：harness 內建行為、flow 規則、stage 或團隊 skill 規則 |
 | `env` | 環境 / 工具失敗，非邏輯問題 |
 | `unclassified` | **保留 fallback**：FAIL 未帶 tag 時由 emit-trace 補登。非正式分類，代表「待 triage」，Loop 3 應優先回頭補標 |
 
 > gate verdict 在 FAIL 時必須帶上對應的 taxonomy tag，契約見 `agent-handoff.md`。
 > trace 的 `failures[]` 直接彙整自各 stage handoff 的 FAIL tag；缺 tag 時補 `unclassified`（向後相容）。
+
+### `rule-conflict` 的判準邊界
+
+這個 tag 最容易被誤用成「什麼都塞得下」的第二個 fallback。用下列**決定性問句**
+與相鄰 tag 區分，每題答案唯一：
+
+| 對照 | 決定性問句 | 答案 → tag |
+|------|-----------|-----------|
+| vs `env` | 「**把互斥的兩條規則之一移除**後，agent 用當前工具就能完成嗎？」 | 能 → `rule-conflict`（是規則打架，工具沒壞）；不能（工具／環境根本不允許） → `env` |
+| vs `contract-violation` | 「沒被遵守的是**一條**契約，還是**兩條都有效**的規則互相不容？」 | 一條 → `contract-violation`；兩條 → `rule-conflict` |
+| vs `spec-gap` | 「規則是**缺**（沒說這種情況怎麼辦），還是**多且互斥**（兩邊都說了、而且說反了）？」 | 缺 → `spec-gap`；互斥 → `rule-conflict` |
+
+**使用義務**（沿用既有 gate 契約，不新增 handoff 欄位）：FAIL 時 Gate Verdict 帶
+`#rule-conflict`，並在**同一則 Gate Verdict 的原因文字**中列出互斥的兩條規則來源，
+各自附上 `檔案:行號`。tag 欄位只放 tag，兩個來源寫在原因裡（例：
+`FAIL — X 要求 A、Y 要求非 A，無法同時遵守（foo.md:12 / bar.md:34） #rule-conflict`）。
+**舉不出兩個來源就不該用這個 tag**——只有一條規則沒被遵守是 `contract-violation`，
+規則沒說怎麼辦是 `spec-gap`。
+
+### enum 擴充的向後相容宣告
+
+- **additive**：本 enum 只增不改。既有 tag 的拼寫與意義一字未變
+- **舊 trace 仍合法**：`.athena/traces/runs.jsonl` 既有紀錄**不需回填、不需遷移**。
+  舊 run 沒有後來才加的 tag 是正常的，不是資料缺陷
+- **無 schema 校驗器**：`hooks/` 與 `scripts/` 對本 enum 零消費點，
+  新增 tag 不會讓任何工具報錯（代價：漏同步也不會報錯，見下方同步義務）
+- `by_tag` 是**開放 map**（見上方前向相容條款），統計端以實際出現的 tag 為準
+- fallback 行為不變：未帶 tag 一律補 `unclassified`；新增 tag 不會成為新的 fallback
+
+### enum 擴充的分層治理
+
+本 enum 是 **plugin 層的核心契約，本檔（`run-trace.md`）為唯一權威來源**。
+擴充權限**分層**授予：
+
+| 層 | 誰可以擴充 | 走什麼程序 |
+|----|-----------|-----------|
+| plugin 核心契約（本 enum） | plugin 自身的變更流程 | point → spec → plan → build，改本檔 |
+| 團隊 skill（`.athena/skills/*`） | **不得自行發明 tag** | 透過 hill-climb 提案；提案通過後由 plugin 流程落到本檔 |
+
+**團隊 skill 不得自行發明 tag。** 團隊遇到現有 tag 都不貼切的失敗，先用最接近的 tag
+並在 Gate Verdict 原因裡寫清楚，再透過 hill-climb 提案擴充。因此團隊規則裡
+「不得私自發明 tag」的要求對**團隊層持續完全有效**，與本檔的擴充程序不衝突：
+兩者管的是不同層，不是同一條規則的兩種說法。
+
+**新增 tag 時的同步義務**：本 enum 的每一個 tag，都必須在
+`skills/athena-hill-climb/references/hill-climb.md` §4 映射表有對應列，
+否則 Loop 3 統計得到那個 tag 卻查不到要改什麼。此處漏同步過去已真實發生過，
+且因為沒有校驗器而**不會報錯**——加 tag 就要同時加映射列。
 
 ## Handoff Retention Policy
 

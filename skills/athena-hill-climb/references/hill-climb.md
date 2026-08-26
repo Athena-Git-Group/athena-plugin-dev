@@ -81,6 +81,9 @@ gate 在 run 內抓到 = failure tag；人事後抓到 = feedback kind。
 | `skill-defect` | team skill | 立 eval case + 修 |
 | `flaky` | verify / smoke | quarantine、標 xfail 並寫移除條件 |
 | `env` | kickoff / 環境文件 | 補環境前置檢查 |
+| `rule-conflict` | **規則來源本身**（flow SKILL.md / references / stage skill / 團隊 skill 的規則文字） | 標出互斥的兩條規則來源與行號；改其中一條，或在其一明文寫出例外與適用層級 |
+| `review-finding` 反覆（且集中於同類問題） | **上游產出者**：build skill / spec 完整度（依 finding 類型定位）。**不是 review skill**——review 抓到問題是它正常運作，不是缺陷 | 把重複出現的 finding 類型寫成 build skill 的 self-review checklist 項、或 spec 的必填檢查項 |
+| `unclassified` 佔比偏高 | **不是改進目標——是 triage 缺口** | ① 先回頭補標：依該 run 保留的 handoff 重新歸類到正式 tag（見 `run-trace.md` 的 Failure Taxonomy 段）；② 只有在補標時反覆確認**無**現有 tag 可歸，才進一步提案擴充 taxonomy（走該段的分層治理程序）。兩步有先後：沒做完 ① 不得跳到 ② |
 | `parallel_speedup` 持平於 ~1 **且** trace 的 `phases[]` 顯示 `parallel_group` 皆為單元素（可平行集未被使用）、或 plan 的 Dependency Graph 過度串鏈 | plan skill / dependency graph 規則 | 💡 提案平行化候選：指出可平行的 phase 組、放寬過度串鏈的依賴標註 |
 
 回饋 taxonomy（`feedback.jsonl` 的 `kind`）→ 改進目標：
