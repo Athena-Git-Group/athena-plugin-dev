@@ -233,6 +233,16 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
         都 commit 到 worktree 分支（PASS 正常格式、FAIL 用 `wip:` 前綴）並在 mini-handoff
         回報 `Worktree Branch:`；選項不可用時走 fallback 鏈（手動 worktree 協議 →
         shared-tree），序列 phase 不用 worktree——詳見 `phase-orchestration.md`「Worktree 隔離」
+      - **必須注入 pre-flight 的比對基準**（agent 沒有基準就無從比對，等於健檢不生效）：
+        `Main Tree Branch:` = flow 自己的 `branch_name`；走**手動 worktree 協議**時分支名
+        由 flow 用 `-b` 指定、因此已知，另注入 `Expected Branch:`（加嚴為必須相等）。
+        agent 開工先自報 branch / cwd / 目標檔案三項健檢
+      - **收到 `PRE-FLIGHT MISMATCH`（且無 mini-handoff）**：這是**隔離設定失敗，不是 gate 事件**
+        （無產出、不進 `failures[]`、不給 taxonomy tag）→ 走既有 fallback 鏈重新 spawn 該 phase
+        （同一層級最多重試 1 次，仍不符就降下一級；shared-tree 仍不符則停止 phase loop 交使用者），
+        **不進 phase retry、不計入 2 輪額度**。有 mini-handoff 且 `Gate Verdict: FAIL` 才走 retry；
+        兩者皆無時走「Agent 干預協議」的查證階梯——詳見 `phase-orchestration.md`
+        「Pre-Flight 健檢（開工義務）」
       - 啟動前用 `TaskCreate` 為每個 phase 建立 task 作為 UX 投影，完成通知到達時 `TaskUpdate`
       - 不在 flow agent 內 `sleep` 輪詢，背景模式靠 harness 通知
    e. 所有可平行 phase 完成後再做 conflict detection（兩層）；衝突就停。
@@ -330,6 +340,37 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
 
 ## 必要輸出
 
+每次 stage / phase 交界的回報（以及任何中途停下來交給使用者的時刻），固定兩層。
+**第一層的白話摘要必須排在第二層的機械欄位之前**——順序不可顛倒，第一層不可省略。
+只給機械欄位的回報**不合格**：欄位回答「機器狀態是什麼」，不回答「發生了什麼、
+現在卡在哪、要不要使用者出手」。
+
+### 第一層：白話摘要（2-4 句，排在最前）
+
+依序回答三件事，一句一意：
+
+1. **剛才發生什麼** — 哪個 stage / phase 做完了，或做不下去了
+2. **現在的狀態** — 通關了還是卡住了；卡住時卡在什麼具體事情上
+3. **接下來會做什麼** — 若需要使用者決定，明確講出「要決定的是什麼」以及「不決定的後果」
+
+判準（違反任一即不合格）：
+
+| 判準 | 規則 |
+|------|------|
+| 長度 | 2-4 句（以句末標點計）。1 句不足、5 句以上即違規 |
+| 一句一意 | 每句只講一件事；不得用分號 / 破折號把多件事串成一句來規避句數 |
+| 術語白名單 | 可直接使用：stage 名（point / spec / plan / build / verify / review / ship）、gate、PASS / FAIL、slug、分支名、phase 編號、commit hash |
+| 術語黑名單處理 | 白名單外的 harness 內部詞（`emit-trace`、`touches`、mini-handoff、`isolation`、fallback 鏈、merge-back 等）**不得作為唯一說明**——出現時同一句內必須附白話後果（例：「touches 邊界衝突（兩個 phase 都要改同一個檔案）」） |
+| 不重複 | **不得只是換句話重述機械欄位**——摘要講事件與決策，欄位講狀態 |
+| 無資料 dump | 不得貼指令輸出、檔案內容、diff，或超過一行的引用 |
+
+> **請使用者拍板是否中止某個 agent 時**：保全紀錄（依「Agent 干預協議」C-2 實際取到／
+> 取不到什麼）插在白話摘要**之後**、機械欄位**之前**——同一則訊息的順序固定為
+> 白話摘要 → 保全紀錄 → 機械欄位。保全紀錄同樣是摘要式（handoff 路徑、commit hash、
+> 檔案數 / 行數），不貼完整 diff，且**不另寫成檔案**。
+
+### 第二層：機械欄位（原順序、原文字，不增不刪）
+
 - 當前 stage
 - 該 stage 使用的 skill 名稱與路徑（含是否為 plugin 預設）
 - 上一個 stage 的 artifact 路徑
@@ -362,3 +403,5 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
 21. **每次 run 必須 emit 一筆 trace** — 不論成敗，步驟 12 是強制收尾，append 到 `.athena/traces/runs.jsonl`
 22. **GC 先 emit trace 後刪、且只刪已完成 run** — 絕不刪 in-flight 或未解 run 的 handoff（見 `references/run-trace.md`）
 23. **平行集 ≥ 2 一律 worktree 隔離** — spawn 帶 `isolation: "worktree"`，merge-back 用 `git merge --no-ff` + `git branch -d`；merge conflict 停止交使用者；不可用時走 fallback 鏈（僅 Full Weight，詳見 `references/phase-orchestration.md`「Worktree 隔離」）
+24. **二手狀態必須自行查證** — 中止 agent、判定其失敗／卡死／放棄、重新 spawn 同一 stage 或 phase、把 phase 移出平行集或改路由、依某 agent 的狀態向使用者做結論性回報之前，必須自己查證（artifact 存在性 → git 事實 → harness task 查詢工具，依序；**一次性 point-in-time 查詢，不輪詢、不等待迴圈**）；二手回報只是線索，artifact 與 git 才是權威。查不到、或各層矛盾時**不得**動作，改為問使用者（詳見 `references/phase-orchestration.md`「Agent 干預協議」）
+25. **中止 agent 是使用者的決定，不是 orchestrator 的** — 主動中止進行中的 agent 前，先依第 24 條查證其實際狀態、嘗試保全並記錄**實際取到什麼**（取不到就寫「取不到 + 原因」，不得留空、不得寫「不確定」），再帶著〔已知產出 + 查證過的實際狀態 + 想中止的理由〕請使用者拍板；**使用者同意後才可中止**，orchestrator 不得自行中止。無使用者可問（`ci` / `cron` / `inbox`）時不中止、停止該 run 並記為既有的 `handed-to-human`。中止後掛回既有分支續作（`git worktree add <path> <既有分支>`，不帶 `-b`），**不重做**；保全全部唯讀，orchestrator 永不代 agent commit（詳見 `references/phase-orchestration.md`「Agent 干預協議」）
