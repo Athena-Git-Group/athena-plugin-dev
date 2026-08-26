@@ -225,6 +225,13 @@ commit（PASS 正常格式 / 仍 FAIL 用 `wip:` 前綴）、重跑 gate、更�
 flow 收尾 `git worktree remove` + `git worktree prune`。輪數上限沿用 2 輪；
 **latest gate = FAIL 的分支絕不 merge**。
 
+> **續作 spawn 的開工義務（與下文「Worktree 隔離」段扣合）**：repair agent 也在 worktree
+> 內，所以 prompt 除主樹絕對路徑外**必須**一併注入 `Main Tree Branch:`（flow 自己的分支）
+> 與 `Expected Branch:`（= 上面掛回的那個既有分支——flow 自己指定的，必然已知）。
+> pre-flight 三項健檢、以及不符時「不得更新既有 mini-handoff、只回 `PRE-FLIGHT MISMATCH`」
+> 的處置，見下文「Worktree 隔離」段的開工義務（其適用範圍已明文涵蓋續作 spawn）。
+> 這條同樣適用於 verify-fix 的 per-phase 修復 agent。
+
 ## Agent 干預協議
 
 **Agent 干預協議**規範的是 **orchestrator 主動介入另一個 agent**（中止、判定失效、
@@ -401,9 +408,31 @@ worktree（物理隔離，不再共用主 working tree），未變更的 worktre
 改檔、在錯的分支上 commit、或讀不到被注入的路徑，三種都不報錯，只在稍後才顯現
 （merge-back 找不到分支、主樹出現不該有的變更、平行 phase 互相踩到）。
 
-**適用範圍（D-0）**：**只限 worktree 隔離模式**——Full Weight 且平行集 ≥ 2，含手動
-worktree fallback 協議。序列 phase / 主樹模式**不套用**（沒有「跑錯 worktree」這個
-失效模式，且不符時無處可退）。
+**適用範圍（D-0）**：**只限 worktree 隔離模式**。判準是**這個 agent 有沒有被送進
+worktree**，**不是**它是第幾次被 spawn：
+
+| 情境 | 是否套用 | 依據 |
+|------|---------|------|
+| 平行集 ≥ 2 的首次 spawn（原生 `isolation: "worktree"`／手動 worktree fallback 協議） | **套用** | agent 在 worktree 內，不符時可沿 fallback 鏈退 |
+| **續作 spawn**：上文「Phase Retry」的 worktree retry（`git worktree add … <既有分支>`）、verify-fix 的 per-phase 修復 | **套用** | 同樣在 worktree 內；且這是**最脆弱**的建立方式（殘留路徑衝突／`add` 失敗都會讓 agent 留在主樹） |
+| 序列 phase / 主樹模式（含主樹模式下的 retry 與 verify-fix） | **不套用** | 沒有「跑錯 worktree」這個失效模式，且不符時無處可退 |
+
+續作 spawn 的健檢**比首次 spawn 更容易判定，不存在「retry 時無法判定」的情形**：worktree
+與分支都是 flow 自己用 `git worktree add … <既有分支>` 掛的，**分支名必然已知**（值 =
+上一輪 mini-handoff 回報的 `Worktree Branch:`）→ 續作 prompt **必須**同時注入
+`Main Tree Branch:`（flow 自己的分支）與 `Expected Branch:`（掛回的那個既有分支），
+檢查 1 直接走「必須**等於** `Expected Branch`」這條加嚴路徑。
+
+**注入義務與 agent 殼的推論扣合**：只要 agent 被送進 worktree（首次或續作），flow 就
+**必須**注入比對基準；因此「沒有收到 `Main Tree Branch`」對 agent 而言仍然正確地等於
+「序列／主樹模式，本節不套用」（`agents/athena-stage-build.md` 的鏡射依賴這個推論）。
+漏注入是 **flow 的缺陷**，不是 agent 該自行補救的事——agent 照主樹模式執行即可。
+
+**續作情境下不符的處置差異（唯一一處）**：續作 agent 的 mini-handoff **上一輪就已經在
+磁碟上**。不符時除了「不 Edit、不 Write、不 commit」之外，**也不得更新那份既有的
+mini-handoff**——原樣留著（它記的是上一輪的真實結果），只以 final response 回
+`PRE-FLIGHT MISMATCH`。這樣 flow 看到的仍是「上一輪的舊 verdict + 一個新的正向訊號」，
+與下方分辨表第 1 列一致。
 
 phase agent 的**開工第二步**（緊接取 `Started At` 的 `date` 之後、**Edit 任何程式碼之前**；
 措辭與上文「Agent Prompt 模板」一致）依序執行並自報：
@@ -444,22 +473,45 @@ agent **不得自己修復**（不得自己 `git checkout`、不得換目錄）�
    該 phase 的 gate FAIL——那會把「隔離沒生效、work 一個字都還沒動」顯示成「這個 phase
    做壞了」，**語意誤報且不報錯，所以沒人會發現**
 
-因此「無 mini-handoff + `PRE-FLIGHT MISMATCH` 行」本身就是 flow 可機械分辨的訊號，
-**不需要**在 `agent-handoff.md` 新增任何欄位。
+因此 final response 裡的 `PRE-FLIGHT MISMATCH` 這一行**本身**就是 flow 可機械分辨的
+**正向**訊號——不需要（也不可以）靠「mini-handoff 不存在」來推論它，見下方分辨表；
+也**不需要**在 `agent-handoff.md` 新增任何欄位。
 
 **flow 收到訊號後的行為（機械分辨依據）**：
 
-| 訊號 | 判定 | 路徑 |
-|------|------|------|
-| **有** mini-handoff 且 `Gate Verdict: FAIL` | gate 失敗（有產出可修） | 既有 Phase Retry，最多 2 輪 |
-| **無** mini-handoff 且 final response 有 `PRE-FLIGHT MISMATCH` | **isolation-setup failure**（無產出，**不是 gate 事件**） | 既有 **fallback 鏈**（見下方）：降級後重新 spawn 該 phase |
-| **無** mini-handoff 且**無** `PRE-FLIGHT MISMATCH`（agent 自己掛了 / 狀態不明） | 狀態未知，**不得**逕自判定 | 走上文「干預協議」的查證階梯；查不到就問使用者 |
+分辨的主鍵是**正向訊號**（某個字串出現了），**不是**「某個檔案不存在」。下表**依序**
+比對，先命中者為準：
+
+| # | 訊號（正向可偵測） | 判定 | 路徑 |
+|---|------|------|------|
+| 1 | final response **以上面那行固定格式回報 `PRE-FLIGHT MISMATCH` 並就此結束**——**不論 mini-handoff 是否存在** | **isolation-setup failure**（無新產出，**不是 gate 事件**） | 既有 **fallback 鏈**（見下方）：降級後重新 spawn |
+| 2 | **沒有** `PRE-FLIGHT MISMATCH`，但**有** mini-handoff 且 `Gate Verdict: FAIL` | gate 失敗（有產出可修） | 既有 Phase Retry，最多 2 輪 |
+| 3 | 兩者皆無（無 `PRE-FLIGHT MISMATCH`，且無 mini-handoff 或 mini-handoff 沒有 `## Gate Verdict`） | 狀態未知，**不得**逕自判定 | 走上文「干預協議」的查證階梯；查不到就問使用者 |
+
+> **為什麼第 1 列不得加上「無 mini-handoff」這個條件**：mini-handoff **從不在重試之間被
+> 刪除**——續作 agent（phase retry 與 verify-fix 的 per-phase 修復）一律是「讀上一次的
+> mini-handoff → **更新**它」，唯一的刪除點是 run 收尾的 handoff GC。所以任何**續作**
+> spawn 遇到 pre-flight 不符時，上一輪那份 `Gate Verdict: FAIL` 的 mini-handoff 都還在
+> 磁碟上：若把「無 mini-handoff」寫進條件，第 1 列在續作情境**永遠不可能命中**，
+> pre-flight 不符會被誤路由成 gate 失敗 → **吃掉一輪 retry 額度**（與下面「不計入 2 輪
+> 額度」的保證直接矛盾）、**永遠進不了 fallback 鏈**（降級階梯形同死碼），兩輪全燒在同一
+> 個壞掉的隔離設定上，最後以「這個 phase 修不好」的錯誤診斷交使用者。
+> **缺席推論在 re-spawn 情境下不可靠——一律以正向訊號為主鍵。**
+>
+> **反向誤判的防線**：第 1 列認的是**固定格式的回報行**
+> （`PRE-FLIGHT MISMATCH — <branch|cwd|target-file>: expected <X>, actual <Y>`，且 agent
+> 就此結束、無其他產出），**不是**「文中出現過這個字串」——正常收尾的 agent 可能在
+> mini-handoff 或 final response 裡**引述**它（討論規則、記錄風險），那不算訊號。
+> 判不出來是回報還是引述時 → 落到第 3 列，走查證階梯，**不得**猜。
 
 - pre-flight 不符**不是 gate 事件**：無 gate verdict、**不進 `failures[]`**、
   **不給 taxonomy tag**、**不計入** phase retry 的 2 輪額度（兩條路徑各自獨立）
 - 降級上限：**同一 fallback 層級最多重試 1 次**，仍回報 mismatch → **降下一級**
   （原生 worktree → 手動 worktree 協議 → shared-tree）
 - shared-tree 層級仍回報 mismatch → **停止 phase loop、回報使用者**（已無級可降）
+- **續作 spawn 命中第 1 列時，降級後重新 spawn 的是「同一次續作」**——仍掛回既有分支、
+  仍照 C-7「分支上已有的 commit 代表已完成的工作，不重做」，不是把該 phase 從頭做一次；
+  該 phase 已用掉的 retry 輪數也不因此改變（pre-flight 不符不計入）
 
 **Phase agent 在 worktree 內的收尾義務**：
 

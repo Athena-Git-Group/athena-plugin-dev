@@ -236,13 +236,20 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
       - **必須注入 pre-flight 的比對基準**（agent 沒有基準就無從比對，等於健檢不生效）：
         `Main Tree Branch:` = flow 自己的 `branch_name`；走**手動 worktree 協議**時分支名
         由 flow 用 `-b` 指定、因此已知，另注入 `Expected Branch:`（加嚴為必須相等）。
-        agent 開工先自報 branch / cwd / 目標檔案三項健檢
-      - **收到 `PRE-FLIGHT MISMATCH`（且無 mini-handoff）**：這是**隔離設定失敗，不是 gate 事件**
-        （無產出、不進 `failures[]`、不給 taxonomy tag）→ 走既有 fallback 鏈重新 spawn 該 phase
-        （同一層級最多重試 1 次，仍不符就降下一級；shared-tree 仍不符則停止 phase loop 交使用者），
-        **不進 phase retry、不計入 2 輪額度**。有 mini-handoff 且 `Gate Verdict: FAIL` 才走 retry；
-        兩者皆無時走「Agent 干預協議」的查證階梯——詳見 `phase-orchestration.md`
-        「Pre-Flight 健檢（開工義務）」
+        agent 開工先自報 branch / cwd / 目標檔案三項健檢。**同一注入義務適用於任何把 agent
+        送進 worktree 的 spawn**——含 phase retry 與 verify-fix 的**續作**
+        （`git worktree add … <既有分支>`）：續作的分支由 flow 自己指定、必然已知，
+        故續作**必注入** `Expected Branch:`。未注入基準即代表主樹模式（agent 殼據此推論），
+        漏注入是 flow 自己的缺陷
+      - **收到 `PRE-FLIGHT MISMATCH`**（指 agent 以固定格式回報該行並**就此結束**，非文中引述；
+        **不論 mini-handoff 是否存在**——續作 spawn 時上一輪的 mini-handoff 一定還在磁碟上，
+        **「檔案不存在」不可作為判準**）：這是**隔離設定失敗，
+        不是 gate 事件**（無新產出、不進 `failures[]`、不給 taxonomy tag）→ 走既有 fallback 鏈
+        重新 spawn（首次 spawn 重來該 phase；續作則重來同一次續作，仍掛回既有分支、不重做已完成的
+        commit）（同一層級最多重試 1 次，仍不符就降下一級；shared-tree 仍不符則停止 phase loop
+        交使用者），**不進 phase retry、不計入 2 輪額度**。**沒有** `PRE-FLIGHT MISMATCH`
+        而有 mini-handoff 且 `Gate Verdict: FAIL` 才走 retry；兩者皆無時走「Agent 干預協議」的
+        查證階梯——詳見 `phase-orchestration.md`「Pre-Flight 健檢（開工義務）」
       - 啟動前用 `TaskCreate` 為每個 phase 建立 task 作為 UX 投影，完成通知到達時 `TaskUpdate`
       - 不在 flow agent 內 `sleep` 輪詢，背景模式靠 harness 通知
    e. 所有可平行 phase 完成後再做 conflict detection（兩層）；衝突就停。
@@ -263,6 +270,9 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
         iii. 修復後 commit（`triggering_stage: verify-fix-phase-<NN>`）
         iv. 重新合成 build handoff → 完整 re-verify
         v. 最多 2 輪，超過交給使用者
+        > worktree 模式下 ii 的修復 agent 是**續作 spawn**（掛回既有分支）：照 8d 一併注入
+        > `Main Tree Branch:` / `Expected Branch:`，**pre-flight 照樣適用**——詳見
+        > `phase-orchestration.md`「Pre-Flight 健檢（開工義務）」的 D-0 適用範圍
       - **Lightweight** → 開 fresh build agent（repair mode），修復所有 issues → post-build commit（`triggering_stage: verify-fix-lightweight`）→ re-verify，最多 2 輪
 10. **Review + Ship stage**（分兩種模式）：
 
