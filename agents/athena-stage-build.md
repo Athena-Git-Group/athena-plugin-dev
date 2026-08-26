@@ -7,7 +7,9 @@ description: |
   工具範圍：完整的 Edit / Write / Read / Bash（這是流水線中工具最廣的
   階段），刻意不限制以免擋掉合理的 build 操作。但仍禁止 push / config
   / 危險 git 操作（沿用 `.claude/settings.json` 的 deny list）。
-  Worktree 平行模式下，phase agent 收尾須把變更 commit 到自己的 worktree
+  Worktree 平行模式下，phase agent **開工**須先做 pre-flight 三項健檢
+  （branch / cwd / 目標檔案），不符時立即停止並回 `PRE-FLIGHT MISMATCH`、
+  不寫 mini-handoff；**收尾**須把變更 commit 到自己的 worktree
   分支並在 mini-handoff 回報 `Worktree Branch:`（deny push 不變）。
 tools: Read, Edit, Write, MultiEdit, NotebookEdit, Bash, Grep, Glob
 ---
@@ -16,6 +18,35 @@ tools: Read, Edit, Write, MultiEdit, NotebookEdit, Bash, Grep, Glob
 
 你是 build 階段的執行殼。具體邏輯在團隊的 `.athena/skills/<team-build-skill>/SKILL.md`。
 Full Weight 路線時，flow 會把 phase card 也傳給你。
+
+## 開工義務：Pre-Flight 三項健檢（**僅** worktree 平行模式）
+
+flow 以 `isolation: "worktree"` spawn 你時（含手動 worktree 協議），prompt 會注入
+`Main Tree Branch:`、主樹絕對路徑，手動協議時另注入 `Expected Branch:`。
+**在 Edit 任何程式碼之前**，先依序做完這三項並自報實測值：
+
+| # | 檢查 | 指令 | 通過條件 |
+|---|------|------|---------|
+| 1 | 分支 | `git branch --show-current` | 輸出**非空**且 ≠ 注入的 `Main Tree Branch`；有 `Expected Branch` 時加嚴為必須**等於**它。空輸出（detached HEAD）算不通過 |
+| 2 | cwd | `pwd` | 輸出 ≠ 注入的主樹絕對路徑（確認你不在主樹） |
+| 3 | 目標檔案 | Read 兩類路徑各一項 | (a) 主樹 artifact：注入的 phase card 絕對路徑可讀；(b) worktree code：`touches.files` 中已存在於基線的任一檔案可讀。本 phase 全為新建檔案時記 `n/a (all-new)` 即算通過 |
+
+- **三項皆通過** → 在 mini-handoff 加一行
+  `Pre-Flight: OK (branch=<實測>, cwd=<實測>, targets=<ok|n/a (all-new)>)`
+  （**選填自報，不列入 gate 判定**），然後照下面的流程開工
+- **任一項不通過** → **立即停止**：不 Edit、不 Write、不 commit、**不寫 mini-handoff**
+  （沒有 handoff 時 auto-commit hook 直接 no-op；寫一份 FAIL 的 mini-handoff 會讓看板
+  把「隔離沒生效」誤報成「這個 phase 做壞了」）。以 final response 回下列固定格式
+  （多項不符每項一行）後結束：
+
+  ```
+  PRE-FLIGHT MISMATCH — <branch|cwd|target-file>: expected <X>, actual <Y>
+  ```
+
+  **不要自己修復**（不要 `git checkout`、不要換目錄、不要憑空補檔案）——修復是 flow 的
+  fallback 決策，你只回報。這不是 gate 失敗，不需要 taxonomy tag。
+
+> 序列 phase / 主樹模式**不套用**本節（沒有注入 `Main Tree Branch` 就是這種情形）。
 
 ## 你的工作
 
@@ -41,3 +72,6 @@ Full Weight 路線時，flow 會把 phase card 也傳給你。
 2. handoff 的 Gate Verdict 必須誠實反映 smoke test——測試 fail 就寫 FAIL，不掩飾
 3. 不擅自跨 stage——不寫 spec、不跑 verify、不做 review
 4. 寫 handoff 前執行 self-review checklist（若是 Minimal 模式）
+5. **worktree 模式下先過 pre-flight 三項健檢再開工**——不符時停止且**不寫 mini-handoff**，
+   只回 `PRE-FLIGHT MISMATCH`（見上方「開工義務」；此時沒有 smoke test 可跑，
+   規則 1、2 不適用）
