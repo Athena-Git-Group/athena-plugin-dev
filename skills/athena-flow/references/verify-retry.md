@@ -10,7 +10,7 @@ Lightweight 路由（`PASS-BUILD-WITH-VERIFY`）的 verify 失敗處理方式不
 - Agent 修復所有 issues → 重跑 smoke test → 更新 build handoff
 - Flow 觸發 post-build commit（`triggering_stage: verify-fix-lightweight`，commit type = `fix`）
 - Re-verify（完整重跑），最多 2 輪，超過交給使用者
-- 見 `stage-contracts.md`「build（Lightweight）」段落
+- 見 `stage-contracts.md`「build（Minimal / Lightweight — 單一 agent）」段落
 
 ---
 
@@ -27,42 +27,8 @@ Verify stage 失敗時的回退與修復流程（Full Weight）。
 
 ## Verify Handoff 格式（擴充）
 
-Verify fail 時，handoff 的 issue list 必須標記每個 issue 屬於哪個 phase：
-
-```markdown
-# Handoff: verify
-
-## Stage
-verify
-
-## Gate Verdict
-FAIL — 2 issues found
-
-## Issues Found
-
-1. **[Phase 05]** approval_test.rs line 42: assertion uses wrong field name `approve_status` should be `approval_status`
-2. **[Phase 06]** frontend calls `/api/approval` instead of `/api/approvals` (plural), mismatch with Phase 05 actual endpoint
-
-## Affected Phases
-- Phase 05: 1 issue
-- Phase 06: 1 issue
-
-## Inputs Used
-- handoffs/<slug>-build.md
-- handoffs/<slug>-build-phase-05.md
-- handoffs/<slug>-build-phase-06.md
-- handoffs/<slug>-build-phase-07.md
-
-## Next Recommended Stage
-re-build (targeted)
-```
-
-### 必要欄位
-
-| 欄位 | 說明 |
-|------|------|
-| Issues Found | 每個 issue 必須以 `[Phase NN]` 開頭標記 affected phase |
-| Affected Phases | 彙整受影響的 phase 及 issue 數量 |
+模板見 `agent-handoff.md`「變體差異表」的 **Verify Full** 列——FAIL 時 `## Issues Found`
+每條以 `[Phase NN]` 前綴標 affected phase，並附 `## Affected Phases` 彙整（兩者為必要欄位）。
 
 ## Retry 流程
 

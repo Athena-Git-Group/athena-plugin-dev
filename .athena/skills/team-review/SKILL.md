@@ -42,35 +42,25 @@ stage: review
 - 獨立 review stage（Full 路由）：寫 `handoffs/<slug>-review.md`
 - Lightweight 合併模式：由 flow prompt 指定併入 `handoffs/<slug>-review-ship.md`
   （Review Verdict 段），格式見 `skills/athena-flow/references/agent-handoff.md`
-  「Compact Review-Ship Handoff」；request-changes 時**停止 ship**，Gate Verdict = FAIL
+  變體差異表「Review-ship」列；request-changes 時**停止 ship**，Gate Verdict = FAIL
 
-獨立 handoff 格式：
+獨立 handoff 標題級骨架如下（= base 模板 + `## Review Result` 三段；欄位細節見
+`skills/athena-flow/references/agent-handoff.md` 變體差異表「Review」列）：
 
 ```markdown
 # Handoff: review
 
+<一行摘要——H1 後隔一空行的第 3 行>
+
 ## Stage
-review
-
 ## Inputs Used
-- handoffs/<slug>-verify.md
-- git diff <range>
-
+（handoffs/<slug>-verify.md、git diff <range>）
 ## Review Result
-### ✅ 通過項
-### 🟡 建議修（不擋）
-### 💡 可選優化
-
+（### ✅ 通過項 / ### 🟡 建議修（不擋）/ ### 💡 可選優化）
 ## Artifacts Produced
-- handoffs/<slug>-review.md
-
 ## Gate Verdict
-PASS — approved, <一句話摘要>
-（request-changes 時：FAIL — <正確性/一致性問題一句話> #review-finding）
-
+PASS — approved, <摘要>（本行緊貼標題；request-changes 時 FAIL — <問題> #review-finding）
 ## Risks / Unresolved Issues
-<若無則 None>
-
 ## Next Recommended Stage
 ship
 ```

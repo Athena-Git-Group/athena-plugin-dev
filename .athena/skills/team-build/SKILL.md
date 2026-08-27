@@ -57,28 +57,22 @@ stage: build
 - Full：寫 `handoffs/<slug>-build-phase-<NN>.md`（mini-handoff 格式，見
   `skills/athena-flow/references/agent-handoff.md`；最終 build handoff 由 flow 合成，不由你寫）
 
-Compact 格式（Minimal 模式加 `## Self-Review` 段）：
+Compact 格式標題級骨架如下；完整欄位與變體差異（Compact 相對 base 刪 `## Stage` / `## Inputs Used` /
+`## Artifacts Produced` / `## Next Recommended Stage`，Minimal 另加 `## Self-Review`）見
+`skills/athena-flow/references/agent-handoff.md` 變體差異表：
 
 ```markdown
 # Handoff: build (lightweight)
 
+<一行摘要——H1 後隔一空行的第 3 行>
+
 ## Gate Verdict
-PASS — <一句話原因>
-（FAIL 時必須帶 taxonomy tag：FAIL — <原因> #skill-defect，
- enum 見 skills/athena-flow/references/run-trace.md Failure Taxonomy 段）
+PASS / FAIL — <一句話原因> #<tag>（本行緊貼標題；FAIL 必帶 taxonomy tag，enum 見 skills/athena-flow/references/run-trace.md Failure Taxonomy 段）
 
 ## Files Changed
-- <path> (new/modified)
-
 ## Smoke Test Result
-- <command>: <result>
-
 ## Risks / Unresolved Issues
-<若無則 None>
-
-## Timing
-- Started At: <ISO-8601 UTC，選填>
-- Ended At: <ISO-8601 UTC，選填>
+## Timing（選填）
 ```
 
 ## 非協商規則

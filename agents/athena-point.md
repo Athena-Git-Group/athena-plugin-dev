@@ -27,20 +27,11 @@ tools: Read, Grep, Glob, Write, Bash
 
 - ✅ Read / Grep / Glob：讀需求、scan 知識庫、查既存 spec、被動讀 `graphify-out/GRAPH_REPORT.md` 與 `graph.json`
 - ✅ Write：**只能**寫入 `points/<slug>.md`
-- ✅ Bash：**只能**執行下列 graphify 唯讀子指令（白名單）；**以及**用於偵測環境的唯讀指令（`command -v graphify`、`stat`、`git log -1 --format=%ct`、`test -f graphify-out/...`）
-  - `graphify query "<question>"`
-  - `graphify query "<question>" --dfs`
-  - `graphify query "<question>" --budget <N>`
-  - `graphify path "<NodeA>" "<NodeB>"`
-  - `graphify explain "<Entity>"`
+- ✅ Bash：**只能**執行 graphify 唯讀白名單——`graphify query "<question>"`（含 `--dfs` /
+  `--budget <N>`）、`graphify path "<NodeA>" "<NodeB>"`、`graphify explain "<Entity>"`——
+  以及偵測環境的唯讀指令（`command -v graphify`、`stat`、`git log -1 --format=%ct`、`test -f graphify-out/...`）
 - ❌ 不得 Edit 任何既存檔案
-- ❌ 不得執行任何寫盤 / 副作用的 graphify 子指令（黑名單）：
-  - `graphify install`、`graphify clone`、`graphify add`
-  - `graphify <path>`（重建圖）、`graphify <path> --update` / `--cluster-only` / `--mode deep` / `--directed` / `--watch`
-  - `graphify extract <path>`、`graphify merge-graphs`
-  - `graphify export <format>`、`graphify benchmark`
-  - `graphify hook install/uninstall`、`graphify claude install/uninstall`
-  - `graphify save-result`
+- ❌ 白名單（唯讀的 `query` / `path` / `explain` 子指令）以外的任何 graphify 指令一律拒絕——凡會寫盤或有副作用者（安裝、重建、匯出、hook 等）皆在禁止之列
 - ❌ 不得執行 git write 操作（`git add` / `git commit` / `git push` / `git reset` / `git checkout` 等寫入指令）
 - ❌ 不得執行套件安裝 / 系統變更（`pip install` / `brew install` / `npm install` / `apt-get` ...）
 - ❌ 不得 spawn 其他 subagent

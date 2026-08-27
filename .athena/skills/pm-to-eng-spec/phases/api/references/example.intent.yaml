@@ -1,0 +1,20 @@
+# 範例 API intent DSL — 這是 api stage「AI 從 clarified.md 產出、人可審查」的部分
+# 遵循 Intent DSL 格式錨點，但本版範圍外的區塊已省略：
+#   - access（認證/授權）：延後，不寫
+#   - exposes.list（filter/sorting/pagination）：延後，不寫
+# 真正的「判斷」只在這裡：哪些資源、開哪些端點、有哪些領域動作。
+
+api: orders                    # 路徑 base（複數名詞、kebab，依 anchor 規約）
+schema_version: "3.3"
+entity: Order                  # 照抄 DBML Table Name，不改大小寫、不加複數
+title: 訂單管理 API
+description: 訂單的 CRUD + 業務操作
+
+exposes:
+  standard: [list, read, create, update, delete]
+  operations:
+    - { name: apply_refund, method: POST, path: "/{id}/apply-refund" }
+
+source_evidence:
+  - "clarify/clarified.md#訂單可被退款"
+  - "db_table/erm.dbml#Table:Order"

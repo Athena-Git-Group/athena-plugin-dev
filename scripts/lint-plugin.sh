@@ -19,6 +19,9 @@
 #   5. Skills declaring a `stage` use a permitted value.
 #   6. Shell scripts under hooks/ and scripts/ pass `bash -n` syntax
 #      check and have the executable bit set.
+#   7. Vendored spec-pack drift: plugin pack phases/ and dogfood install
+#      phases/ must be byte-identical (root SKILL.md is the only legitimate
+#      divergence and is excluded). Re-sync with scripts/sync-spec-pack.sh.
 
 set -uo pipefail
 
@@ -241,6 +244,27 @@ else
     fail "$RENDERER failed on $tmproot (fixture copy of $FIXTURE)"
   fi
   rm -rf "$tmproot"
+fi
+
+# ---------- 7. Vendored spec-pack drift ----------
+step "spec-pack drift check (plugin pack vs dogfood install)"
+PACK_PHASES="skills/athena-core/assets/spec-pack-pm-to-eng/phases"
+DOGFOOD_PHASES=".athena/skills/pm-to-eng-spec/phases"
+if [ ! -d "$PACK_PHASES" ]; then
+  fail "$PACK_PHASES missing"
+elif [ ! -d "$DOGFOOD_PHASES" ]; then
+  fail "$DOGFOOD_PHASES missing (dogfood install absent)"
+else
+  # Root SKILL.md is the only legitimate divergence between the two pack
+  # copies (plugin side declares `stage: spec`, dogfood side does not),
+  # so only the phases/ trees are compared.
+  drift="$(diff -rq -x .DS_Store -x __pycache__ "$PACK_PHASES" "$DOGFOOD_PHASES" 2>&1)" || true
+  if [ -z "$drift" ]; then
+    ok "phases/ trees identical"
+  else
+    fail "spec-pack drift — plugin side is source of truth; run scripts/sync-spec-pack.sh:"
+    echo "$drift" | sed 's/^/     /'
+  fi
 fi
 
 echo ""
