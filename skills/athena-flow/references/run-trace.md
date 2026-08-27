@@ -107,6 +107,20 @@ flow 在 run 結束前，以 **flow-inline 步驟**（不開 agent，因為這�
 - **所有 value 必須是數字**（才能跨 run 聚合）；文字描述不放這裡。
 - additive、向後相容——舊 trace 無此欄位仍合法；stage 沒提供 metrics 也合法。
 
+### emit-trace 蒐集程序（flow 收尾時執行）
+
+對每個 stage 的 handoff 找 `## Metrics` JSON 區塊，四種情況：
+
+| 情況 | 處置 |
+|------|------|
+| **有且合法**（合法 JSON 且 value 皆數字） | 放進該 stage 的 `metrics` |
+| **沒有** | 該 stage 不帶 `metrics`（合法） |
+| **有但壞掉**（非法 JSON／含非數字 value） | **安靜跳過**，該 stage 不帶 metrics |
+| **Full Weight phase 彙整** | 同名 metric 跨 phase 合併——`coverage` 取**最後一個 phase**（最終態）；計數類（`lint_*`／`tests_*`）取**加總** |
+
+> **非協商**：metrics 蒐集是 emit-trace 裡最低優先的附加動作；解析失敗只代表「少記一個數字」，
+> **絕不**影響 trace 寫入或 run 結局。metrics 不參與任何 gate 判定。
+
 已知 key 詞彙（snake_case）：
 
 | key | 型別 | 說明 |

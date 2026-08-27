@@ -10,7 +10,7 @@ Lightweight 路由（`PASS-BUILD-WITH-VERIFY`）的 verify 失敗處理方式不
 - Agent 修復所有 issues → 重跑 smoke test → 更新 build handoff
 - Flow 觸發 post-build commit（`triggering_stage: verify-fix-lightweight`，commit type = `fix`）
 - Re-verify（完整重跑），最多 2 輪，超過交給使用者
-- 見 `stage-contracts.md`「build（Lightweight）」段落
+- 見 `stage-contracts.md`「build（Minimal / Lightweight — 單一 agent）」段落
 
 ---
 

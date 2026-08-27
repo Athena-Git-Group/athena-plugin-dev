@@ -22,6 +22,75 @@ Flow 根據 point verdict 決定流程重量等級，影響 Build 模式、Hando
 - **Standard stage**：依 Skill Discovery 對應表找 `.athena/skills/<skill-dir>/SKILL.md`。找到 → 開 fresh agent 載入執行；找不到 → 停止流程，輸出引導訊息。
 - **Flow-inline stage**（pre-build / post-build）：先掃 `.athena/skills/`，找不到就用 plugin 預設（`athena-pre-build` / `athena-post-build`），**不停止流程、不引導補齊**。Git 命名規範由 `git-conventions` skill 提供。
 
+### Named Subagent 殼
+
+Plugin 在 `agents/` 提供 per-stage subagent 殼（`athena-point`、`athena-stage-spec`、`athena-stage-plan`、`athena-stage-build`、`athena-stage-verify`、`athena-stage-review`、`athena-stage-ship`），每個都帶階段化的 tool scope。Flow 啟動 standard stage 時應呼叫 `Agent(subagent_type: "athena-stage-<stage>")` 取代 generic Agent，讓 harness 強制工具邊界；團隊 skill 仍是邏輯來源，subagent 只是權限殼。**review-ship 合併 stage 用 `athena-stage-ship` 殼**——不存在 `athena-stage-review-ship` 殼，複用工具最寬的 ship 殼（其 Read/Grep/Bash 足以做 review、Bash(push/merge) 做 ship），prompt 中同時傳入 team review skill 與 ship skill。若 subagent 因 tool scope 擋掉合理操作，回報給使用者並擴充殼的 `tools` 欄位，不要繞道。
+
+## Skill Discovery（flow 啟動時執行）
+
+1. 掃描 `.athena/skills/` 下所有子目錄，讀取每個 `SKILL.md` frontmatter 的 `stage` 欄位，建立 stage → skill 對應表
+2. 檢查**路由需要經過的** standard stage 是否都有對應 skill（缺少 → 停止＋引導，訊息見下）
+3. 檢查 flow-inline stage 是否有團隊版本（有則用團隊的，無則用 plugin 預設；不停止、不引導補齊）
+4. 兩個以上 skill 宣告相同 `stage` → 停止報錯（訊息見下）
+
+各路由所需 standard skill（只檢查路由會經過的 stage）：
+
+| 路由 | 需要的 standard skill |
+|------|----------------------|
+| Minimal（PASS-TRIVIAL） | build（不需要 review、ship） |
+| Lightweight / PASS-DIRECT-BUILD | build + review + ship（review-ship 合併執行） |
+| Lightweight / PASS-BUILD-WITH-VERIFY | build + verify + review + ship（review-ship 合併執行） |
+| Full（PASS-SPEC-FIRST） | spec + plan + build + verify + review + ship |
+
+### 對應表範例
+
+```
+# Standard stages（團隊提供）
+spec   → .athena/skills/my-team-spec/SKILL.md
+plan   → .athena/skills/my-team-plan/SKILL.md
+build  → .athena/skills/my-team-build-index/SKILL.md
+verify → .athena/skills/my-team-verify/SKILL.md
+review → .athena/skills/my-team-review/SKILL.md
+ship   → .athena/skills/my-team-ship/SKILL.md
+
+# Flow-inline stages（團隊替換或 plugin 預設）
+pre-build  → .athena/skills/my-team-pre-build/SKILL.md  # 團隊有提供
+post-build → athena-post-build/SKILL.md                  # 使用 plugin 預設
+```
+
+### 缺少 Standard Skill 時的引導訊息
+
+停止流程並輸出：
+
+```
+⚠️ 缺少 stage 對應的 skill
+
+以下 stage 尚未找到團隊上繳的 skill：
+- [ ] build — 在 .athena/skills/ 下建立一個 SKILL.md，frontmatter 包含 stage: build
+- [ ] verify — 在 .athena/skills/ 下建立一個 SKILL.md，frontmatter 包含 stage: verify
+
+請參考：
+- Stage 契約：athena-dev-plugin/skills/athena-flow/references/stage-contracts.md
+- Skill 元資料規格：athena-dev-plugin/skills/athena-core/references/skill-metadata-spec.md
+- Skill 模板：athena-dev-plugin/skills/athena-core/assets/skill-template/
+
+建立完成後重新執行 /flow。
+```
+
+### 重複 Stage 綁定的報錯訊息
+
+停止流程並輸出：
+
+```
+⚠️ Stage 衝突：build 被多個 skill 宣告
+
+- .athena/skills/team-build-api/SKILL.md → stage: build
+- .athena/skills/team-build-web/SKILL.md → stage: build
+
+同一個 stage 只能有一個 skill。如果需要多個流程，請建立 index skill 作為路由。
+詳見：athena-dev-plugin/skills/athena-flow/references/index-skill-pattern.md
+```
+
 ---
 
 ### pre-build（Flow-Inline）
@@ -75,7 +144,20 @@ Flow 根據 point verdict 決定流程重量等級，影響 Build 模式、Hando
 | **`triggering_stage`** | `build-minimal` | `build-lightweight` |
 | **Gate 條件** | Smoke test 通過 + self-review 全部通過 | Smoke test 通過 |
 | **Handoff 變體** | `agent-handoff.md` 差異表 **Minimal build** 列 | 差異表 **Compact build** 列 |
-| **後續** | commit 後 flow 輸出 push 指令直接結束——不開 review-ship agent，由使用者自行 push | verify（僅 PASS-BUILD-WITH-VERIFY）→ review-ship |
+| **後續** | commit 後 flow 輸出 push 指令直接結束——不開 review-ship agent，由使用者自行 push（見下方「Minimal 結束輸出」） | verify（僅 PASS-BUILD-WITH-VERIFY）→ review-ship |
+
+#### Minimal 結束輸出
+
+Build gate PASS + post-build commit 完成後，flow **不開任何 review/ship agent**、不問 merge_target、不寫 review-ship handoff，直接輸出下列訊息；輸出前仍執行 run 收尾（emit trace + GC，見 `run-trace.md`）：
+
+```
+✅ Done — build + self-review passed.
+
+Committed: <commit_hash> on <branch_name>
+
+When ready to push:
+  git push -u origin <branch_name>
+```
 
 #### Build Agent Prompt（單一 agent 模式，Minimal / Lightweight 共用）
 
@@ -182,6 +264,8 @@ git_context:
 | **必要輸出** | 審查結果（approve / request-changes） |
 | **Handoff** | `handoffs/<slug>-review.md`，包含審查意見、最終狀態 |
 | **Gate 條件** | 審查通過（approved） |
+
+**FAIL（request-changes）處理**（Full 路由）：Gate Verdict 的機器值為 FAIL、tag = `#review-finding`（格式見 `agent-handoff.md`）；flow 讀到 FAIL → **停止流程**，報告 review 意見給使用者，**不自動 retry**。PASS → flow 詢問使用者 merge_target 後才開 ship agent。
 
 ### ship
 
