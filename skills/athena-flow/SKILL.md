@@ -234,20 +234,27 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
         回報 `Worktree Branch:`；選項不可用時走 fallback 鏈（手動 worktree 協議 →
         shared-tree），序列 phase 不用 worktree——詳見 `phase-orchestration.md`「Worktree 隔離」
       - **必須注入 pre-flight 的比對基準**（agent 沒有基準就無從比對，等於健檢不生效）：
-        `Main Tree Branch:` = flow 自己的 `branch_name`；走**手動 worktree 協議**時分支名
-        由 flow 用 `-b` 指定、因此已知，另注入 `Expected Branch:`（加嚴為必須相等）。
+        `Main Tree Branch:` = flow 自己的 `branch_name`；**只要分支名是 flow 自己指定的**
+        （手動 worktree 協議用 `-b` 新建、或 phase retry 續作掛回的既有分支），就另注入
+        `Expected Branch:`（加嚴為必須相等）——原生 worktree 模式下分支名由 harness 決定，
+        flow 不知道，沒有這一項。
         agent 開工先自報 branch / cwd / 目標檔案三項健檢。**同一注入義務適用於任何把 agent
-        送進 worktree 的 spawn**——含 phase retry 與 verify-fix 的**續作**
-        （`git worktree add … <既有分支>`）：續作的分支由 flow 自己指定、必然已知，
-        故續作**必注入** `Expected Branch:`。未注入基準即代表主樹模式（agent 殼據此推論），
+        送進 worktree 的 spawn**——含 **phase retry 的續作**（`git worktree add … <既有分支>`）：
+        續作的分支由 flow 自己指定、必然已知，故續作**必注入** `Expected Branch:`。
+        **verify-fix 的 per-phase 修復不在此列**——它在主樹的 flow 分支上執行，不開 worktree、
+        不注入基準、不跑健檢（原因見 9d）。未注入基準即代表主樹模式（agent 殼據此推論），
         漏注入是 flow 自己的缺陷
       - **收到 `PRE-FLIGHT MISMATCH`**（指 agent 以固定格式回報該行並**就此結束**，非文中引述；
         **不論 mini-handoff 是否存在**——續作 spawn 時上一輪的 mini-handoff 一定還在磁碟上，
         **「檔案不存在」不可作為判準**）：這是**隔離設定失敗，
         不是 gate 事件**（無新產出、不進 `failures[]`、不給 taxonomy tag）→ 走既有 fallback 鏈
         重新 spawn（首次 spawn 重來該 phase；續作則重來同一次續作，仍掛回既有分支、不重做已完成的
-        commit）（同一層級最多重試 1 次，仍不符就降下一級；shared-tree 仍不符則停止 phase loop
-        交使用者），**不進 phase retry、不計入 2 輪額度**。**沒有** `PRE-FLIGHT MISMATCH`
+        commit）。**同一層級最多重試 1 次**，且**兩種 spawn 的階梯終點不同**：首次 spawn 為
+        原生 worktree → 手動協議 → **shared-tree**（該級不注入基準、agent 不跑健檢，結構上不可能
+        再回報 mismatch，是必然收斂的終點——平行集退化為主樹序列執行，phase loop 繼續）；
+        續作 spawn 起點即手動協議，同級重試 1 次仍不符就**不再降級**，停止該 phase 的續作並依
+        「Agent 干預協議」C-4 交使用者拍板（降到 shared-tree 會看不到未 merge 的 `wip:` 工作）。
+        以上皆**不進 phase retry、不計入 2 輪額度**。**沒有** `PRE-FLIGHT MISMATCH`
         而有 mini-handoff 且 `Gate Verdict: FAIL` 才走 retry；兩者皆無時走「Agent 干預協議」的
         查證階梯——詳見 `phase-orchestration.md`「Pre-Flight 健檢（開工義務）」
       - 啟動前用 `TaskCreate` 為每個 phase 建立 task 作為 UX 投影，完成通知到達時 `TaskUpdate`
@@ -270,9 +277,14 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
         iii. 修復後 commit（`triggering_stage: verify-fix-phase-<NN>`）
         iv. 重新合成 build handoff → 完整 re-verify
         v. 最多 2 輪，超過交給使用者
-        > worktree 模式下 ii 的修復 agent 是**續作 spawn**（掛回既有分支）：照 8d 一併注入
-        > `Main Tree Branch:` / `Expected Branch:`，**pre-flight 照樣適用**——詳見
-        > `phase-orchestration.md`「Pre-Flight 健檢（開工義務）」的 D-0 適用範圍
+        > ii 的修復 agent **在主樹的 flow 分支上執行**：不開 worktree、不注入
+        > `Main Tree Branch:` / `Expected Branch:`、不跑 pre-flight（D-0 第 3 列「不套用」）。
+        > 理由是時序——8-F.e 的 merge-back 已把各 phase 分支 `git merge --no-ff` 進 flow 分支
+        > 並 `git branch -d` 刪除，verify（步驟 9）必在其後，**沒有既有分支可以掛回**
+        > （`git worktree add` 會得到 `fatal: invalid reference`）；而分支刪得掉的前提正是它
+        > 已 merge，該 phase 的成果主樹全都看得到。多個 affected phase 時 `verify-retry.md`
+        > 要求按依賴順序**逐一**修復，同時只有一個修復 agent，主樹單一工作區不會互撞——
+        > 詳見 `phase-orchestration.md`「Worktree 隔離」段的「verify-fix 的 per-phase 修復」專段
       - **Lightweight** → 開 fresh build agent（repair mode），修復所有 issues → post-build commit（`triggering_stage: verify-fix-lightweight`）→ re-verify，最多 2 輪
 10. **Review + Ship stage**（分兩種模式）：
 

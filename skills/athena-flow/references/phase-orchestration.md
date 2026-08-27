@@ -139,7 +139,9 @@ Flow 讀 plan.md frontmatter → 掃描 todo/doing/done/ → 建立依賴圖
 
 主樹絕對路徑：<main-repo-root>
 Main Tree Branch: <flow 自己的 branch_name>
-Expected Branch: <僅手動 worktree 協議時注入——flow 用 -b 建的分支名>
+Expected Branch: <僅在 flow 自己指定分支名時注入：手動 worktree 協議用 -b 新建的分支名，
+                 或 phase retry 續作掛回的既有分支名。原生 worktree 模式下分支名由 harness
+                 決定、flow 不知道，此行省略>
 
 開工第二步（Pre-Flight 三項健檢，在 Edit 任何程式碼之前先做完並自報實測值）：
 1. 跑 `git branch --show-current`：輸出必須**非空**，且 ≠ 上面的 Main Tree Branch；
@@ -230,7 +232,15 @@ flow 收尾 `git worktree remove` + `git worktree prune`。輪數上限沿用 2 
 > 與 `Expected Branch:`（= 上面掛回的那個既有分支——flow 自己指定的，必然已知）。
 > pre-flight 三項健檢、以及不符時「不得更新既有 mini-handoff、只回 `PRE-FLIGHT MISMATCH`」
 > 的處置，見下文「Worktree 隔離」段的開工義務（其適用範圍已明文涵蓋續作 spawn）。
-> 這條同樣適用於 verify-fix 的 per-phase 修復 agent。
+>
+> **「掛回既有分支的續作」只有 phase retry 這一種——verify-fix 的 per-phase 修復不是。**
+> 這是時序決定的，不是偏好：phase retry 發生在 **merge-back 之前**（還在 phase loop 內），
+> 該分支 latest gate = FAIL、依規則 14「絕不自動刪未 merge 的分支」必然還在，
+> 所以 `git worktree add … <既有分支>` 掛得回去；verify-fix 發生在 **merge-back 之後**
+> （verify 只在全部 phase gate PASS、各分支已 `git merge --no-ff` 且 `git branch -d`
+> 之後才跑），那個分支**已經不存在**，對它執行 `git worktree add` 只會得到
+> `fatal: invalid reference`。verify-fix 的執行位置見下文「Worktree 隔離」段
+> D-0 表第 3 列與其後的「verify-fix 的 per-phase 修復」專段。
 
 ## Agent 干預協議
 
@@ -266,7 +276,7 @@ orchestrator 對其他 agent 的狀態，結構上**只能拿到二手資訊**�
 | 層 | 手段 | 判定 |
 |----|------|------|
 | 1 | **artifact 存在性**：Read / Glob 主樹 `handoffs/<slug>-<stage>.md` 或 `handoffs/<slug>-build-phase-<NN>.md` | 存在且有 `## Gate Verdict` → 該 agent **已收尾**，狀態以此為準（不必再往下查） |
-| 2 | **git 事實**：`git branch --list 'athena/phase/<slug>-*'`、`git log --oneline <branch>` | 分支存在且有 commit → 產出已落地（分支永遠承載最新狀態） |
+| 2 | **git 事實**：`git branch --list`、`git log --oneline <branch>`。**分支名要先確定再查**：手動協議下是 flow 自己命名的 `athena/phase/<slug>-<NN>`；原生 `isolation: "worktree"` 模式下**分支名由 harness 決定、flow 並不知道**，只掃 `'athena/phase/<slug>-*'` 是**保證掃不到**的假否定（下文「為什麼檢查 1 的通用條件是…」同一理由），須改以該 phase mini-handoff 回報的 `Worktree Branch:`、或 `git worktree list` 的輸出交叉比對 | 分支存在且有 commit → 產出已落地（分支永遠承載最新狀態）。**分支名確定不了**時這一層記「取不到 + 原因：原生模式分支名未知」並往下一層，**不得**把假否定當成「沒有產出」 |
 | 3 | **harness 的 task 查詢工具**（若當前 session 可用，例如 `TaskList` / `TaskOutput` 一類） | 回報 running / done / failed → 以此為準。**可用即用，不是硬依賴**——不可用就當這一層不存在，不得因此停擺 |
 
 **查證是一次性的 point-in-time 查詢**（Read / Glob / 唯讀 git / 單次 task 查詢）。
@@ -299,7 +309,7 @@ orchestrator 對其他 agent 的狀態，結構上**只能拿到二手資訊**�
 | # | 手段 | 指令 / 動作 | 可用性 |
 |---|------|-------------|--------|
 | 1 | 主樹 artifact | Read / Glob `handoffs/<slug>-build-phase-<NN>.md` | 一律可用（artifact 走主樹絕對路徑） |
-| 2 | 分支 commit | `git branch --list 'athena/phase/<slug>-*'`、`git log --oneline <branch>` | 一律可用（分支主樹可見） |
+| 2 | 分支 commit | `git branch --list`、`git log --oneline <branch>`——分支名的取得同查證階梯第 2 層（手動協議用 `athena/phase/<slug>-<NN>`；原生模式分支名由 harness 決定，**不得只掃 `'athena/phase/<slug>-*'`**，改用 mini-handoff 的 `Worktree Branch:` 或 `git worktree list`） | 一律可用（分支主樹可見）；分支名取不到時記「取不到 + 原因：原生模式分支名未知」 |
 | 3 | **worktree 路徑發現** | `git worktree list` | 一律可**嘗試**。手動協議下路徑本來就已知；原生 `isolation: "worktree"` 模式下**若** harness 的 worktree 註冊在本 repo 的 git dir，此指令就會列出它 |
 | 4 | worktree 工作區快照 | 對手段 3 取得的路徑執行 `git -C <path> status --porcelain` 與 `git -C <path> diff` | 僅在手段 3 取得路徑時可用；`git -C …` 的前綴可能不在預先核准清單內而觸發權限詢問——被擋就記「取不到 + 原因：工具邊界」 |
 
@@ -414,14 +424,46 @@ worktree**，**不是**它是第幾次被 spawn：
 | 情境 | 是否套用 | 依據 |
 |------|---------|------|
 | 平行集 ≥ 2 的首次 spawn（原生 `isolation: "worktree"`／手動 worktree fallback 協議） | **套用** | agent 在 worktree 內，不符時可沿 fallback 鏈退 |
-| **續作 spawn**：上文「Phase Retry」的 worktree retry（`git worktree add … <既有分支>`）、verify-fix 的 per-phase 修復 | **套用** | 同樣在 worktree 內；且這是**最脆弱**的建立方式（殘留路徑衝突／`add` 失敗都會讓 agent 留在主樹） |
-| 序列 phase / 主樹模式（含主樹模式下的 retry 與 verify-fix） | **不套用** | 沒有「跑錯 worktree」這個失效模式，且不符時無處可退 |
+| **續作 spawn**：上文「Phase Retry」的 worktree retry（`git worktree add … <既有分支>`）——**掛回既有分支的續作只有這一種** | **套用** | 同樣在 worktree 內；且這是**最脆弱**的建立方式（殘留路徑衝突／`add` 失敗都會讓 agent 留在主樹） |
+| 序列 phase / 主樹模式，**以及 verify-fix 的 per-phase 修復**（它一律在主樹，見下方專段） | **不套用** | 沒有「跑錯 worktree」這個失效模式，且不符時無處可退 |
 
 續作 spawn 的健檢**比首次 spawn 更容易判定，不存在「retry 時無法判定」的情形**：worktree
 與分支都是 flow 自己用 `git worktree add … <既有分支>` 掛的，**分支名必然已知**（值 =
 上一輪 mini-handoff 回報的 `Worktree Branch:`）→ 續作 prompt **必須**同時注入
 `Main Tree Branch:`（flow 自己的分支）與 `Expected Branch:`（掛回的那個既有分支），
 檢查 1 直接走「必須**等於** `Expected Branch`」這條加嚴路徑。
+
+**verify-fix 的 per-phase 修復：一律在主樹的 flow 分支上執行（D-0 第 3 列，不套用本節）**：
+
+這是時序推出來的唯一可行位置，四條理由逐一可查：
+
+1. **原分支已不存在。** verify stage 只在 phase loop 全數 gate PASS、merge-back 完成
+   （下方「Merge-back 協議」第 1、3 步：`git merge --no-ff` 後 `git branch -d`）之後才跑
+   （`SKILL.md` 步驟 8-F.e → 8-F.f → 9，順序固定）。所以 verify-fix 執行時，該 phase 的
+   worktree 分支**已經被刪掉**——`git worktree add <path> <已刪除的分支>` 必然得到
+   `fatal: invalid reference`。「掛回既有分支續作」這個機制對 verify-fix **不可執行**。
+2. **也不需要掛回。** 分支刪得掉的前提正是它**已經 merge 進 flow 分支**（`-d` 而非 `-D`
+   天然保證），該 phase 的 commit 一個都沒少、主樹全都看得到；不存在 phase retry 那種
+   「未 merge 的 `wip:` 工作只活在分支上」的顧慮。
+3. **只有主樹看得到要修的東西。** verify 抓的是**跨 phase 整合問題**（`verify-retry.md`
+   「Re-Verify 的範圍」），那種問題只存在於所有 phase 都合入之後的 flow 分支上。
+   把修復 agent 關進任何單一 phase 的隔離工作區，反而看不到要修的狀態。
+4. **多個 phase 同時要修也不會互撞。** `verify-retry.md` 的 Retry 流程要求
+   **按依賴順序逐一修復**——每個 phase「修復 → 重跑 smoke test → 更新 mini-handoff →
+   flow 檢查 verdict → post-build commit → **繼續修下一個 phase**」，同一時間
+   **只有一個修復 agent 在跑**。主樹這一個工作區因此足夠；**不得**為 verify-fix 開平行
+   worktree（那會讓每個修復各自只看到部分整合狀態，正好破壞理由 3）。
+
+因此 verify-fix 的修復 agent：**不注入** `Main Tree Branch:` / `Expected Branch:`、
+**不跑**開工三項健檢（D-0 第 3 列「不套用」，agent 殼據「沒收到基準 = 主樹模式」正確推論）、
+commit 由 flow 依既有 post-build（`triggering_stage: verify-fix-phase-<NN>`）執行——
+全部沿用 `verify-retry.md` 的現行流程，**不新增機制**。
+
+> **判準沒有變**：D-0 認的始終是「這個 agent 有沒有被送進 worktree」。若未來真要把
+> verify-fix 修復 agent 送進 worktree，唯一正確的做法是**從 flow 分支新建**
+> （`git worktree add … -b <新分支>`，走手動協議那一級，修完照 merge-back 協議合回），
+> **不是**掛回任何既有 phase 分支；那種情形下 flow 自己用 `-b` 命名，
+> `Expected Branch:` 仍必然已知，本節照常套用。
 
 **注入義務與 agent 殼的推論扣合**：只要 agent 被送進 worktree（首次或續作），flow 就
 **必須**注入比對基準；因此「沒有收到 `Main Tree Branch`」對 agent 而言仍然正確地等於
@@ -439,7 +481,7 @@ phase agent 的**開工第二步**（緊接取 `Started At` 的 `date` 之後、
 
 | # | 檢查 | 指令 | 通過條件 |
 |---|------|------|---------|
-| 1 | **分支** | `git branch --show-current` | 輸出**非空** **且** ≠ flow 注入的 `Main Tree Branch`。flow 另注入 `Expected Branch` 時（手動協議下 flow 自己用 `-b` 命名，故知道確切名稱）→ 加嚴為**必須等於**它。空輸出（detached HEAD）視為**不通過**——merge-back 協議依賴分支名，無分支則整條路徑失效 |
+| 1 | **分支** | `git branch --show-current` | 輸出**非空** **且** ≠ flow 注入的 `Main Tree Branch`。flow 另注入 `Expected Branch` 時（**只要 flow 自己指定了分支名就會有**：手動協議下是 flow 用 `-b` 命名的新分支、phase retry 續作則是掛回的那個既有分支，兩者名稱都確切已知；原生模式下分支名由 harness 決定，沒有這一項）→ 加嚴為**必須等於**它。空輸出（detached HEAD）視為**不通過**——merge-back 協議依賴分支名，無分支則整條路徑失效 |
 | 2 | **cwd** | `pwd` | 輸出 ≠ flow 注入的 `<main-repo-root>`（確認自己不在主樹） |
 | 3 | **目標檔案存在** | Read 兩類路徑各至少一項 | (a) **主樹 artifact**：注入的 phase card 絕對路徑可讀；(b) **worktree code**：phase card `touches.files` 中已存在於基線的檔案任取一項可讀。該 phase 全為新建檔案時，此項自動視為通過並在自報中註明 `n/a (all-new)` |
 
@@ -489,8 +531,9 @@ agent **不得自己修復**（不得自己 `git checkout`、不得換目錄）�
 | 3 | 兩者皆無（無 `PRE-FLIGHT MISMATCH`，且無 mini-handoff 或 mini-handoff 沒有 `## Gate Verdict`） | 狀態未知，**不得**逕自判定 | 走上文「干預協議」的查證階梯；查不到就問使用者 |
 
 > **為什麼第 1 列不得加上「無 mini-handoff」這個條件**：mini-handoff **從不在重試之間被
-> 刪除**——續作 agent（phase retry 與 verify-fix 的 per-phase 修復）一律是「讀上一次的
-> mini-handoff → **更新**它」，唯一的刪除點是 run 收尾的 handoff GC。所以任何**續作**
+> 刪除**——任何重跑同一個 phase 的 agent（phase retry 的**續作**、以及 verify-fix 的
+> per-phase 修復）一律是「讀上一次的 mini-handoff → **更新**它」，唯一的刪除點是 run 收尾
+> 的 handoff GC。所以**續作**
 > spawn 遇到 pre-flight 不符時，上一輪那份 `Gate Verdict: FAIL` 的 mini-handoff 都還在
 > 磁碟上：若把「無 mini-handoff」寫進條件，第 1 列在續作情境**永遠不可能命中**，
 > pre-flight 不符會被誤路由成 gate 失敗 → **吃掉一輪 retry 額度**（與下面「不計入 2 輪
@@ -506,11 +549,25 @@ agent **不得自己修復**（不得自己 `git checkout`、不得換目錄）�
 
 - pre-flight 不符**不是 gate 事件**：無 gate verdict、**不進 `failures[]`**、
   **不給 taxonomy tag**、**不計入** phase retry 的 2 輪額度（兩條路徑各自獨立）
-- 降級上限：**同一 fallback 層級最多重試 1 次**，仍回報 mismatch → **降下一級**
-  （原生 worktree → 手動 worktree 協議 → shared-tree）
-- shared-tree 層級仍回報 mismatch → **停止 phase loop、回報使用者**（已無級可降）
-- **續作 spawn 命中第 1 列時，降級後重新 spawn 的是「同一次續作」**——仍掛回既有分支、
-  仍照 C-7「分支上已有的 commit 代表已完成的工作，不重做」，不是把該 phase 從頭做一次；
+- 降級上限：**同一 fallback 層級最多重試 1 次**，仍回報 mismatch → **降下一級**。
+  但**兩種 spawn 的階梯終點不同**，逐級寫死如下——每一級都可達、每一級都有明確終止動作：
+
+| spawn 種類 | 降級階梯 | 最後一級的終止動作 |
+|-----------|---------|------------------|
+| **首次 spawn**（平行集 ≥ 2） | 原生 `isolation: "worktree"` → 手動 worktree 協議 → **shared-tree**（終點） | shared-tree 是**必然收斂**的終點：該級 flow 不注入比對基準 → 依 D-0 第 3 列 agent 不跑健檢 → **結構上不可能再回報 mismatch**。此時該平行集退化為主樹序列執行（touches 事前分區 + 兩層 conflict detection 照跑），這是**降級成功、不是失敗**，phase loop 繼續 |
+| **續作 spawn**（phase retry 掛回既有分支） | 手動 worktree 協議（**起點即此級**——續作本來就用它）→ **不再降級**（終點） | 同級重試 1 次仍回報 mismatch → **停止該 phase 的續作**，依上文「干預協議」C-4 把三項完整狀態交使用者拍板（其餘不受影響的 phase 照常繼續）。**不得降到 shared-tree**，理由見下 |
+
+> **為什麼續作不得降到 shared-tree**：續作要接手的工作在一個 **latest gate = FAIL、
+> 因此絕不 merge**（見下方 merge-back 協議）、也**絕不自動刪除**（非協商規則 14）的分支上——
+> 主樹的 flow 分支**沒有**那些 commit。在 shared-tree 重新 spawn 的 repair agent 看不到
+> 上一輪做了什麼，只能重做或誤診，這與 C-7「分支上已有的 commit 代表已完成的工作，
+> 不重做」直接衝突，也正是本節要消滅的失敗形狀（把隔離問題誤報成「這個 phase 修不好」）。
+> 停下來問使用者是**吵鬧但正確**的結局；安靜地在主樹重做不是。
+> （對照：首次 spawn 沒有這個問題——它還沒有任何已完成的工作要接手，
+> 所以降到 shared-tree 只是換個執行位置，不遺失任何東西。）
+
+- **續作 spawn 命中第 1 列時，同級那 1 次重試重新 spawn 的是「同一次續作」**——仍掛回既有
+  分支、仍照 C-7「分支上已有的 commit 代表已完成的工作，不重做」，不是把該 phase 從頭做一次；
   該 phase 已用掉的 retry 輪數也不因此改變（pre-flight 不符不計入）
 
 **Phase agent 在 worktree 內的收尾義務**：
