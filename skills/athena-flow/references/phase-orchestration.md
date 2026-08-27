@@ -780,37 +780,9 @@ phase loop 收斂後（所有 phase gate 判定與 conflict detection 完成）�
 
 ## Build Handoff 合成
 
-所有 phase 完成後，flow 自動合成最終的 `handoffs/<slug>-build.md`：
-
-```markdown
-# Handoff: build
-
-## Stage
-build
-
-## Inputs Used
-- handoffs/<slug>-plan.md
-- plans/<slug>/done/（各 phase 卡）
-
-## Phase Summary
-| Phase | Gate | Commit |
-|-------|------|--------|
-| 05 - Backend TDD | PASS | abc1234 |
-| 06 - Frontend Build | PASS | def5678 |
-| 07 - Integration | PASS | ghi9012 |
-
-## Artifacts Produced
-[合併所有 phase mini-handoff 的 Files Changed]
-
-## Gate Verdict
-PASS — All phases completed successfully
-
-## Risks / Unresolved Issues
-[合併所有 phase 的 Spec Deviations 與 Notes]
-
-## Next Recommended Stage
-verify
-```
+所有 phase 完成後，flow 自動合成最終的 `handoffs/<slug>-build.md`——
+模板見 `agent-handoff.md`「變體差異表」的 **Build 合成** 列
+（build 合成特有 `## Phase Summary` 段：Phase/Gate/Commit 表，置於 Inputs Used 後）。
 
 ## 非協商規則
 

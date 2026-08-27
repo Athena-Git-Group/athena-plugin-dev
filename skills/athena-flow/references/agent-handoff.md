@@ -1,50 +1,75 @@
 # Agent Handoff Contract
 
-## Principle
+**本檔是所有 handoff 模板的唯一來源**：機械契約 + Base 模板 + Mini-handoff 模板 + 變體差異表。
+其他 references 與 team skills 只放指標或標題級骨架，不得再抄模板全文。
 
-agent 之間不共享上下文，靠檔案交接。
+原則：agent 之間不共享上下文，一切靠 handoff 檔案交接。
 
-## Handoff Artifact
+## 機械契約（不可改）
 
-每個 stage 在 `handoffs/` 下留下對應的 artifact：
+以下字面格式被兩個程式依賴——任何模板調整都不得破壞：
 
-- `handoffs/<slug>-spec.md`
-- `handoffs/<slug>-plan.md`
-- `handoffs/<slug>-build.md`
-- `handoffs/<slug>-verify.md`
-- `handoffs/<slug>-review.md`
-- `handoffs/<slug>-ship.md`
+### `hooks/auto-commit.sh`
+
+| 依賴 | 字面約定 |
+|------|---------|
+| verdict 存在檢查 | `grep -qE '^## Gate Verdict'`——標題必須是行首逐字 `## Gate Verdict` |
+| verdict 萃取 | `awk '/^## Gate Verdict/{getline; print; exit}'`——**標題的下一行必須就是 verdict 本身**（中間不可有空行），以 `PASS` 開頭才 commit |
+| commit desc 萃取 | `awk '/^# Handoff/{getline; getline; print; exit}'`——H1 以 `# Handoff` 起頭時，**H1 → 空行 → 一行摘要**（即檔案第 3 行）被取為 commit description（前 60 字元） |
+
+> mini-handoff 的 H1 是 `# Phase Handoff:`，刻意不匹配 `^# Handoff`——desc 走 fallback
+> （`<stage> changes`）。這是既有行為，勿「順手統一」H1 字樣。
+
+### `scripts/render_status.py`
+
+| 依賴 | 字面約定 |
+|------|---------|
+| 檔名 glob | `handoffs/<slug>-<stage>.md`（stage 名 = 檔名截去 `<slug>-` 前綴與 `.md`）；phase 級為 `handoffs/<slug>-build-phase-<NN>.md` |
+| verdict 解析 | `## Gate Verdict` 標題後第一個非空行，以 PASS / FAIL 前綴判定（寬鬆解析，缺失顯示 unknown） |
+
+## Handoff 路徑
+
+`handoffs/<slug>-spec.md` / `-plan.md` / `-build.md` / `-verify.md` / `-review.md` /
+`-ship.md` / `-review-ship.md`（Lightweight 合併）/ `-build-phase-<NN>.md`（Full build 內部）。
 
 > **例外**：point stage 的輸出在 `points/<slug>.md`（由 plugin 內建的 athena-point 控制）。
 
-## Minimum Contents
+## Base 模板（Standard 六欄）
 
-- Stage name
-- Inputs used
-- Artifacts produced
-- Gate verdict
-- Risks / unresolved issues
-- Next recommended stage
+```markdown
+# Handoff: <stage-name>
+
+<一行摘要——H1 後隔一空行的第 3 行，auto-commit.sh 取此行為 commit desc>
+
+## Stage
+<stage 名稱>
+
+## Inputs Used
+<讀取了哪些前置 artifact>
+
+## Artifacts Produced
+<產出的檔案路徑>
+
+## Gate Verdict
+<PASS / FAIL — 一句話原因 [#taxonomy-tag]>（本行緊貼標題，不可先空行）
+
+## Risks / Unresolved Issues
+<未解決的風險或問題；無則 None>
+
+## Next Recommended Stage
+<建議的下一個 stage>
+```
 
 ## Gate Verdict 與 Failure Taxonomy
 
-Gate verdict 是 flow 判定能否繼續的依據，格式：
-
-```
-<PASS / FAIL> — <一句話原因> [#<taxonomy-tag>]
-```
+格式：`<PASS / FAIL> — <一句話原因> [#<taxonomy-tag>]`
 
 - **PASS**：不帶 tag。
-- **FAIL**：**必須**在原因後附一個 failure taxonomy tag（`#spec-gap`、`#integration-mismatch` 等），
-  讓 flow 的 emit-trace 步驟能把它彙整進 Run Trace 的 `failures[]`，供 Loop 3 統計。
-  多個獨立問題就列多筆 issue、各帶自己的 tag。
+- **FAIL**：**必須**附一個 failure taxonomy tag（enum 見 `run-trace.md` 的 Failure Taxonomy 段），
+  供 emit-trace 彙整進 Run Trace 的 `failures[]`。多個獨立問題列多筆 issue、各帶自己的 tag。
+- **向後相容**：tag 是 additive——舊 handoff 缺 tag 時 emit-trace 以 `#unclassified` 補登，不打斷 run。
 
-Taxonomy enum 的完整定義見 `run-trace.md` 的 Failure Taxonomy 段。
-
-> **向後相容**：tag 是 additive。舊 handoff（FAIL 無 tag）仍可被 flow 讀取——
-> 缺 tag 時 emit-trace 以 `#unclassified` 補登並提示補標，不打斷既有 run。
-
-範例（Full Weight verify FAIL，沿用 `verify-retry.md` 的 affected_phase 標記）：
+範例（Full verify FAIL，issue 帶 `verify-retry.md` 的 affected_phase 前綴）：
 
 ```markdown
 ## Gate Verdict
@@ -54,58 +79,26 @@ FAIL — frontend 呼叫 /api/approval 但後端是 /api/approvals (plural) #int
 1. **[Phase 06]** frontend calls `/api/approval` instead of `/api/approvals` #integration-mismatch
 ```
 
-## Stage Metrics（選填，所有 handoff 通用）
+## 變體差異表
 
-stage handoff（**standard / compact / mini-handoff 三種皆適用**）可選擇性附帶一個
-`## Metrics` 區塊，承載該 stage 的客觀量化數字。flow 的 emit-trace 會解析它，填入
-trace 的 `stages[].metrics`（schema 見 `run-trace.md` 的 Stage Metrics 段）。
+各變體 = Base 模板 + 下表增刪。`−` 為刪除欄位、`+` 為新增欄位；未列即同 base。
 
-格式：**單一 JSON 物件**（最易可靠解析），value **皆為數字**：
+| 變體 | H1 字樣 | 檔案 | 相對 base 增刪 |
+|------|---------|------|----------------|
+| Spec | `# Handoff: spec` | `<slug>-spec.md` | = base |
+| Plan | `# Handoff: plan` | `<slug>-plan.md` | +`## Phase 列表`（Phase/Name/Depends On/Touches/可平行於 表）、+`## Validator Result`（指令、exit code、實際輸出）；Next = pre-build |
+| Build 合成（Full；flow 寫，非 agent 寫） | `# Handoff: build` | `<slug>-build.md` | +`## Phase Summary`（Phase/Gate/Commit 表，置於 Inputs Used 後）；Artifacts = 合併各 mini-handoff 的 Files Changed；Risks = 合併各 phase 的 Spec Deviations 與 Notes |
+| Compact build（Lightweight） | `# Handoff: build (lightweight)` | `<slug>-build.md` | −`## Stage`、−`## Inputs Used`、−`## Artifacts Produced`、−`## Next Recommended Stage`；+`## Files Changed`（new/modified 標注）、+`## Smoke Test Result`（command: result） |
+| Minimal build（PASS-TRIVIAL） | `# Handoff: build (minimal)` | `<slug>-build.md` | 同 Compact build，另 +`## Self-Review`（Scope within point-report / New dependencies / Security concerns 三行） |
+| Verify Full | `# Handoff: verify` | `<slug>-verify.md` | +`## Checks Performed`；FAIL 時必要：+`## Issues Found`（每條以 `**[Phase NN]**` 前綴標 affected phase）、+`## Affected Phases`（phase → issue 數彙整）；Next = review 或 re-build (targeted) |
+| Verify Lightweight | `# Handoff: verify (lightweight)` | `<slug>-verify.md` | +`## Checks Performed`、+`## Issues Found`（**無** `[Phase NN]` 前綴）；**無** `## Affected Phases`；Next = review-ship |
+| Review | `# Handoff: review` | `<slug>-review.md` | = base（審查意見寫本文與 Risks） |
+| Review-ship（Lightweight 合併） | `# Handoff: review-ship` | `<slug>-review-ship.md` | 欄位序固定：`## Review Verdict` → `## Review Notes`（選）→ `## Ship Result`（Pushed / Merged / Merge commit）→ `## Commits Shipped`（Hash/Message 表）→ `## Gate Verdict`（置末）；base 六欄僅留 Gate Verdict |
+| Ship（Full） | `# Handoff: ship` | `<slug>-ship.md` | −`## Artifacts Produced`；+`## Push Result`（Branch/Remote/Status）、+`## Merge Result`（Target/Method/Status/Merge commit）、+`## Commits Shipped`（Hash/Stage/Message 表）；Next = (end of flow) |
 
-````markdown
-## Metrics
-```json
-{"coverage": 0.82, "lint_warnings": 0}
-```
-````
+## Mini-Handoff（Build phase 之間，僅 Full Weight）
 
-規則：
-- **選填**——沒有客觀數字可報就**整段省略**（emit-trace 會視為該 stage 無 metrics）。
-- 每份 handoff **至多一個** `## Metrics` 區塊。
-- 適合 verify（覆蓋率、lint）與 build（測試數）；非數字描述放 handoff 本文，不放這裡。
-- 解析失敗（非法 JSON / 含非數字 value）由 emit-trace **安靜降級**，不影響 gate 與 run 結局。
-
-## Timing 欄位（選填，所有 handoff 通用）
-
-stage handoff 與 mini-handoff 皆可選擇性附帶一個 `## Timing` 區塊，記錄 agent 的
-起訖時間（ISO-8601 UTC，agent 用 `date -u +%Y-%m-%dT%H:%M:%SZ` 取）：
-
-```markdown
-## Timing
-- Started At: 2026-08-05T14:02:11Z
-- Ended At: 2026-08-05T14:18:47Z
-```
-
-- agent 在**開工第一步**取 `Started At:`，寫 handoff 前取 `Ended At:`。
-- emit-trace 解析後填入 trace：stage handoff → `stages[].started_at` / `stages[].ended_at`；
-  mini-handoff → build stage `phases[].started_at` / `phases[].ended_at`（schema 見 `run-trace.md`）。
-- **選填、additive、缺就缺**——沒有此區塊或只有其中一個欄位皆合法，舊 handoff 不需補。
-- 解析失敗（格式不符 ISO-8601 等）由 emit-trace **安靜降級**，不影響 gate 與 run 結局。
-
-## Phase-Level Handoff（Build 內部）
-
-Build stage 被拆解為多個 phase，每個 phase 由 fresh agent 執行。
-Phase 之間的交接使用 **mini-handoff**，格式比 stage handoff 更聚焦。
-
-### Mini-Handoff 路徑
-
-```
-handoffs/<slug>-build-phase-<NN>.md
-```
-
-範例：`handoffs/approval-workflow-build-phase-05.md`
-
-### Mini-Handoff 格式
+路徑：`handoffs/<slug>-build-phase-<NN>.md`（例：`approval-workflow-build-phase-05.md`）
 
 ```markdown
 # Phase Handoff: Phase <NN> — <Phase Name>
@@ -120,150 +113,65 @@ handoffs/<slug>-build-phase-<NN>.md
 
 ## Files Changed
 - src/api/approval.rs (new)
-- src/api/approval_test.rs (new)
-- migrations/003_approval_table.sql (new)
 
 ## Spec Deviations
-[若實作偏離 spec，明確記錄偏離內容與原因。無偏離則寫「None」]
+[偏離 spec 時記錄內容與原因；無則寫「None」]
 
 ## Smoke Test Result
 - <test command>: <result summary>
-- 例：cargo test: 12 passed, 0 failed
-- 例：cargo clippy: no warnings
 
 ## Gate Verdict
 <PASS / FAIL + 原因>
 
 ## Worktree Branch
-- Worktree Branch: <選填，僅 worktree 隔離模式；值必須是 `git branch --show-current` 的實測輸出，不准猜命名>
+- Worktree Branch: <選填，僅 worktree 隔離模式>
 
 ## Timing
 - Started At: <ISO-8601 UTC，選填>
 - Ended At: <ISO-8601 UTC，選填>
 
 ## Notes for Next Phase
-[下一個 phase agent 需要知道的資訊，如實際 API path、schema 細節等]
+[下一個 phase agent 需要的資訊，如實際 API path、schema 細節]
 ```
-
-### 必要欄位
 
 | 欄位 | 必要性 | 說明 |
 |------|--------|------|
-| Phase | 必要 | 識別是哪個 phase |
-| Inputs Used | 必要 | 可追溯性 |
-| Files Changed | 必要 | 讓下一個 phase 知道改了什麼 |
+| Phase / Inputs Used / Files Changed | 必要 | 識別與可追溯性 |
 | Spec Deviations | 必要 | 防止下游在錯誤基礎上繼續 |
-| Smoke Test Result | 必要 | Gate 判定依據 |
-| Gate Verdict | 必要 | Flow 讀取此欄位決定是否繼續 |
-| Worktree Branch | 選填 | 僅平行 worktree 隔離模式：phase agent 無論 gate 結果都 commit 到 worktree 分支（PASS 正常格式、FAIL 用 `wip:` 前綴）後回報所在分支，值 = `git branch --show-current` 實測（不准猜命名）；mini-handoff 本身寫在**主樹**的 `handoffs/`（artifact 走主樹絕對路徑）；flow merge-back（`git merge --no-ff`）讀此欄位且**只 merge latest gate = PASS 的分支**，協議見 `phase-orchestration.md`「Worktree 隔離」|
-| Timing（Started At / Ended At） | 選填 | ISO-8601 UTC 起訖時間，emit-trace 填入 `phases[].started_at` / `ended_at`（見上方 Timing 段）|
+| Smoke Test Result / Gate Verdict | 必要 | Gate 判定依據，flow 讀此決定是否繼續 |
+| Worktree Branch | 選填 | 僅平行 worktree 隔離模式：phase agent 無論 gate 結果都 commit 到 worktree 分支（PASS 正常格式、FAIL 用 `wip:` 前綴）後回報所在分支，值 = `git branch --show-current` 實測（不准猜命名）；mini-handoff 本身寫在**主樹**的 `handoffs/`；flow merge-back（`git merge --no-ff`）讀此欄位且**只 merge latest gate = PASS 的分支**，協議見 `phase-orchestration.md`「Worktree 隔離」 |
+| Timing | 選填 | 見下方 Timing 段 |
 | Notes for Next Phase | 選填 | 跨 phase 的實作細節傳遞 |
 
-### Build Handoff 合成
+所有 phase 完成後，flow 合成最終 `handoffs/<slug>-build.md`（見變體差異表「Build 合成」列）。
 
-所有 phase 完成後，flow 自動合成最終的 `handoffs/<slug>-build.md`，
-彙整所有 phase 的 mini-handoff 資訊。格式見 `phase-orchestration.md`。
+## Metrics 區塊（選填，所有 handoff 通用）
 
-## Minimal Handoff（PASS-TRIVIAL 路由）
+standard / compact / mini-handoff 皆可附至多一個 `## Metrics` 區塊——**單一 JSON 物件、
+value 皆為數字**，emit-trace 解析後填入 trace 的 `stages[].metrics`（schema 見 `run-trace.md`）：
 
-Minimal 路由（`PASS-TRIVIAL`）使用最精簡的 handoff 模式：
+````markdown
+## Metrics
+```json
+{"coverage": 0.82, "lint_warnings": 0}
+```
+````
 
-- 只產出 **2 個 handoff 檔案**：point-report + compact build handoff（含 self-review）
-- **不產出** review-ship handoff — 流程在 build + commit 後直接結束
-- Build handoff 附帶 self-review 結果（取代獨立 review agent）
+沒有客觀數字就整段省略；非數字描述放 handoff 本文。解析失敗由 emit-trace 安靜降級，不影響 gate。
 
-### Minimal Build Handoff
+## Timing 區塊（選填，所有 handoff 通用）
 
 ```markdown
-# Handoff: build (minimal)
-
-## Gate Verdict
-PASS / FAIL + 原因
-
-## Files Changed
-- <file list with new/modified annotation>
-
-## Smoke Test Result
-- <command>: <result>
-
-## Self-Review
-- Scope within point-report: yes/no
-- New dependencies: none / <list>
-- Security concerns: none / <list>
-
-## Risks / Unresolved Issues
-<若無則 None>
+## Timing
+- Started At: 2026-08-05T14:02:11Z
+- Ended At: 2026-08-05T14:18:47Z
 ```
 
-### 預期 Handoff 檔案數量（Minimal）
+agent 開工第一步與寫 handoff 前各取一次 `date -u +%Y-%m-%dT%H:%M:%SZ`。emit-trace 填入
+`stages[].started_at/ended_at`（stage handoff）或 `phases[].started_at/ended_at`（mini-handoff）。
+選填、additive、缺就缺；解析失敗安靜降級。
 
-| 路由 | Handoff 檔案 | 總數 |
-|------|-------------|------|
-| `PASS-TRIVIAL` | point + build(minimal) | **2** |
-
----
-
-## Compact Handoff（Lightweight 路由）
-
-Lightweight 路由（`PASS-DIRECT-BUILD`、`PASS-BUILD-WITH-VERIFY`）使用精簡的 Compact Handoff 模式，
-減少 artifact 數量與必要欄位。
-
-### Standard vs Compact 差異
-
-| 項目 | Standard（Full Weight） | Compact（Lightweight） |
-|------|------------------------|----------------------|
-| Mini-handoff | 每 phase 一個 | 無（無 phase loop） |
-| Build handoff | 合成自多個 mini-handoff | Build agent 直接寫 |
-| Review + Ship | 各自獨立 handoff | 合併為 `handoffs/<slug>-review-ship.md` |
-| 必要欄位 | 全部 6 欄（Stage, Inputs, Artifacts, Gate, Risks, Next） | Gate Verdict + Files Changed + Risks |
-
-### Compact Build Handoff
-
-```markdown
-# Handoff: build (lightweight)
-
-## Gate Verdict
-PASS / FAIL + 原因
-
-## Files Changed
-- src/api/member.rs (modified)
-- src/api/member_test.rs (new)
-
-## Smoke Test Result
-- cargo test: 8 passed, 0 failed
-
-## Risks / Unresolved Issues
-None
-```
-
-### Compact Review-Ship Handoff
-
-Review 和 Ship 在 Lightweight 路由中由同一個 agent 執行，產出合併的 handoff：
-
-```markdown
-# Handoff: review-ship
-
-## Review Verdict
-PASS — <一句話摘要>
-
-## Review Notes
-<重要的 code review 發現，若無則省略此段>
-
-## Ship Result
-- Pushed: <branch_name> → origin
-- Merged: <branch_name> → <merge_target>
-- Merge commit: <hash>
-
-## Commits Shipped
-| Hash | Message |
-|------|---------|
-| abc1234 | [HAP-3621] feat(member): add export API |
-
-## Gate Verdict
-PASS — reviewed, pushed and merged to <merge_target>
-```
-
-### 預期 Handoff 檔案數量
+## 各路由的 Handoff 檔案數量
 
 | 路由 | Handoff 檔案 | 總數 |
 |------|-------------|------|
@@ -272,7 +180,10 @@ PASS — reviewed, pushed and merged to <merge_target>
 | `PASS-BUILD-WITH-VERIFY` | point + build + verify + review-ship | **4** |
 | `PASS-SPEC-FIRST` | point + spec + plan + N × mini-handoff + build(合成) + verify + review + ship | **7+N** |
 
----
+- **Minimal（PASS-TRIVIAL）**：不產出 review-ship handoff——build handoff 的 `## Self-Review`
+  取代獨立 review，flow 在 build + commit 後直接結束。
+- **Lightweight**：無 phase loop、無 mini-handoff，build agent 直接寫 build handoff；
+  review + ship 由同一 agent 合併為 `<slug>-review-ship.md`。
 
 ## 非協商規則
 

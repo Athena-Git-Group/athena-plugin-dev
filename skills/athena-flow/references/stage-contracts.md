@@ -105,26 +105,7 @@ Build 以 Minimal 模式執行——單一 fresh agent，不跑 phase loop，結
 
 #### Minimal Build Handoff 格式
 
-```markdown
-# Handoff: build (minimal)
-
-## Gate Verdict
-PASS / FAIL + 原因
-
-## Files Changed
-- <file list with new/modified annotation>
-
-## Smoke Test Result
-- <command>: <result>
-
-## Self-Review
-- Scope within point-report: yes/no
-- New dependencies: none / <list>
-- Security concerns: none / <list>
-
-## Risks / Unresolved Issues
-<若無則 None>
-```
+見 `agent-handoff.md`「變體差異表」的 **Minimal build** 列。
 
 ---
 
@@ -161,23 +142,7 @@ Build 以 Lightweight 模式執行——單一 fresh agent，不跑 phase loop�
 
 #### Lightweight Build Handoff 格式
 
-使用 Compact 格式（詳見 `agent-handoff.md`「Compact Build Handoff」段落）：
-
-```markdown
-# Handoff: build (lightweight)
-
-## Gate Verdict
-PASS / FAIL + 原因
-
-## Files Changed
-- <file list with new/modified annotation>
-
-## Smoke Test Result
-- <command>: <result>
-
-## Risks / Unresolved Issues
-<若無則 None>
-```
+見 `agent-handoff.md`「變體差異表」的 **Compact build** 列。
 
 ---
 
@@ -309,43 +274,7 @@ Ship agent **不詢問使用者**。`merge_target` 由 flow 在啟動 ship agent
 
 #### Ship Handoff 格式
 
-```markdown
-# Handoff: ship
-
-## Stage
-ship
-
-## Inputs Used
-- handoffs/<slug>-review.md
-- git_context
-
-## Push Result
-- Branch: feature/main_hap3621_approval_workflow
-- Remote: origin
-- Status: success
-
-## Merge Result
-- Target: et
-- Method: git merge（preserve history）
-- Status: success
-- Merge commit: <hash>
-
-## Commits Shipped
-| Hash | Stage | Message |
-|------|-------|---------|
-| abc1234 | build-phase-05 | [HAP-3621] feat(approval): add API (phase-05) |
-| bcd2345 | build-phase-06 | [HAP-3621] feat(approval): add frontend (phase-06) |
-| ... | ... | ... |
-
-## Gate Verdict
-PASS — pushed and merged to et
-
-## Risks / Unresolved Issues
-None
-
-## Next Recommended Stage
-(end of flow)
-```
+見 `agent-handoff.md`「變體差異表」的 **Ship** 列。
 
 #### 失敗處理
 
@@ -394,35 +323,14 @@ review 和 ship 由**同一個 fresh agent** 執行，產出合併的 handoff。
 
 #### review-ship Handoff 格式
 
-見 `agent-handoff.md`「Compact Review-Ship Handoff」段落。
+見 `agent-handoff.md`「變體差異表」的 **Review-ship** 列。
 
 ---
 
 ## Handoff 契約（通用）
 
-無論哪個 standard stage，handoff artifact 都必須包含以下欄位：
-
-```markdown
-# Handoff: <stage-name>
-
-## Stage
-<stage 名稱>
-
-## Inputs Used
-<列出讀取了哪些前置 artifact>
-
-## Artifacts Produced
-<列出產出的檔案路徑>
-
-## Gate Verdict
-<PASS / FAIL + 原因>
-
-## Risks / Unresolved Issues
-<未解決的風險或問題>
-
-## Next Recommended Stage
-<建議的下一個 stage>
-```
+無論哪個 standard stage，handoff artifact 都必須包含 Base 模板的六欄——
+模板全文與機械契約見 `agent-handoff.md`「Base 模板（Standard 六欄）」。
 
 > **Flow-inline stage 不產出 handoff artifact**，改用 flow context 傳遞資訊。
 
