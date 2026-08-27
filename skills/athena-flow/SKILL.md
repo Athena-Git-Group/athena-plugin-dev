@@ -251,7 +251,9 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
         重新 spawn（首次 spawn 重來該 phase；續作則重來同一次續作，仍掛回既有分支、不重做已完成的
         commit）。**同一層級最多重試 1 次**，且**兩種 spawn 的階梯終點不同**：首次 spawn 為
         原生 worktree → 手動協議 → **shared-tree**（該級不注入基準、agent 不跑健檢，結構上不可能
-        再回報 mismatch，是必然收斂的終點——平行集退化為主樹序列執行，phase loop 繼續）；
+        再回報 mismatch，是必然收斂的終點——該平行集改以 shared-tree 模式執行，**仍平行 spawn**
+        （照舊寫 `parallel_phases`、依非協商規則 19 同一次回應送出），序列化的**只有 commit**，
+        phase loop 繼續）；
         續作 spawn 起點即手動協議，同級重試 1 次仍不符就**不再降級**，停止該 phase 的續作並依
         「Agent 干預協議」C-4 交使用者拍板（降到 shared-tree 會看不到未 merge 的 `wip:` 工作）。
         以上皆**不進 phase retry、不計入 2 輪額度**。**沒有** `PRE-FLIGHT MISMATCH`

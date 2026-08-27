@@ -554,7 +554,7 @@ agent **不得自己修復**（不得自己 `git checkout`、不得換目錄）�
 
 | spawn 種類 | 降級階梯 | 最後一級的終止動作 |
 |-----------|---------|------------------|
-| **首次 spawn**（平行集 ≥ 2） | 原生 `isolation: "worktree"` → 手動 worktree 協議 → **shared-tree**（終點） | shared-tree 是**必然收斂**的終點：該級 flow 不注入比對基準 → 依 D-0 第 3 列 agent 不跑健檢 → **結構上不可能再回報 mismatch**。此時該平行集退化為主樹序列執行（touches 事前分區 + 兩層 conflict detection 照跑），這是**降級成功、不是失敗**，phase loop 繼續 |
+| **首次 spawn**（平行集 ≥ 2） | 原生 `isolation: "worktree"` → 手動 worktree 協議 → **shared-tree**（終點） | shared-tree 是**必然收斂**的終點：該級 flow 不注入比對基準 → 依 D-0 第 3 列 agent 不跑健檢 → **結構上不可能再回報 mismatch**。此時該平行集改以 **shared-tree 模式**執行——**仍是平行 spawn**（照舊寫 `parallel_phases`、依非協商規則 9 於同一次回應送出全部可平行 phase），序列化的**只有 commit**（由 flow 層在全部收斂後依序執行）；touches 事前分區 + 兩層 conflict detection 照跑。定義見下方「Fallback 鏈」第 2 項，此處不另立語意。這是**降級成功、不是失敗**，phase loop 繼續 |
 | **續作 spawn**（phase retry 掛回既有分支） | 手動 worktree 協議（**起點即此級**——續作本來就用它）→ **不再降級**（終點） | 同級重試 1 次仍回報 mismatch → **停止該 phase 的續作**，依上文「干預協議」C-4 把三項完整狀態交使用者拍板（其餘不受影響的 phase 照常繼續）。**不得降到 shared-tree**，理由見下 |
 
 > **為什麼續作不得降到 shared-tree**：續作要接手的工作在一個 **latest gate = FAIL、
