@@ -21,11 +21,9 @@ description: >
 
 ## 先讀哪些檔
 
-- Read `references/stage-orchestration.md`
 - Read `references/agent-handoff.md`
 - Read `references/stage-contracts.md`
 - Read `references/index-skill-pattern.md`
-- Read `references/git-lifecycle-hooks.md` — Git 操作的觸發時機
 - Read `references/phase-orchestration.md` — Build 內部的 phase loop 編排
 - Read `references/verify-retry.md` — Verify 失敗的回退流程
 - Read `references/flow-context.md` — Hook 模式的 marker file schema
@@ -70,7 +68,7 @@ Flow-inline stage 透過 flow context 傳遞資訊。
 
 ## Stage 順序
 
-Flow 根據 point verdict 決定兩種路線（詳見 `stage-orchestration.md` Weight Class）：
+Flow 根據 point verdict 決定兩種路線（詳見 `stage-contracts.md`「Weight Class 路由」）：
 
 ```text
 Minimal（PASS-TRIVIAL）:
@@ -166,7 +164,7 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
 1. 執行 **Skill Discovery**，建立 stage → skill 對應表（含 flow-inline fallback）
 2. 用 fresh agent 執行 `/point`（plugin 內建）
 3. 讀取 point-report
-4. 根據 verdict 決定路由與 **Weight Class**（詳見 `stage-orchestration.md`）：
+4. 根據 verdict 決定路由與 **Weight Class**（詳見 `stage-contracts.md`「Weight Class 路由」）：
 
    **Minimal 路由：**
    - `PASS-TRIVIAL` → pre-build → build(minimal, with self-review) → post-build → done
