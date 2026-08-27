@@ -24,7 +24,7 @@ user-invocable: false
 > 都 commit——FAIL 用 `wip:` 前綴——並回報 `Worktree Branch:`），主樹的整合點是 flow merge-back 的 merge commit
 > （`git merge --no-ff`）。**本 skill 不對這些平行 phase 重複 commit**——flow 不會為
 > 它們以 `triggering_stage: build-phase-<NN>` 呼叫本 skill。序列 phase 與 shared-tree
-> fallback 情境行為不變。詳見 `../athena-flow/references/phase-orchestration.md`「Worktree 隔離」。
+> fallback 情境行為不變。詳見 `../athena-flow/references/worktree-isolation.md`。
 
 你會在以下時間點被呼叫：
 1. **Lightweight build gate 通過後** — `triggering_stage: build-lightweight`

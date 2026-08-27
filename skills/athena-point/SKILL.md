@@ -9,122 +9,46 @@ description: >
 
 # Athena Point
 
-你是 Athena harness 的前置分流器。你的任務不是實作功能，而是快速判斷這個需求
-要走哪一種工程流程。
+你是 Athena harness 的前置分流器——不實作功能，只快速判斷需求要走哪一種工程流程。
 
 ## 先讀哪些檔
 
 - Read `references/scoring-rubric.md` 取得評分維度、分數區間與分流規則
 - Read `references/knowledge-base-guidelines.md` 了解知識庫讀取規範
 - Read `references/codemap-guidelines.md` 了解何時/如何透過 `graphify-out/` codemap 蒐證
-- Read `references/gate-rules.md` 了解 point-report 的檔案契約與可進入的下一階段
+- Read `references/gate-rules.md` 了解 point-report 的檔案契約、必要欄位與 verdict 完整語意
 - 掃描 `.athena/knowledge/` 目錄，了解團隊知識庫有哪些內容可供查證
 - 偵測專案根目錄是否存在 `graphify-out/graph.json`（由 `/codemap` 產生）
-
-## 何時使用
-
-- 收到 PM ticket，但不確定要不要走完整 spec
-- 收到一句「使用者應該 XXXX，不應該 XXXX」
-- 收到看似簡單的 bug / 小功能，但怕其實牽涉業務規則
-- 團隊想建立一致的客觀分流標準
-
-## 輸入
-
-- PM 需求單、issue、ticket、slack 訊息或自由敘述
-- 可選：相關連結、截圖、知識庫路徑、產品規格路徑
-
-## 輸出
-
-輸出一份簡短的 point-report，並寫入：
-
-- `points/<request-slug>.md`
-
-至少包含：
-
-1. 任務摘要
-2. 各維度分數
-3. 總分
-4. 是否需要讀知識庫
-5. 推薦路由
-6. 理由與風險
-7. gate verdict
-8. 允許的下一步 command
 
 ## 評分流程
 
 1. 將需求重述成一個可判斷的變更敘述
 2. 掃描 `.athena/knowledge/` 目錄結構，掌握團隊有哪些知識文件
-3. **偵測 codemap**：檢查 `graphify-out/graph.json` 是否存在於專案根目錄
-   - 存在 → 依 `references/codemap-guidelines.md` 規範，**優先**透過 `graphify query "<question>"` / `graphify path "A" "B"` / `graphify explain "Entity"` 蒐集 codebase 結構資訊，用於 Impact Radius / Contract-Schema / Regression Risk 維度的評估；**不要**對 `src/` 做大範圍 Read / Grep 掃描
-   - 存在但 `command -v graphify` 失敗 → 優雅降級：被動 Read `graphify-out/GRAPH_REPORT.md` 與（必要時）`graphify-out/graph.json` 當純文字參考
-   - 不存在 → 跳過此步驟，照原本流程進行（**不得**自動執行 `/codemap`、`graphify install` 或任何寫盤的 graphify 子指令）
-   - 同時檢查 codemap 是否過期（`graphify-out/graph.json` 的 mtime 比最後一次 git commit 還舊 → 視為 stale，於 report 中註記）
+3. **偵測 codemap**：`graphify-out/graph.json` 存在 → 依 `references/codemap-guidelines.md`
+   以唯讀 graphify 子指令蒐證（含 CLI 缺席降級與 stale 判定）；不存在 → 跳過，不得自動重建
 4. 用 rubric 對每個維度打分
 5. 若命中知識庫條件，從 `.athena/knowledge/` 讀取相關文件再修正分數
-6. 若 codemap 可用，依 `references/scoring-rubric.md` 的「Codemap-Assisted Cues」對 Impact / Contract / Regression 維度做 **±1** 微調；**禁止**因 codemap 線索而翻轉 route（仍須由 rubric 閾值決定）
+6. 若 codemap 可用，依 rubric「Codemap-Assisted Cues」對 Impact / Contract / Regression
+   維度做 **±1** 微調；**禁止**因 codemap 線索翻轉 route（仍須由 rubric 閾值決定）
 7. 根據總分與硬性 gate 決定路由
 8. 明確指出下一步 command
-9. 用 `assets/point-report-template.md` 的格式寫出 point-report；若有偵測 codemap，於 `Codemap consulted` 欄位（optional）標註結果
+9. 用 `assets/point-report-template.md` 的格式寫出 point-report，寫入
+   `points/<request-slug>.md`；有偵測 codemap 時於 `Codemap consulted` 欄位（optional）標註
 
 ## 路由結果
 
-### Route T: Trivial
+各 verdict 的完整語意（允許/要求的後續 stage）以 `references/gate-rules.md` 為權威：
 
-適用：
-- 總分 ≤ 4（所有維度幾乎都是 0-1）
-- 沒有命中任何 override rule
-- 改動極小，無需獨立 review
-
-下一步：
-- `/build`（Minimal 模式，含 self-review checklist）
-
-gate verdict:
-- `PASS-TRIVIAL`
-
-### Route A: Direct Build
-
-適用：
-- 總分 5-7
-- 沒有高風險 domain rule
-- 沒有 schema / API contract 變更
-
-下一步：
-- `/build`（後端/前端/全端由團隊的 build skill 自行判斷）
-
-gate verdict:
-- `PASS-DIRECT-BUILD`
-
-### Route B: Build With Verify
-
-適用：
-- 任務不大，但有可預見 regression 風險
-- 規格雖不用重寫，但需要驗證一致性
-
-下一步：
-- `/build`
-- 完成後強制進 `/verify`
-
-gate verdict:
-- `PASS-BUILD-WITH-VERIFY`
-
-### Route C: Spec First
-
-適用：
-- 需求敘述模糊
-- 有新規則、新流程、新角色、新資料欄位、新 API
-- 牽涉知識庫、政策、產品規章或多團隊共同語意
-
-下一步：
-- `/spec`
-- 視結果再進 `/plan`
-
-gate verdict:
-- `PASS-SPEC-FIRST`
+| Route | 分數帶 | Gate verdict | 下一步 command |
+|-------|--------|--------------|----------------|
+| Trivial | 0-4（且無 override） | `PASS-TRIVIAL` | `/build`（Minimal，含 self-review checklist） |
+| Direct Build | 5-7 | `PASS-DIRECT-BUILD` | `/build` |
+| Build With Verify | 8-14 | `PASS-BUILD-WITH-VERIFY` | `/build` → 完成後強制 `/verify` |
+| Spec First | 15-30 或命中硬性 Gate | `PASS-SPEC-FIRST` | `/spec`（視結果再進 `/plan`） |
 
 ## 硬性 Gate
 
-即使總分不高，只要命中以下任一條件，也不得直接進 build。每條標明命中後的目標 verdict
-或前置動作（不能只說「不得直接 build」——中間還有 BUILD-WITH-VERIFY，必須指定去向）：
+即使總分不高，命中以下任一條件即不得直接進 build。每條標明命中後的目標 verdict 或前置動作（不能只說「不得直接 build」，必須指定去向）：
 
 | # | 條件 | 命中後 |
 |---|------|--------|
@@ -134,9 +58,7 @@ gate verdict:
 | 4 | 牽涉權限、計費、合規、審核、風控、對帳等高風險規則 | → `PASS-SPEC-FIRST`（對齊 override rule「Domain≥4」） |
 | 5 | 需求明確依賴知識庫但尚未查證 | **先查證**再重新打分，不直接發 verdict（對齊非協商規則 6） |
 
-## 回應格式
-
-請用固定格式回覆：
+## 回應格式（固定）
 
 ```md
 Point Result
@@ -173,6 +95,6 @@ Risks
 4. 產出必須包含「為什麼不用 spec」或「為什麼一定要 spec」
 5. 不只回覆在對話中，還要把結果寫成 `points/<request-slug>.md`
 6. 若尚未查證必要知識庫，不得發出 `PASS-DIRECT-BUILD`
-7. codemap（`graphify-out/`）只能用於蒐證，不得作為翻轉 route 的單一理由；codemap 缺席時必須能照原流程完成評分
-8. 不得執行任何寫盤的 graphify 子指令（`install` / `clone` / `add` / 重建 / `--update` / `merge-graphs` / `extract`），只允許唯讀的 `query` / `path` / `explain`
-9. **不實作程式碼**——只評分、只分流、只寫 point-report。除了 `points/<slug>.md` 之外不得寫入或修改任何檔案（含 `src/`、測試、設定）。需求看起來多小都一樣：實作是 `/build` 的工作
+7. codemap 只能用於蒐證，不得單獨翻轉 route；codemap 缺席時必須能照原流程完成評分
+8. 只允許唯讀的 graphify `query` / `path` / `explain`——白名單以外（任何寫盤子指令）一律不得執行
+9. **不實作程式碼**——只評分、分流、寫 point-report；除 `points/<slug>.md` 外不得寫入任何檔案

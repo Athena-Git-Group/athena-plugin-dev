@@ -35,27 +35,16 @@ phases:
       resources: ["db-migration 序號"]
 ```
 
-- `touches.files`：該 phase 允許改動的檔案 glob 清單
-- `touches.resources`：該 phase 會占用的共享資源名稱清單。常見共享資源提示
-  （逐一檢查是否適用）：db-migration 序號、`package.json` / lockfile、
-  產生式 schema/types、共用設定檔、測試 DB、port
+- `touches.files`：允許改動的檔案 glob；`touches.resources`：占用的共享資源名稱
+  （常見：db-migration 序號、lockfile、產生式 schema/types、共用設定檔、測試 DB、port）
 
-### 拆解方法論（三步）
+拆解方法論（怎麼切 phase、怎麼定所有權）以團隊 plan skill 為邏輯來源。殼層只強制三條：
 
-1. **語意拆 phase**——依 spec 的功能邊界拆出 phase 與語意依賴（`depends_on`）
-2. **宣告 touches**——為每個 phase 標出檔案 glob 與共享資源
-3. **機械自檢**——執行：
-   ```
-   python3 ${CLAUDE_PLUGIN_ROOT}/skills/athena-specformula/scripts/validate_plan.py plans/<slug> --require-touches
-   ```
-   validator 回報「可平行 pair 的 touches 交集非空」時，二選一修正後重跑：
-   - 加 `depends_on` 邊（兩者確有語意順序時），或
-   - 重切所有權（調整 glob / 資源歸屬）讓交集為空
-
-   通過後才寫 handoff。
-
-**防過度串鏈**：無交集且無語意依賴的 phase pair **不得加邊**——
-DAG 必須反映真正的可平行集，不准用串鏈迴避 touches 切分。
+1. **touches 必宣告**——每個 phase 條目都要有 `touches`（`files` + `resources`）
+2. **validator 必過**——交 handoff 前執行
+   `python3 ${CLAUDE_PLUGIN_ROOT}/skills/athena-specformula/scripts/validate_plan.py plans/<slug> --require-touches`，
+   可平行 pair 的 touches 交集非空時，加 `depends_on` 邊（確有語意順序）或重切所有權，修到通過為止
+3. **防過度串鏈**——無交集且無語意依賴的 phase pair 不得加邊，不准用串鏈迴避 touches 切分
 
 ## 工具邊界
 
@@ -71,6 +60,5 @@ DAG 必須反映真正的可平行集，不准用串鏈迴避 touches 切分。
 2. plan.md 的 YAML frontmatter 是 Dependency Graph 的唯一機械真相；正文的 markdown 表格僅為人類視圖，內容必須與 frontmatter 一致（`id` 為兩位數字字串，`depends_on` 只准引用存在的 id）
 3. 每個 phase card 必須包含 `Smoke Test` 與 `Spec Sections`
 4. handoffs/<slug>-plan.md 必須包含 Gate Verdict
-5. 每個 phase 必須宣告 `touches`（`files` + `resources`），且交 handoff 前
-   `validate_plan.py --require-touches` 必須通過（可平行 pair 的 touches 交集為空）
+5. 每個 phase 必須宣告 `touches`，且 `validate_plan.py --require-touches` 必過（見上方殼層三條）
 6. 無交集且無語意依賴的 phase pair 不得加 `depends_on` 邊（防過度串鏈）
