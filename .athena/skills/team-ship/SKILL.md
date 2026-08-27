@@ -49,41 +49,26 @@ stage: ship
 - Lightweight 合併模式：由 flow prompt 指定併入 `handoffs/<slug>-review-ship.md`
   （Ship Result 段），格式見 `skills/athena-flow/references/agent-handoff.md`
 
-獨立 handoff 格式：
+獨立 handoff 標題級骨架如下（= base 模板 − `## Artifacts Produced` + ship 特有三欄；
+欄位細節見 `skills/athena-flow/references/agent-handoff.md` 變體差異表「Ship（Full）」列）：
 
 ```markdown
 # Handoff: ship
 
+<一行摘要——H1 後隔一空行的第 3 行>
+
 ## Stage
-ship
-
 ## Inputs Used
-- handoffs/<slug>-review.md
-- git_context, merge_target
-
+（handoffs/<slug>-review.md、git_context、merge_target）
 ## Push Result
-- Branch: <branch_name>
-- Remote: origin
-- Status: success / failed
-
+（Branch / Remote / Status: success|failed）
 ## Merge Result
-- Target: <merge_target>
-- Method: git merge --no-ff（preserve history）
-- Status: success / conflict / failed
-- Merge commit: <hash>
-
+（Target / Method: git merge --no-ff / Status: success|conflict|failed / Merge commit: <hash>）
 ## Commits Shipped
-| Hash | Stage | Message |
-|------|-------|---------|
-| <hash> | <stage> | <message> |
-
+（表：Hash | Stage | Message）
 ## Gate Verdict
-PASS — pushed and merged to <merge_target>
-（FAIL 時：FAIL — <原因> #<tag>，如 #env / #contract-violation）
-
+PASS — pushed and merged to <merge_target>（本行緊貼標題；FAIL 時帶 #tag，如 #env / #contract-violation）
 ## Risks / Unresolved Issues
-<若無則 None>
-
 ## Next Recommended Stage
 (end of flow)
 ```
