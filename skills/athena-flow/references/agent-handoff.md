@@ -5,27 +5,11 @@
 
 原則：agent 之間不共享上下文，一切靠 handoff 檔案交接。
 
-## 機械契約（不可改）
-
-以下字面格式被兩個程式依賴——任何模板調整都不得破壞：
-
-### `hooks/auto-commit.sh`
-
-| 依賴 | 字面約定 |
-|------|---------|
-| verdict 存在檢查 | `grep -qE '^## Gate Verdict'`——標題必須是行首逐字 `## Gate Verdict` |
-| verdict 萃取 | `awk '/^## Gate Verdict/{getline; print; exit}'`——**標題的下一行必須就是 verdict 本身**（中間不可有空行），以 `PASS` 開頭才 commit |
-| commit desc 萃取 | `awk '/^# Handoff/{getline; getline; print; exit}'`——H1 以 `# Handoff` 起頭時，**H1 → 空行 → 一行摘要**（即檔案第 3 行）被取為 commit description（前 60 字元） |
-
-> mini-handoff 的 H1 是 `# Phase Handoff:`，刻意不匹配 `^# Handoff`——desc 走 fallback
-> （`<stage> changes`）。這是既有行為，勿「順手統一」H1 字樣。
-
-### `scripts/render_status.py`
-
-| 依賴 | 字面約定 |
-|------|---------|
-| 檔名 glob | `handoffs/<slug>-<stage>.md`（stage 名 = 檔名截去 `<slug>-` 前綴與 `.md`）；phase 級為 `handoffs/<slug>-build-phase-<NN>.md` |
-| verdict 解析 | `## Gate Verdict` 標題後第一個非空行，以 PASS / FAIL 前綴判定（寬鬆解析，缺失顯示 unknown） |
+> **機械契約紅線（hooks/scripts 依賴，違反即壞 commit / 狀態渲染）**：
+> `## Gate Verdict` 標題必須行首逐字；verdict 必須**緊貼標題下一行**（不可先空行）；
+> H1 以 `# Handoff` 起頭時**檔案第 3 行**（H1 → 空行 → 一行摘要）被取為 commit desc；
+> mini-handoff 的 H1 是 `# Phase Handoff:`，**刻意**不匹配 `^# Handoff`，勿「順手統一」。
+> awk/grep 依賴細表見檔尾「附錄——機械契約細表（改模板時才讀）」。
 
 ## Handoff 路徑
 
@@ -87,7 +71,7 @@ FAIL — frontend 呼叫 /api/approval 但後端是 /api/approvals (plural) #int
 |------|---------|------|----------------|
 | Spec | `# Handoff: spec` | `<slug>-spec.md` | = base |
 | Plan | `# Handoff: plan` | `<slug>-plan.md` | +`## Phase 列表`（Phase/Name/Depends On/Touches/可平行於 表）、+`## Validator Result`（指令、exit code、實際輸出）；Next = pre-build |
-| Build 合成（Full；flow 寫，非 agent 寫） | `# Handoff: build` | `<slug>-build.md` | +`## Phase Summary`（Phase/Gate/Commit 表，置於 Inputs Used 後）；Artifacts = 合併各 mini-handoff 的 Files Changed；Risks = 合併各 phase 的 Spec Deviations 與 Notes |
+| Build 合成（Full；flow 寫，非 agent 寫） | `# Handoff: build` | `<slug>-build.md` | +`## Phase Summary`（Phase/Gate/Commit 表，置於 Inputs Used 後）；+`## Synthesis Note`（列來源 mini-handoff 清單＋「flow 彙整，未經獨立驗證」聲明；置於 Risks 前）；Artifacts = 合併各 mini-handoff 的 Files Changed；Risks = 合併各 phase 的 Spec Deviations 與 Notes |
 | Compact build（Lightweight） | `# Handoff: build (lightweight)` | `<slug>-build.md` | −`## Stage`、−`## Inputs Used`、−`## Artifacts Produced`、−`## Next Recommended Stage`；+`## Files Changed`（new/modified 標注）、+`## Smoke Test Result`（command: result） |
 | Minimal build（PASS-TRIVIAL） | `# Handoff: build (minimal)` | `<slug>-build.md` | 同 Compact build，另 +`## Self-Review`（Scope within point-report / New dependencies / Security concerns 三行） |
 | Verify Full | `# Handoff: verify` | `<slug>-verify.md` | +`## Checks Performed`；FAIL 時必要：+`## Issues Found`（每條以 `**[Phase NN]**` 前綴標 affected phase）、+`## Affected Phases`（phase → issue 數彙整）；Next = review 或 re-build (targeted) |
@@ -196,3 +180,27 @@ agent 開工第一步與寫 handoff 前各取一次 `date -u +%Y-%m-%dT%H:%M:%SZ
 7. **Lightweight 路由的 review-ship 可合併為一個 agent**——這是唯一允許同一 agent 處理多個 stage 的例外
 8. **Minimal 路由不產出 review-ship handoff**——build handoff 的 self-review 段落取代獨立 review
 9. **FAIL 的 gate verdict 必須帶 failure taxonomy tag**——enum 見 `run-trace.md`；缺 tag 時由 emit-trace 以 `#unclassified` 補登，不打斷流程
+
+---
+
+## 附錄——機械契約細表（改模板時才讀）
+
+以下字面格式被兩個程式依賴——任何模板調整都不得破壞：
+
+### `hooks/auto-commit.sh`
+
+| 依賴 | 字面約定 |
+|------|---------|
+| verdict 存在檢查 | `grep -qE '^## Gate Verdict'`——標題必須是行首逐字 `## Gate Verdict` |
+| verdict 萃取 | `awk '/^## Gate Verdict/{getline; print; exit}'`——**標題的下一行必須就是 verdict 本身**（中間不可有空行），以 `PASS` 開頭才 commit |
+| commit desc 萃取 | `awk '/^# Handoff/{getline; getline; print; exit}'`——H1 以 `# Handoff` 起頭時，**H1 → 空行 → 一行摘要**（即檔案第 3 行）被取為 commit description（前 60 字元） |
+
+> mini-handoff 的 H1 是 `# Phase Handoff:`，刻意不匹配 `^# Handoff`——desc 走 fallback
+> （`<stage> changes`）。這是既有行為，勿「順手統一」H1 字樣。
+
+### `scripts/render_status.py`
+
+| 依賴 | 字面約定 |
+|------|---------|
+| 檔名 glob | `handoffs/<slug>-<stage>.md`（stage 名 = 檔名截去 `<slug>-` 前綴與 `.md`）；phase 級為 `handoffs/<slug>-build-phase-<NN>.md` |
+| verdict 解析 | `## Gate Verdict` 標題後第一個非空行，以 PASS / FAIL 前綴判定（寬鬆解析，缺失顯示 unknown） |

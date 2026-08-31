@@ -73,8 +73,10 @@ Flow 讀 plan.md frontmatter → 掃描 todo/doing/done/ → 建立依賴圖
     │     6. Agent 執行實作
     │     7. Agent 執行 smoke test（phase card 中定義的指令）
     │     8. Agent 寫 mini-handoff（含 smoke test 結果）
-    │     9. Flow 讀 mini-handoff → 檢查 Gate Verdict
-    │     10. PASS → post-build commit（per-phase）→ mv doing/<NN>-<name>.md → done/ → 繼續
+    │     9. Flow 讀 mini-handoff → 檢查 Gate Verdict → 【結束回報】
+    │        （先於一切簿記，見 rules/回報協議與read-back綁定.md）
+    │     10. PASS → post-build commit（per-phase）→ mv doing/<NN>-<name>.md → done/
+    │         → 【下一站預告】（下個交界的第一個動作，先於鎖卡與 spawn）→ 繼續
     │     11. FAIL → 停止 phase loop → 進入 phase retry（卡片留在 doing/）
     │
     └── 平行執行（當依賴允許時）
@@ -100,36 +102,11 @@ Flow 讀 plan.md frontmatter → 掃描 todo/doing/done/ → 建立依賴圖
 
 ### Agent Prompt 模板
 
-```
-你正在執行 Phase <NN>: <Phase Name>。
+prompt 全文見 `templates/prompt-phase-agent.md`（spawn 那一刻才讀該檔）。
 
-開工第一步：執行 `date -u +%Y-%m-%dT%H:%M:%SZ`，記下作為 Started At。
-
-讀取以下資料：
-1. .athena/skills/<build-skill>/SKILL.md（你的 build skill）
-2. plans/<slug>/doing/<NN>-<name>.md（你的任務卡片）
-3. handoffs/<slug>-build-phase-<prev-NN>.md（上一個 phase 的交接）
-4. spec 的 Section <X>, <Y>（phase card 中 spec_sections 指定的）
-
-你的 touches 邊界（來自 plan.md frontmatter 此 phase 的 touches 宣告）：
-- files: <該 phase 的 touches.files glob 清單>
-- resources: <該 phase 的 touches.resources 清單>
-
-只准改宣告範圍內的檔案；若實作中發現必須碰宣告外的檔案，
-停下來在 mini-handoff 記 gate FAIL + 原因 `#plan-gap`，不得逕自修改。
-
-完成實作後：
-1. 執行 smoke test：<phase card 中的 smoke_test 指令>
-2. 再執行一次 `date -u +%Y-%m-%dT%H:%M:%SZ` 取得 Ended At
-3. 寫 mini-handoff 到 handoffs/<slug>-build-phase-<NN>.md，
-   含選填的 `## Timing` 區塊（Started At / Ended At，格式見 agent-handoff.md）
-```
-
-> **Worktree 隔離模式**（平行集 ≥ 2）：平行 spawn 前另讀 `worktree-isolation.md`
-> 的「注入義務」段，照其注入段落附加到本模板末尾（主樹絕對路徑、`Main Tree Branch:`
-> / `Expected Branch:`、pre-flight 三項健檢、雙路徑規則、收尾 commit 義務）。
-
-> Timing 是**選填**欄位——agent 漏記不算 gate 失敗，emit-trace 缺就略。
+> **Worktree 隔離模式**（平行集 ≥ 2）：平行 spawn 前另讀 `templates/worktree-injection.md`，
+> 照其注入段附加到 prompt 末尾（主樹絕對路徑、`Main Tree Branch:` / `Expected Branch:`、
+> pre-flight 三項健檢、雙路徑規則、收尾 commit 義務）；隔離協議本體見 `worktree-isolation.md`。
 
 ## Smoke Test Gate
 
@@ -156,7 +133,7 @@ Phase agent 在實作完成後、寫 mini-handoff 之前，執行 phase card 中
 |-----------------|-------------|-----------|
 | 全部通過 | PASS | post-build commit → 繼續下一個 phase |
 | 有失敗 | FAIL | 停止 phase loop → 進入 phase retry |
-| 無 smoke test 定義 | PASS（預設） | 繼續（信任 agent 的自我判斷） |
+| 無 smoke test 定義 | PASS（預設） | 繼續（信任 agent 的自我判斷）——但 **verdict 原因文字與結束回報必標「未驗證」**（見 `rules/回報協議與read-back綁定.md`「未驗證標示」） |
 
 ## Phase Retry（單一 Phase 失敗時）
 
@@ -170,7 +147,7 @@ Phase loop 中某個 phase gate FAIL 時：
 
 **Worktree 模式的 retry（續作 spawn）**：repair agent 用手動 worktree 協議掛回**既有分支**
 續作——`git worktree add .athena/worktrees/<slug>-<NN>-retry <Worktree Branch>`（分支已
-存在，**不帶 `-b`**）。prompt 照 `worktree-isolation.md`「注入義務」注入主樹絕對路徑、
+存在，**不帶 `-b`**）。prompt 照 `templates/worktree-injection.md` 注入段附加主樹絕對路徑、
 `Main Tree Branch:` 與 `Expected Branch:`（= 掛回的既有分支），repair agent 過 pre-flight
 後修復、commit（PASS 正常格式 / 仍 FAIL 用 `wip:` 前綴）、重跑 gate、更新主樹的
 mini-handoff；flow 收尾 `git worktree remove` + `git worktree prune`。輪數上限沿用 2 輪；
@@ -234,10 +211,13 @@ Flow 依「同時可啟動的 phase 數量」與「預估執行時間落差」�
 
 以 04 完成後可平行的 {05, 06} 為例：
 
-1. 鎖卡與登記：`mv todo/05-*.md doing/ && mv todo/06-*.md doing/`；寫入 flow-context `parallel_phases: 2`
+1. 【下一站預告】（交界首動作）→ 鎖卡與登記：`mv todo/05-*.md doing/ && mv todo/06-*.md doing/`；寫入 flow-context `parallel_phases: 2`
 2. 單一回應送出全部 `Agent(run_in_background=true, …)`
 3. "wait & merge"：完成通知抵達 → 讀對應 mini-handoff → 暫存；任一 phase Gate FAIL → 立即停 phase loop、不再啟動下游
-4. 全部 PASS → Conflict Detection（下節）→ 全部安全 → 各自 commit → `mv doing/ → done/` → 移除 `parallel_phases` 欄位 → 觸發下游 phase（07）
+4. 全部 PASS → 【結束回報】（收斂後先回報，先於 conflict detection 與 merge-back）
+   → Conflict Detection（下節）→ 全部安全 → 各自 commit → `mv doing/ → done/`
+   → 移除 `parallel_phases` 欄位 → 觸發下游 phase（07）；conflict detection 或
+   merge-back 命中衝突 → 依 `rules/回報協議與read-back綁定.md` 再做一次善後回報並停下
 
 > **worktree 模式差異**：第 4 步的「各自 commit」已由各 phase agent 在 worktree 分支完成；
 > flow 在「全部安全」後改執行 merge-back，見 `worktree-isolation.md`「Merge-back 協議」。
@@ -281,22 +261,9 @@ Background 模式下，conflict detection 在「全部完成通知抵達後」�
 
 ## Phase 拓撲彙整（供 emit-trace，選填）
 
-phase loop 收斂後（所有 phase gate 判定與 conflict detection 完成），flow 把並行觀測
-資料彙整起來，供收尾的 emit-trace 步驟填入 build stage 的 `phases` / `conflicts` 欄位
-（schema 見 `run-trace.md`「時間與拓撲欄位」）。資料來源：
-
-| 欄位 | 來源 |
-|------|------|
-| `phases[].id` / `name` | plan.md frontmatter 的 phase 定義 |
-| `phases[].started_at` / `ended_at` | 各 phase mini-handoff 的 `## Timing` 區塊（`Started At:` / `Ended At:`，選填） |
-| `phases[].mode` | flow 自己知道——spawn 該 phase 時用的是 foreground 還是 background 平行 |
-| `phases[].isolation` | flow 自己知道——spawn 該 phase 時用 `"worktree"`（含手動協議）或 `"shared"`（主樹）；選填，缺失即略 |
-| `phases[].parallel_group` | flow 自己知道——同一次回應中一起 spawn 的 phase id 集合（**含自己**）；序列執行的 phase 為 `["<NN>"]` |
-| `phases[].gate` / `retries` | flow 的 gate 判定與 retry 紀錄 |
-| `conflicts[]` | Conflict Detection 的結果：`{"phases":[...],"files":[...],"resolution":"clean"|"user"}` |
-
-規則：**全部選填、缺失即略**——mini-handoff 沒有 Timing 就不帶時間欄位，
-彙整或解析失敗安靜降級，絕不影響 gate 判定、commit 順序或 trace 寫入。
+phase loop 收斂後把並行觀測資料彙整給收尾的 emit-trace（build stage 的
+`phases` / `conflicts` 欄位）。來源對照表與降級規則見 `run-trace-extensions.md`
+「Phase 拓撲彙整」——全部選填、缺失即略，絕不影響 gate 判定、commit 順序或 trace 寫入。
 
 ## Verification Phase Dedup
 

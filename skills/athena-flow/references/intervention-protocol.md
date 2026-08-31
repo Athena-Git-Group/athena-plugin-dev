@@ -19,7 +19,9 @@ artifact 與 git 才是唯一權威**。
 2. 判定某 agent 已失敗 / 已卡死 / 已放棄
 3. 重新 spawn 同一個 stage 或 phase（等同宣告前一個無效）
 4. 把某個 phase 從平行集移除、或改變既定路由
-5. 依「某 agent 的狀態」向使用者做出結論性回報
+5. 依「某 agent 的狀態」向使用者做出結論性回報——**常規回報路徑**的觸發義務與
+   「無法查證」固定句式已搬入 `rules/回報協議與read-back綁定.md`（啟動必讀）；
+   本檔保留干預情境的完整查證階梯，該 rule 據此指回本檔
 
 觸發來源是任何**非該 agent 自己產出的 artifact** 的資訊：使用者轉述、其他 agent
 的回報、orchestrator 自己的推測、逾時感覺。
@@ -93,36 +95,14 @@ status 與 diff 摘要）；**「取不到」＋原因**（**不得留空、不�
 ## C-5 保全紀錄的去處
 
 **不寫成 handoff、不新增檔案**——它是交給使用者那則回報的一段內容，順序固定為
-**白話摘要 → 保全紀錄 → 機械欄位**（見 flow `SKILL.md`「必要輸出」）。
+**白話摘要 → 保全紀錄 → 機械欄位**（見 `rules/回報協議與read-back綁定.md`）。
 每次觸發計一次 `human_interventions`（`run-trace.md` run 層**既有**欄位，照既有語意
 計數）；**不改** run-trace 的 schema、不新增欄位。
 
-## C-6 責任歸屬：orchestrator 永不對 agent 的分支 commit
+## C-6 / C-7 / C-8（壓縮表）
 
-| 情境 | 誰 commit |
-|------|-----------|
-| agent 自己收尾（gate PASS 或 FAIL） | **phase agent**（PASS 正常格式 / FAIL `wip:` 前綴），見 `worktree-isolation.md`「收尾義務」——**不變** |
-| orchestrator 保全（C-2） | **沒有人 commit** — 四項手段皆唯讀查詢，產物是「紀錄」 |
-| 使用者同意中止之後 | **沒有人代為 commit** |
-
-**本協議不新增任何「orchestrator 代替 agent commit」的路徑**——不存在第二套與收尾義務
-競爭同一分支 commit 語意的機制。
-
-## C-7 中止之後一律接續，不重做
-
-- 掛回**既有分支**：`git worktree add .athena/worktrees/<slug>-<NN>-retry <既有分支>`
-  ——分支已存在，**不帶 `-b`**（沿用 `phase-orchestration.md`「Phase Retry」的續作協議，不新增機制）
-- 接續 agent 的 prompt **必須**指明：「分支上已有的 commit 代表**已完成**的工作，
-  從該狀態往下做，**不重做**」
-- **分支保留**：中止不觸發任何分支刪除（與「絕不自動刪未 merge 的分支」同向）
-
-## C-8 沒有使用者可問時（`ci` / `cron` / `inbox`）
-
-human gate 不得因此退化成「那就自己決定」，也不得死鎖：
-
-- **不中止**該 agent（保持現狀，不銷毀任何東西）
-- **停止**該 run，並把 C-4 的三項完整狀態寫進最終回報
-- run 的 `outcome` 用**既有值** `handed-to-human`，handoff 依既有 Retention Policy
-  **保留**（未解 → 保留，供 resume 與 Loop 3）；使用者稍後可據此 resume 並拍板
-
-全部沿用既有機制：**不新增** outcome 值、trigger 值、欄位或檔案。
+| 條款 | 規則 | 關鍵細節 |
+|------|------|---------|
+| **C-6 責任歸屬** | orchestrator **永不**對 agent 的分支 commit | agent 自己收尾照 `worktree-isolation.md`「收尾義務」（PASS 正常格式 / FAIL `wip:` 前綴）**不變**；orchestrator 保全（C-2）四項手段皆唯讀、**沒有人 commit**；使用者同意中止之後也**沒有人代為 commit**——本協議不新增任何「orchestrator 代替 agent commit」的路徑，不存在第二套與收尾義務競爭同一分支 commit 語意的機制 |
+| **C-7 中止之後一律接續** | **不重做** | 掛回**既有分支**：`git worktree add .athena/worktrees/<slug>-<NN>-retry <既有分支>`——分支已存在，**不帶 `-b`**（沿用 `phase-orchestration.md`「Phase Retry」續作協議，不新增機制）；接續 agent 的 prompt **必須**指明「分支上已有的 commit 代表**已完成**的工作，從該狀態往下做，**不重做**」；**分支保留**——中止不觸發任何分支刪除（與「絕不自動刪未 merge 的分支」同向） |
+| **C-8 沒有使用者可問時**（`ci` / `cron` / `inbox`） | human gate 不退化成「自己決定」、也不死鎖 | **不中止**該 agent（保持現狀，不銷毀任何東西）；**停止**該 run，把 C-4 的三項完整狀態寫進最終回報；`outcome` 用**既有值** `handed-to-human`，handoff 依既有 Retention Policy **保留**（未解 → 保留，供 resume 與 Loop 3）——全部沿用既有機制，**不新增** outcome 值、trigger 值、欄位或檔案 |
