@@ -2,7 +2,9 @@
 
 ## 讀取時機
 
-**平行集 ≥ 2 的 spawn 前、以及 phase retry 續作 spawn 前必讀**（Full Weight）。
+**事件驅動**（Full Weight）：worktree spawn 本身只需讀 `templates/worktree-injection.md`
+（注入段全文在該檔）；本檔全檔只在下列事件發生時才讀——**PRE-FLIGHT MISMATCH 回報抵達**、
+**fallback 降級**、**merge-back 收斂**、**crash 清理／phase loop 開工前 prune**。
 序列 phase / 主樹模式與 verify-fix 修復不適用本檔（判準見 D-0 表）。
 Phase loop 本體與 Conflict Detection 見 `phase-orchestration.md`；本檔只管「agent 被送進 worktree」的隔離協議。
 
@@ -49,41 +51,9 @@ post-build（`triggering_stage: verify-fix-phase-<NN>`）執行——全部沿�
 （`agents/athena-stage-build.md` 的鏡射依賴此推論）。漏注入是 **flow 的缺陷**——
 agent 照主樹模式執行即可，不自行補救。
 
-spawn 時在 Agent Prompt（模板見 `phase-orchestration.md`）末尾附加以下段落：
-
-```
-主樹絕對路徑：<main-repo-root>
-Main Tree Branch: <flow 自己的 branch_name>
-Expected Branch: <僅在 flow 自己指定分支名時注入：手動 worktree 協議用 -b 新建的分支名，
-                 或 phase retry 續作掛回的既有分支名。原生 worktree 模式下分支名由 harness
-                 決定、flow 不知道，此行省略>
-
-開工第二步（Pre-Flight 三項健檢，在 Edit 任何程式碼之前先做完並自報實測值）：
-1. 跑 `git branch --show-current`：輸出必須**非空**，且 ≠ 上面的 Main Tree Branch；
-   上面有 Expected Branch 時，必須**等於**它。空輸出（detached HEAD）算不通過
-2. 跑 `pwd`：輸出必須 ≠ 上面的主樹絕對路徑（確認你不在主樹）
-3. Read 兩類路徑各一項：(a) 主樹 artifact——`<main-repo-root>/plans/<slug>/doing/<NN>-<name>.md`
-   （上列任務卡片，加主樹絕對路徑前綴，見下方雙路徑規則）可讀；(b) worktree code——
-   上列 touches.files 中已存在於基線的任一檔案（你 cwd 的相對路徑）可讀。
-   本 phase 全為新建檔案時，此項記 `n/a (all-new)` 即算通過
-
-三項都通過 → 在 mini-handoff 加一行（選填自報，不列入 gate 判定），然後照上面開工：
-Pre-Flight: OK (branch=<實測>, cwd=<實測>, targets=<ok|n/a (all-new)>)
-
-任一項不通過 → **立即停止**：不 Edit、不 Write、不 commit、**不寫 mini-handoff**，
-以 final response 回下列固定格式（多項不符每項一行）後結束：
-PRE-FLIGHT MISMATCH — <branch|cwd|target-file>: expected <X>, actual <Y>
-不要自己修復（不要 `git checkout`、不要換目錄）——修復是 flow 的決策，你只回報。
-
-你在獨立的 git worktree 中工作，雙路徑規則：
-- code 讀寫 → 用你 cwd（worktree）的相對路徑
-- artifact 讀寫 → 上列任務卡片、handoff、spec、mini-handoff 一律改用
-  <main-repo-root>/ 前綴的主樹絕對路徑
-收尾時無論 gate 結果都 commit 到你的 worktree 分支
-（PASS 用 git-conventions 正常格式；FAIL 用 `wip:` 前綴），
-並在 mini-handoff（寫到 <main-repo-root>/handoffs/…）回報
-`Worktree Branch:`（值 = `git branch --show-current` 實測）。
-```
+spawn 時在 Agent Prompt（模板見 `templates/prompt-phase-agent.md`）末尾附加
+`templates/worktree-injection.md` 的注入段全文（逐字，含 pre-flight 三項健檢、
+`PRE-FLIGHT MISMATCH` 固定回報格式、雙路徑規則、收尾 commit 義務；spawn 那一刻才讀該檔）。
 
 ## Pre-Flight 健檢（開工義務，agent 端判準）
 
@@ -98,7 +68,7 @@ PRE-FLIGHT MISMATCH — <branch|cwd|target-file>: expected <X>, actual <Y>
 
 檢查 1 通用條件是「≠ 主樹分支」而非「= 預期分支」，一句理由：原生模式分支名由
 harness 決定、flow 不知道，通用條件只能建立在 flow 一定知道的自己分支（`branch_name`）上。
-通過／不通過的處置（自報行、`PRE-FLIGHT MISMATCH` 固定格式、不得自己修復）見上方注入段。
+通過／不通過的處置（自報行、`PRE-FLIGHT MISMATCH` 固定格式、不得自己修復）見 `templates/worktree-injection.md` 注入段。
 
 不寫 mini-handoff 的兩個機械理由各一句：(1) `hooks/auto-commit.sh` 沒 handoff 就
 no-op，不可能誤 commit；(2) `scripts/render_status.py` 會把 FAIL verdict 染紅成
