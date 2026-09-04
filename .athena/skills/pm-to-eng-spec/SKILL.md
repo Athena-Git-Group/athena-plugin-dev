@@ -3,9 +3,11 @@ name: pm-to-eng-spec
 description: >
   Spec stage 的多 phase 編排 skill：把 PM 需求文件轉成工程化規格——
   score（可譯性 gate）→ clarify（釐清 gate）→ specify（需求結構化 gate，
-  產出 spec.md＝結構層以後的唯一需求真源）→ 結構層（data_model /
+  產出 spec.md＝結構層以後的唯一需求真源）→〔technical_research：條件式，
+  spec_pack.technical_research = run 才跑，缺鍵預設略過〕→ 結構層（data_model /
   class_diagram / db_table 或 screens）→ 契約層（api / ui_contract）→
-  gherkin 規格層。改編自 athena-skills 的 pm-to-eng-flow，已適配
+  ui_prototype（前端 / fullstack 的靜態雛形）→ gherkin 規格層。
+  改編自 athena-skills 的 pm-to-eng-flow，已適配
   athena-flow spec stage 契約：單一 spec agent 內順序執行 phases、
   產出落在 specs/<slug>/、gate verdict 映射為 PASS / FAIL 格式。
   **子 skill——不宣告 stage**，由 team-spec-index 依路由判準 DELEGATE：
@@ -23,7 +25,8 @@ agent 隔離：每個 phase 只讀自己需要的檔案，不把整份 artifact 
 ## 先讀哪些檔（progressive disclosure）
 
 - `points/<slug>.md` — point-report，取需求敘述、slug、verdict
-- `specs/arguments.yml`（若存在）— 取 `spec_pack.target` 與 `spec_pack.frontend_verify`
+- `specs/arguments.yml`（若存在）— 取 `spec_pack.target`、`spec_pack.frontend_verify`
+  與 `spec_pack.technical_research`
 - **不要**預先讀所有 phase 的 SKILL.md——輪到哪個 phase 才 Read `phases/<name>/SKILL.md`
 
 ## 設定解析
@@ -32,6 +35,7 @@ agent 隔離：每個 phase 只讀自己需要的檔案，不把整份 artifact 
 |------|------|--------|
 | `target`（backend / frontend / fullstack） | `specs/arguments.yml` 的 `spec_pack.target` | 從需求文字推斷：出現畫面 / UI / 頁面 / 表單 / 操作流程等字樣 → `fullstack`；否則 `backend`。**推斷結果與依據必須寫進最終 handoff 的 Risks** |
 | `frontend_verify`（mcp / playwright / agent-browser / vitest-testing-library） | `spec_pack.frontend_verify` | 視為未指定；gherkin 仍產 runner-agnostic `.feature`，在 handoff 標注建議機制 |
+| `technical_research`（skip / run） | `spec_pack.technical_research` | **視為 `skip`**——略過 `technical_research` phase：不建目錄、不產 artifact、**不 FAIL**，在最終 handoff 的 Risks 記「未做技術研究，沿用預設棧」。缺鍵預設 `skip` 是「既有專案行為完全不變」的保證：**不得**改成預設 `run`、**不得**用需求文字推斷要不要研究 |
 
 Spec stage 是 headless 執行——**不得**以互動詢問取得設定；缺值一律走上表的
 推斷 + 記錄假設。
@@ -49,10 +53,14 @@ specs/<slug>/
   ├─ clarify/answers.md         # 使用者的回答（由 flow 主對話寫入）
   ├─ specify/spec.md            # Phase 2，開頭含 STATUS；**結構層以後的唯一需求真源**
   ├─ specify/requirements-checklist.md      # Phase 2 規格品質自檢
+  ├─ technical_research/        # 條件式：只在 spec_pack.technical_research = run 時存在
+  │    ├─ research.md           #   研究問題 → 選項 → 判準 → 決策 → 風險
+  │    └─ techstack.md          #   棧宣告；**此檔存在時即為下游的棧真源**
   ├─ design/                    # 【輸入】設計師視覺稿，選用，pack 不寫入
   ├─ data_model/ class_diagram/ db_table/   # 結構層（backend）
   ├─ screens/                               # 結構層（frontend）
   ├─ api/ ui_contract/                      # 契約層
+  ├─ ui_prototype/              # 【輸出】前端 / fullstack 專屬：ui-plan.md + index.html + <screen>.html
   ├─ gherkin/                   # 規格層（fullstack 分 backend/ frontend/）
   └─ handoffs/<stage>.md        # 各 phase 的內部交接便條
 ```
@@ -65,6 +73,10 @@ specs/<slug>/
    （score 看 `score-report.md` 首行 VERDICT、clarify 看 `clarified.md` 首行 STATUS、
    **specify 看 `specify/spec.md` 首行 `STATUS: READY`**）；已完成的 phase **跳過不重跑**。
    這讓 clarify FAIL → 使用者補答 → flow 重跑 spec stage 的迴圈成本最小化。
+   兩個條件式 / 選用 phase 的判定另有規則：**`technical_research` = `skip`（含缺鍵的預設）時
+   永遠視為「已完成（略過）」**，不因缺檔重跑、不因缺檔 FAIL；`= run` 時看
+   `technical_research/research.md` 與 `techstack.md` 是否皆存在非空。
+   **`ui_prototype` 看 `ui_prototype/ui-plan.md` 非空、且該目錄下至少一個 `.html` 非空。**
 1. **準備**——解析設定；把需求原文寫入 `specs/<slug>/source/requirement.md`。
 2. **Phase 0 · score**——Read `phases/score/SKILL.md`，傳入 target 執行。
    讀 `score/score-report.md` 首行 VERDICT：
@@ -86,20 +98,34 @@ specs/<slug>/
    - `NEEDS-CLARIFICATION` → 缺口已由本 phase **追寫**到 `clarify/questions.md`；
      最終 handoff：`FAIL — 待澄清，見 specs/<slug>/clarify/questions.md #spec-gap`，**停止**
    - `READY` → 繼續。**自此之後的所有 phase 一律以 `specify/spec.md` 為需求真源**
-5. **Phase 3–5 · 依 target 走 track**——順序照下表（原版可並行的 phase 在此
+5. **Phase 3 · technical_research（條件式，非 gate）**——依「設定解析」的
+   `technical_research` 取值分流：
+   - `skip`（**含缺鍵的預設**）→ **不執行、不建目錄、不產 artifact、不 FAIL**；
+     在最終 handoff 的 Risks 記「未做技術研究，沿用預設棧」，直接進下一步
+   - `run` → Read `phases/technical_research/SKILL.md` 執行，產
+     `technical_research/research.md` + `technical_research/techstack.md`；
+     兩份任一缺失或為空 → `FAIL — technical_research 產出缺失 #skill-defect`，**停止**
+   - 本階段**不是 gate**：它不擋下游。但一旦產出 `techstack.md`，
+     **下游的技術棧一律以它為準**（見非協商規則 5）
+6. **結構層 → 契約層 → 規格層 · 依 target 走 track**——順序照下表（原版可並行的 phase 在此
    **依序執行**）。每個 phase：Read `phases/<name>/SKILL.md` → 執行 → 確認
    artifact 存在且非空 → 確認內部 handoff 已寫。
 
    | target | 順序 |
    |--------|------|
-   | backend | specify → data_model → class_diagram → db_table → api → gherkin |
-   | frontend | specify → screens → ui_contract → gherkin |
-   | fullstack | specify → data_model → class_diagram → db_table → screens → api → ui_contract → gherkin(backend) → gherkin(frontend) |
+   | backend | specify →〔technical_research〕→ data_model → class_diagram → db_table → api → gherkin |
+   | frontend | specify →〔technical_research〕→ screens → ui_contract → ui_prototype → gherkin |
+   | fullstack | specify →〔technical_research〕→ data_model → class_diagram → db_table → screens → api → ui_contract → ui_prototype → gherkin(backend) → gherkin(frontend) |
+
+   > 〔technical_research〕是**條件式**：只在 `spec_pack.technical_research` = `run` 時執行，
+   > 缺鍵（預設）或 `skip` 時整步略過、不影響 verdict。
+   > `ui_prototype` **只在 frontend / fullstack track** 執行（backend 完全不觸發），
+   > 它也**不是 gate**，但 artifact 缺失時依下方映射表判 FAIL。
 
    > 各 phase 自己的 `SKILL.md` 標題裡的「階段 N」字樣沿用上游 vendored 的舊編號
    > （尚未計入 `specify`），**與本檔的 Phase 編號不對應**。順序與 gate 一律**以本檔為準**。
 
-6. **api phase 的環境前置檢查**——執行前先驗 `command -v python3` 與
+7. **api phase 的環境前置檢查**——執行前先驗 `command -v python3` 與
    `python3 -c "import yaml"`：
    - 缺 → 保留已產出的 `*.intent.yaml`，最終 handoff：`FAIL — api phase 需
      python3 + pyyaml，環境缺失 #env`，明說 openapi.yaml 未產出，**停止**
@@ -107,7 +133,7 @@ specs/<slug>/
    - phases/api 建議的 spec 驗證工具（`openapi-spec-validator` / `npx @redocly/cli`）
      屬**選用**：兩者皆不可用時**跳過驗證、不 FAIL、不觸網安裝**，
      在最終 handoff 的 Risks 記「openapi.yaml 未經 validator 驗證」
-7. **收尾**——寫最終 handoff `handoffs/<slug>-spec.md`（格式見下），
+8. **收尾**——寫最終 handoff `handoffs/<slug>-spec.md`（格式見下），
    Gate Verdict: `PASS`。
 
 ## Gate Verdict 映射（原版語彙 → flow 契約）
@@ -118,6 +144,9 @@ specs/<slug>/
 | clarify 有未解問題 | `FAIL — 待澄清，見 specs/<slug>/clarify/questions.md #spec-gap` |
 | specify `STATUS: NEEDS-CLARIFICATION` | `FAIL — 待澄清，見 specs/<slug>/clarify/questions.md #spec-gap` |
 | `spec.md` 缺失 / 為空 / 首行非 `STATUS: READY` 而下游被觸發 | `FAIL — specify 產出缺失 #skill-defect` |
+| `technical_research` = `run` 但 `research.md` / `techstack.md` 缺失或為空 | `FAIL — technical_research 產出缺失 #skill-defect` |
+| `technical_research` 缺鍵 / `skip`（預設） | **不影響 verdict**（略過即視為完成）；Risks 記「未做技術研究，沿用預設棧」 |
+| frontend / fullstack track 的 `ui_prototype` 產出缺失或為空 | `FAIL — ui_prototype 產出缺失 #skill-defect` |
 | 任一 phase artifact 缺失或為空 | `FAIL — <phase> 產出缺失 #skill-defect` |
 | api transpiler 環境缺失 | `FAIL — 需 python3 + pyyaml #env` |
 | 全部 phase 完成 | `PASS` |
@@ -143,7 +172,8 @@ spec（pm-to-eng-spec，target: <target>）
 
 ## Artifacts Produced
 <逐一列出 specs/<slug>/ 下實際產出的檔案路徑；含 specify/spec.md 與
-specify/requirements-checklist.md>
+specify/requirements-checklist.md；technical_research/ 只在 = run 時列出；
+frontend / fullstack 另含 ui_prototype/ui-plan.md 與各張 .html>
 
 ## Gate Verdict
 <PASS，或 FAIL — 原因 #tag（照上方映射表）>
@@ -151,6 +181,7 @@ specify/requirements-checklist.md>
 ## Risks / Unresolved Issues
 - <score PASS-WITH-GAPS 的缺口>
 - <target / frontend_verify 的推斷假設>
+- <technical_research 略過時（缺鍵或 skip）：未做技術研究，沿用預設棧>
 - <各 phase handoff 標注的範圍外待辦與假設>
 
 ## Next Recommended Stage
@@ -171,9 +202,18 @@ plan
 2. 任一 phase artifact 缺失或為空 → FAIL 停止，不硬闖下一 phase
 3. clarify 不得腦補使用者未給的答案——不確定就寫進 questions.md 走 FAIL 協議
 4. 依 target 走 track，不混跑；backend 結構層 data_model 先於 class_diagram / db_table；
-   fullstack 的 ui_contract 必須在 api 之後。**結構層與其後的 phase 一律以
+   fullstack 的 ui_contract 必須在 api 之後；`ui_prototype` 必須在 `ui_contract`
+   之後、`gherkin` 之前，且 backend track 不執行它。**結構層與其後的 phase 一律以
    `specify/spec.md` 為需求真源，不得回讀 `clarify/clarified.md`**
-5. 前端一律 Nuxt 4 + TypeScript strict，依
-   `phases/pm-to-eng-flow/references/frontend-stack-conventions.md`
+5. 前端棧以 `specs/<slug>/technical_research/techstack.md` 為準；**該檔不存在時**
+   （含 `technical_research` 略過的預設情況）一律 Nuxt 4 + TypeScript strict，依
+   `phases/pm-to-eng-flow/references/frontend-stack-conventions.md`。
+   即：`frontend-stack-conventions.md` 是**預設棧**，不是唯一棧；
+   `techstack.md` 存在時它勝出，不存在時預設棧勝出。預設棧文件本身**不得修改**
+   （vendored）。
 6. 不寫實作程式碼、不越界做 plan 的工作（phase 拆解是下一個 stage 的事）
 7. 最終 handoff 必含 Minimum Contents 六欄；FAIL 必帶 taxonomy tag
+8. `specs/<slug>/design/` 是**輸入**（設計師視覺稿，由人提供、可能不存在）——
+   **pack 的任何 phase 都不得寫入它**。可點擊的雛形一律落在
+   `specs/<slug>/ui_prototype/`（`ui_prototype` phase 的輸出）；兩者不得互換、不得互覆。
+   與稿不一致處標 `待釐清` / `待補設計`，不擅自選邊

@@ -58,7 +58,7 @@ e2e-runner 等）。所以 `.feature` 不綁特定 runner：
   - **成功標準（SC-nnn）**用於覆蓋對照（見完成判準），**不**直接生成場景。
 - 後端：`specs/<slug>/db_table/erm.dbml` + `specs/<slug>/api/openapi.yaml`
   ——openapi 的驗證關鍵字（`minimum`/`maximum`/`minLength`/`pattern`/`enum`/`required`）是**邊界判定值的權威來源**（見 boundary-checklist）。
-- 前端：`specs/<slug>/screens/screen-map.md` + `specs/<slug>/ui_contract/ui-contract.md`（+ `specs/<slug>/api/openapi.yaml` 若存在、+ `specs/<slug>/design/` 視覺原型若有，供視覺斷言）
+- 前端：`specs/<slug>/screens/screen-map.md` + `specs/<slug>/ui_contract/ui-contract.md`（+ `specs/<slug>/api/openapi.yaml` 若存在、+ `specs/<slug>/ui_prototype/` 靜態雛形（ui_prototype phase 的產出，選讀，供視覺斷言）、+ `specs/<slug>/design/` 設計師視覺稿若有，供視覺斷言）
 
 ## 輸出
 
