@@ -6,12 +6,12 @@ description: >
   （Controller / Service / DAO + Entity / DTO），並把複雜需求的物件拆分畫清楚
   （遵循 SRP / OCP）。Entity / DTO 對齊 data_model 的實體；db_table 與本階段平行（同讀 data_model、互不依賴），api 對齊本階段的物件邊界。複雜度比例原則：簡單 CRUD 只畫
   標準三層骨架（或標 N/A 略過），複雜需求才畫出拆分。
-  由 pm-to-eng-flow 在 target = backend / fullstack 時以全新 agent 觸發。前提：clarify 已 RESOLVED、data_model 已產出實體模型。
+  由 pm-to-eng-flow 在 target = backend / fullstack 時以全新 agent 觸發。前提：specify 已 READY、data_model 已產出實體模型。
 ---
 
 # class_diagram · 物件設計模型（階段 2a / 後端 track · 物件設計）
 
-> 流水線位置：score(gate) → clarify(gate) → data_model(實體真相) → **class_diagram**(物件設計) ∥ db_table(持久化) → api → gherkin。
+> 流水線位置：score(gate) → clarify(gate) → specify(gate) → data_model(實體真相) → **class_diagram**(物件設計) ∥ db_table(持久化) → api → gherkin。
 > 對齊 data_model：實體集合的真相在 data_model；本階段把那些實體**拆成三層物件與職責**，不自行增刪實體集合。db_table 與本階段平行、同讀 data_model。
 
 ## 架構：三層式（layered）
@@ -28,14 +28,15 @@ description: >
 - **簡單（CRUD / 單一 Service 就夠）** → 只畫標準三層骨架，或在 handoff 標
   `N/A — 標準三層，無額外拆分`，不硬擠一張低資訊量的圖。
 - **複雜（多分支規則 / 跨實體流程 / 明顯該拆）** → 畫出 SRP/OCP 拆分：哪些 Service、為何拆、介面 / 策略在哪。
-- 複雜度從 clarified.md 判斷（實體數、行為數、規則分支）；可參考 `score/score-report.md` 的維度分數當線索。
+- 複雜度從 spec.md 判斷（實體數、行為數、規則分支）；可參考 `score/score-report.md` 的維度分數當線索。
 
 > 何時拆 / 怎麼抽 / OCP 變化點怎麼認、over-design 反例見 `references/layering-heuristics.md`。
 
 ## 輸入
 
 - `specs/<slug>/data_model/data-model.md`（**實體集合真相**；Entity / DTO 對齊其實體，不自行增刪實體集合）
-- `specs/<slug>/clarify/clarified.md`（行為 / 規則細節；STATUS 必須為 RESOLVED）
+- `specs/<slug>/specify/spec.md`（行為 / 規則細節；首行 STATUS 必須為 READY）——
+  其故事專屬 FR / NFR、全域需求與邊界情況即行為與規則的真相
 - `specs/<slug>/score/score-report.md`（選讀，當複雜度線索）
 
 ## 輸出
@@ -85,8 +86,11 @@ description: >
 
 ## 非協商規則
 
-1. 依 data_model（實體集合）與 clarified.md（行為 / 規則）設計，不擴張需求未提及的物件、不自行增刪 data_model 的實體集合。
+1. 依 data_model（實體集合）與 spec.md（行為 / 規則）設計，不擴張需求未提及的物件、不自行增刪 data_model 的實體集合。
 2. **遵循團隊三層式架構**（Controller / Service / DAO）；邏輯放 Service 是常態，不為「充血」硬把邏輯塞進 Entity。
 3. **拆分服務於 SRP / OCP**，不為拆而拆；簡單需求不過度設計。
-4. clarified.md 的 STATUS 非 RESOLVED 時，回報並中止。
+4. `specify/spec.md` 的 STATUS 非 READY 時，回報並中止。
 5. 探索既有 codebase 時優先用 graphify；探索結果回頭跟使用者確認，不擅自當定論。
+6. `specs/<slug>/specify/spec.md` **缺失、為空、或首行非 `STATUS: READY`** 時，**回報並中止**——
+   **不得**改讀 `clarify/` 的訪談產出、**不得**回頭讀 `source/requirement.md` 自行腦補、
+   **不得**產出空 artifact 後宣告完成。

@@ -2,12 +2,12 @@
 
 > 完整成品示範，呼應後端 gherkin 的訂單退款例子。實際產出寫到 `specs/<slug>/screens/screen-map.md`。
 > 前端棧 Nuxt 4：route = `pages/` 檔案式路由（`/orders` → `pages/orders/index.vue`、`/orders/:id` → `pages/orders/[id].vue`），導航 = `navigateTo` / `<NuxtLink>`。
-> 本例假設 `design/` 有 Claude Design 視覺稿；畫面與元素以稿為準，行為 / 權限以 clarified.md 為準，**UX flow 以稿為準**——下方導航圖作為畫面 ↔ route 的對照地圖。
+> 本例假設 `design/` 有 Claude Design 視覺稿；畫面與元素以稿為準，行為 / 權限以 `specify/spec.md` 為準，**UX flow 以稿為準**——下方導航圖作為畫面 ↔ route 的對照地圖。
 
 ## 來源對照
 
 - 視覺稿：`design/order-list.html`、`design/order-detail.html`、`design/refund-dialog.html`
-- 行為真相：`clarify/clarified.md`（退款規則、權限：僅客服可退款、狀態機）
+- 行為真相：`specify/spec.md`（退款規則、權限：僅客服可退款、狀態機）
 
 ## 1. 畫面清單
 
@@ -73,4 +73,4 @@ flowchart LR
 
 - 退款做成 modal 而非獨立頁（沿用視覺稿）。
 - 退款入口的「可見」(權限) 與「可點」(狀態機) 是兩層條件，下游 gherkin 各寫場景。
-- 列表分頁細節（每頁筆數）未在 clarified.md 定義 → 標 `待釐清` 回報。
+- 列表分頁細節（每頁筆數）未在 spec.md 定義 → 標 `待釐清` 回報。

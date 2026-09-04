@@ -9,7 +9,7 @@ description: >
 
 # clarify · 需求釐清（階段 1 / gate）
 
-> 流水線位置：score(gate) → **clarify(gate)** → 結構層 → 契約層 → 規格層。
+> 流水線位置：score(gate) → **clarify(gate)** → specify(gate) → 結構層 → 契約層 → 規格層。
 > 這是第二道 gate（score 評分通過後）。在本階段判定 RESOLVED 之前，下游結構層 / 契約層 /
 > 規格層一律不得啟動。釐清需求是後續一切轉換的前提。
 > **本階段前後端共用（target 無關）**；target 只影響上游 score 的 rubric 與下游走哪條 track。
@@ -42,6 +42,14 @@ description: >
     - **範例資料**：每個核心實體 ≥3 筆真實具體資料（見完成判準「範例資料」）。
     - **邊界**：每條規則把界線寫成**帶具體觸發值**的條目（如「退款金額上限 = 訂單金額；1001 應拒」），而非抽象敘述——讓 gherkin 能直接寫 `例子` 列、不必再猜。
 - `specs/<slug>/handoffs/clarify.md`（依 handoff-contract）
+
+> **本檔的定位（Q3 = B 之後）**：`clarified.md` 是 `specify` phase 的**輸入**，
+> 由它收斂成 `specs/<slug>/specify/spec.md`。**結構層以後的 phase**
+> （data_model / class_diagram / db_table / screens / api / ui_contract / gherkin）
+> 一律以 `specify/spec.md` 為需求真源，**不直接讀本檔**。
+> 本階段的**輸出格式與完成判準不變**——變的只是「誰讀它」；
+> 上面列的「範例資料」與「邊界」兩段仍要寫成可直接落地的形態，
+> 因為 `specify` 有義務把它們**逐筆無損搬進** `spec.md` 餵給 gherkin。
 
 ## 執行步驟
 

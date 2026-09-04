@@ -5,7 +5,7 @@
 
 本版 .feature 的三個設計理念（與一般 BDD 的差異）：
 
-1. **Spec by Example** — 每個場景用 **clarified.md 的真實範例資料**寫具體值，不寫抽象斷言（見 §4）。
+1. **Spec by Example** — 每個場景用 **`specify/spec.md`「資料維度與範例資料」段的真實範例資料**寫具體值，不寫抽象斷言（見 §4）。
 2. **邊界優先（QA shift-left）** — 邊界 / 錯誤情境是第一級公民，**排在 happy path 之前**（見 §5）。
 3. **善用 Scenario Outline** — 同一規則的多個案例（正常 + 邊界 + 錯誤）收進 Examples 表（見 `scenario-outline-guide.md`）。
 
@@ -44,13 +44,13 @@ zh-TW 關鍵字對照（只用這些，混用英文中文會 parse 失敗）：
 | 層級 | 對應 | 一句話 |
 |---|---|---|
 | `功能` Feature | 一個業務能力（通常對齊一個 endpoint 群 / 一個畫面流程） | 「使用者能做的一件事」 |
-| `Rule` | 該能力下的一條業務規則 | clarified.md 的一條「規則 / 驗收條件」 |
+| `Rule` | 該能力下的一條業務規則 | spec.md 的一條 FR / 全域需求 / 邊界情況 |
 | `場景` Scenario | 規則的一個具體案例 | 一筆真實資料走一遍 |
 
 切分準則：
-- **一條 clarified.md 的規則 → 一個 `Rule` 區塊**；規則底下放它的正常 / 邊界 / 錯誤場景。
+- **一條 spec.md 的 FR / 全域需求 → 一個 `Rule` 區塊**；規則底下放它的正常 / 邊界 / 錯誤場景。
 - 規則有多個資料案例 → 收進 `場景大綱` + `例子`（見 `scenario-outline-guide.md`），不要複製貼上多個 `場景`。
-- Feature 開頭寫一段 `角色 + 目標 + 效益`（As / I want / So that）的中文敘述，對齊 clarified.md 的業務目標。
+- Feature 開頭寫一段 `角色 + 目標 + 效益`（As / I want / So that）的中文敘述，對齊 spec.md 的使用者故事與成功標準。
 
 ---
 
@@ -77,11 +77,11 @@ zh-TW 關鍵字對照（只用這些，混用英文中文會 parse 失敗）：
 
 | 值的角色 | 來源 | 缺了怎麼辦 |
 |---|---|---|
-| **判定值**（決定通過 / 失敗：金額上限、enum 值、長度邊界、狀態） | clarified.md 的範例資料 / 規則；openapi.yaml 的 `minimum`/`maximum`/`enum`/`pattern`/`maxLength` | **不自編** → 標 `# 待釐清:<缺什麼>` 並寫進 handoff 回饋（見 §7、`boundary-checklist.md`） |
+| **判定值**（決定通過 / 失敗：金額上限、enum 值、長度邊界、狀態） | spec.md 的範例資料 / FR；openapi.yaml 的 `minimum`/`maximum`/`enum`/`pattern`/`maxLength` | **不自編** → 標 `# 待釐清:<缺什麼>` 並寫進 handoff 回饋（見 §7、`boundary-checklist.md`） |
 | **點綴值**（不影響判定：人名、訂單編號、時間戳） | 可用擬真代表值（`王小明`、`ORD-001`、`2026-06-17`） | 直接用擬真值即可 |
 
-- clarified.md 完成判準要求 PM 對每個核心實體至少給 3 筆真實範例資料（見 `../../clarify/SKILL.md` §範例資料）——**那批資料就是本階段 Examples 表的素材來源**。
-- 判定值務必能在 handoff 的覆蓋矩陣裡回指到來源（`clarified.md#規則X` 或 `openapi.yaml#Order.amount.maximum`）。
+- `specify/spec.md` 的「資料維度與範例資料」段承載了每個核心實體至少 3 筆真實範例資料（承載義務見 `../../specify/references/spec-structure.md` §6）——**那批資料就是本階段 Examples 表的素材來源**。
+- 判定值務必能在 handoff 的覆蓋矩陣裡回指到來源（`spec.md#FR-00X` 或 `openapi.yaml#Order.amount.maximum`）。
 - ✅ `假設 訂單 ORD-001 的金額為 1000 元`
 - ❌ `假設 有一張金額合理的訂單`（抽象、無法執行、AI 會各自腦補）
 
@@ -100,7 +100,7 @@ zh-TW 關鍵字對照（只用這些，混用英文中文會 parse 失敗）：
 為什麼把邊界往前：
 - 邊界是**最常暴露需求未定義**之處。先寫邊界，能在最早期逼出「PM 沒講清楚的規則」→ 立刻回饋（§7），而不是等實作到一半才發現。
 - 下游 red/green 的 AI 一打開 .feature 就看到邊界，實作時**邊界條件先明確**，不會只做 happy path。
-- 邊界清單由 `boundary-checklist.md` 逐類產生，對齊 openapi 驗證關鍵字與 clarified.md 狀態機。
+- 邊界清單由 `boundary-checklist.md` 逐類產生，對齊 openapi 驗證關鍵字與 spec.md 狀態機。
 
 > Scenario Outline 的 `例子` 表內也照此精神：邊界列與錯誤列排在正常列之前，並用標籤分群（`@boundary` / `@error` / `@happy`），見 `scenario-outline-guide.md`。
 
@@ -120,11 +120,11 @@ zh-TW 關鍵字對照（只用這些，混用英文中文會 parse 失敗）：
 
 ## 7. 缺則回報 · 不腦補（與上游的迴圈）
 
-寫場景時若發現**需求沒定義的邊界 / 規則 / 值**（例：「退款金額上限是多少？clarified.md 沒寫」）：
+寫場景時若發現**需求沒定義的邊界 / 規則 / 值**（例：「退款金額上限是多少？spec.md 沒寫」）：
 
 1. **不要自己填一個數字**（違反「絕不腦補」）。
 2. 把該場景標 `@待釐清`，步驟內用 `# 待釐清:<具體問題>` 註記。
-3. 在 `handoffs/gherkin.md` 的「回饋訊號」段列出這些缺口（PM-friendly 問句），交由編排器決定：補進 clarified.md 後重跑本階段，或回退 clarify。
+3. 在 `handoffs/gherkin.md` 的「回饋訊號」段列出這些缺口（PM-friendly 問句），交由編排器決定：補進 `specify/spec.md` 後重跑本階段，或回退 clarify → specify。
 
 > 這就是「邊界探索 shift-left」的迴圈：邊界優先 → 暴露缺口 → 回饋上游 → 釘死後落地。詳見 `boundary-checklist.md` §缺則回報。
 

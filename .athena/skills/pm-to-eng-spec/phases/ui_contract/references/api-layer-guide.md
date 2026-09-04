@@ -42,11 +42,11 @@
 
 ## 3. Fixtures 清單（測試 / MSW 假資料）
 
-每個核心資源備正常 + 邊界 + 錯誤 fixture，**取自 clarified.md 範例資料**（接上 Spec by Example）：
+每個核心資源備正常 + 邊界 + 錯誤 fixture，**取自 `specify/spec.md`「資料維度與範例資料」段**（接上 Spec by Example）：
 
 | fixture | 用途 |
 |---|---|
-| `orders.normal` | 列表 success 態（≥3 筆，來自 clarified.md 範例） |
+| `orders.normal` | 列表 success 態（≥3 筆，來自 spec.md 範例資料） |
 | `orders.empty` | 列表 empty 態（空陣列） |
 | `order.refundable` | 詳情：狀態=已付款、可退款 |
 | `order.alreadyRefunded` | 詳情：狀態=已退款（重複退款測試） |
@@ -66,7 +66,7 @@
 
 ## 5. ✅ / ❌
 
-- ✅ client 對齊 operationId、typed（`$fetch<T>` / 回傳 `z.infer`）；Zod 約束搬自 openapi；fixtures 取自 clarified.md 範例。
+- ✅ client 對齊 operationId、typed（`$fetch<T>` / 回傳 `z.infer`）；Zod 約束搬自 openapi；fixtures 取自 spec.md 範例資料。
 - ✅ handler 覆蓋成功 + 錯誤碼分支。
 - ✅ handoff 標明「規劃，非實作」+ Nuxt 4 ↔ 下游（Next/React）棧差異。
 - ❌ 在這階段寫真正的 `.ts` 程式碼（那是下游實作）。

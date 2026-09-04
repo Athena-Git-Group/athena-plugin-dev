@@ -7,17 +7,17 @@ description: >
   前端（步驟描述畫面互動，對齊 screens + ui_contract）。產出的 .feature 是 runner-agnostic，
   下游用哪個機制驗證由 arguments.yml 的 frontend_verify 決定（mcp / playwright / agent-browser / vitest）。
   由 pm-to-eng-flow 編排器以全新 agent 觸發，也可獨立使用。
-  前提：clarify 已 RESOLVED、對應 track 的上游 artifact 已產出。
+  前提：specify 已 READY、對應 track 的上游 artifact 已產出。
 ---
 
 # gherkin · 可執行規格（階段 4 / 終點）
 
-> 流水線位置：score(gate) → clarify(gate) → 結構層 → 契約層 → **gherkin**。
+> 流水線位置：score(gate) → clarify(gate) → specify(gate) → 結構層 → 契約層 → **gherkin**。
 > 前後端共用同一 stage，依 target 走不同變體。
 
 ## 本版三理念（與一般 BDD 的差異）
 
-1. **Spec by Example** — 每個場景用 clarified.md 的**真實範例資料**寫具體值，不寫抽象斷言。抹消「合理金額」這類各自腦補的模糊，下游 red/green 的 AI 才有確定輸入。
+1. **Spec by Example** — 每個場景用 spec.md「資料維度與範例資料」段的**真實範例資料**寫具體值，不寫抽象斷言。抹消「合理金額」這類各自腦補的模糊，下游 red/green 的 AI 才有確定輸入。
 2. **邊界優先（QA shift-left）** — 邊界 / 錯誤情境是第一級公民，**排在 happy path 之前**。用「寫測試」的動作去稽核需求完整度，最早期逼出 PM 沒講清楚的規則。
 3. **善用場景大綱** — 同規則的多案例（正常 + 邊界 + 錯誤）收進 `場景大綱` + `例子`，資料驅動。
 
@@ -52,9 +52,10 @@ e2e-runner 等）。所以 `.feature` 不綁特定 runner：
 
 ## 輸入
 
-- `specs/<slug>/clarify/clarified.md`（共用）——**特別是其「範例資料」與「邊界」段**：
+- `specs/<slug>/specify/spec.md`（共用；首行 STATUS 必須為 READY）——**特別是其「資料維度與範例資料」與「邊界情況」段**：
   - **範例資料**（每個核心實體 ≥3 筆真實資料）是 Spec by Example 的素材來源，直接餵進 `例子` 表。
-  - **邊界 / 規則 / 狀態轉移 / 唯一性**是邊界優先場景的依據。
+  - **邊界情況 / FR / 狀態轉移 / 唯一性**是邊界優先場景的依據。
+  - **成功標準（SC-nnn）**用於覆蓋對照（見完成判準），**不**直接生成場景。
 - 後端：`specs/<slug>/db_table/erm.dbml` + `specs/<slug>/api/openapi.yaml`
   ——openapi 的驗證關鍵字（`minimum`/`maximum`/`minLength`/`pattern`/`enum`/`required`）是**邊界判定值的權威來源**（見 boundary-checklist）。
 - 前端：`specs/<slug>/screens/screen-map.md` + `specs/<slug>/ui_contract/ui-contract.md`（+ `specs/<slug>/api/openapi.yaml` 若存在、+ `specs/<slug>/design/` 視覺原型若有，供視覺斷言）
@@ -68,11 +69,11 @@ e2e-runner 等）。所以 `.feature` 不綁特定 runner：
 
 ## 執行步驟
 
-1. **讀齊輸入** — clarified.md（重點：範例資料 + 邊界 / 規則 / 狀態轉移 / 唯一性）、對應 track 的上游契約（後端 openapi.yaml + erm.dbml；前端 screen-map + ui-contract）。缺必要 artifact → 回報並中止。
-2. **切分 Feature / Rule** — 一個業務能力一個 `功能`；clarified.md 的每條規則一個 `Rule` 區塊。Feature 開頭寫「角色 + 目標 + 效益」。（細則：`gherkin-guide.md` §2）
-3. **每條規則先掃邊界（QA shift-left）** — 用 `boundary-checklist.md` 逐類掃出該規則**真正存在**的邊界 / 錯誤點（值域、長度、必填、enum、格式、業務驗證、狀態機非法轉移、唯一鍵、不存在…），判定值對齊 openapi 驗證關鍵字與 clarified.md。
+1. **讀齊輸入** — `specify/spec.md`（重點：資料維度與範例資料 + 邊界情況 / FR / 狀態轉移 / 唯一性）、對應 track 的上游契約（後端 openapi.yaml + erm.dbml；前端 screen-map + ui-contract）。缺必要 artifact → 回報並中止。
+2. **切分 Feature / Rule** — 一個業務能力一個 `功能`；spec.md 的每條 FR / 全域需求一個 `Rule` 區塊。Feature 開頭寫「角色 + 目標 + 效益」。（細則：`gherkin-guide.md` §2）
+3. **每條規則先掃邊界（QA shift-left）** — 用 `boundary-checklist.md` 逐類掃出該規則**真正存在**的邊界 / 錯誤點（值域、長度、必填、enum、格式、業務驗證、狀態機非法轉移、唯一鍵、不存在…），判定值對齊 openapi 驗證關鍵字與 spec.md。
 4. **寫場景，邊界 / 錯誤排前** — 同步驟、只有值在變的多案例 → `場景大綱` + `例子`（邊界 / 錯誤列在前，標 `@error`/`@boundary`/`@happy`）；步驟結構不同的錯誤路徑 → 各寫獨立 `場景`。（`scenario-outline-guide.md`）
-5. **填具體值（Spec by Example，嚴格溯源）** — 判定值取自 clarified.md 範例資料 / openapi 約束，**不自編**；點綴值可用擬真值。每個判定值記下來源供覆蓋矩陣回指。（`gherkin-guide.md` §4）
+5. **填具體值（Spec by Example，嚴格溯源）** — 判定值取自 spec.md「資料維度與範例資料」段 / openapi 約束，**不自編**；點綴值可用擬真值。每個判定值記下來源供覆蓋矩陣回指。（`gherkin-guide.md` §4）
 6. **缺則回報，不腦補** — 掃邊界時若遇需求未定義的規則 / 值：場景標 `@待釐清` + `# 待釐清:<問題>`，**不填值**，列入 handoff 的「回饋訊號」段。（`gherkin-guide.md` §7）
 7. **Given/When/Then 對齊上游、措辭 runner-agnostic** — 後端對 openapi 請求/回應 + erm.dbml 實體狀態；前端對 screen-map 畫面/導航 + ui-contract 互動。用使用者行為措辭，不寫死 runner API。每支 .feature 第一行 `# language: zh-TW`。
 8. **輸出 .feature + handoff** — handoff 含：覆蓋矩陣（規則 × 場景 × 來源）、未覆蓋項、**回饋訊號（待釐清缺口，PM-friendly 問句）**、前端標注建議 `frontend_verify` 機制。
@@ -80,19 +81,23 @@ e2e-runner 等）。所以 `.feature` 不綁特定 runner：
 ## 完成判準
 
 - [ ] 每支 .feature 第一行為 `# language: zh-TW`，關鍵字全用 zh-TW（見 `gherkin-guide.md` §1）。
-- [ ] clarified.md 每條規則至少有一個對應 `Rule` 區塊與場景。
+- [ ] spec.md 每條 FR / 全域需求至少有一個對應 `Rule` 區塊與場景。
 - [ ] 每條規則的邊界 / 錯誤路徑已依 `boundary-checklist.md` 掃過，且**排在 happy path 之前**。
-- [ ] 場景中的判定值皆具體且可溯源（clarified.md 範例 / openapi 約束）——**無抽象值、無自編判定值**。
+- [ ] 場景中的判定值皆具體且可溯源（spec.md 範例資料 / openapi 約束）——**無抽象值、無自編判定值**。
 - [ ] 同步驟多案例用 `場景大綱` + `例子`，未用複製貼上的多個 `場景`。
 - [ ] 每個場景：單一 `當`、可驗證的 `那麼`、措辭 runner-agnostic。
 - [ ] 步驟可對應上游 artifact（後端：endpoint / 實體；前端：畫面 / 互動）。
 - [ ] 需求未定義的邊界已標 `@待釐清` 並列入 handoff 回饋訊號——**未自行填值**。
+- [ ] **spec.md 的每個 `SC-nnn` 至少被一個 `Rule` 區塊涵蓋，或在 handoff 明列「本階段不涵蓋 + 理由」。**
 - [ ] handoff 含覆蓋矩陣、未覆蓋項、回饋訊號。
 
 ## 非協商規則
 
 1. **絕不腦補** — 場景只描述需求已定義的行為；遇未定義的規則 / 邊界 / 判定值，標 `@待釐清` 回饋，**不杜撰、不自填值**。
-2. **判定值必溯源** — 影響通過 / 失敗的值必須回指 clarified.md 範例或 openapi 約束；點綴值才可用擬真值。
+2. **判定值必溯源** — 影響通過 / 失敗的值必須回指 spec.md 的範例資料或 openapi 約束；點綴值才可用擬真值。
 3. **邊界優先** — 每條規則的邊界 / 錯誤場景排在 happy path 之前，不得只寫 happy path。
 4. 缺少對應 track 的必要上游 artifact 時，回報並中止。
 5. `.feature` 維持 runner-agnostic（步驟用使用者行為措辭，不綁特定 runner API）。
+6. `specs/<slug>/specify/spec.md` **缺失、為空、或首行非 `STATUS: READY`** 時，**回報並中止**——
+   **不得**改讀 `clarify/` 的訪談產出、**不得**回頭讀 `source/requirement.md` 自行腦補、
+   **不得**產出空 artifact 後宣告完成。

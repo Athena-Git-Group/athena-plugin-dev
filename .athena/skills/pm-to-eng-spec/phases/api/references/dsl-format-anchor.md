@@ -35,7 +35,7 @@ exposes:
     - { name: apply_refund, method: POST, path: "/{id}/apply-refund" }
 
 source_evidence:
-  - "clarify/clarified.md#訂單可被退款"
+  - "specify/spec.md#FR-訂單可被退款"
   - "db_table/erm.dbml#Table:Order"
 ```
 

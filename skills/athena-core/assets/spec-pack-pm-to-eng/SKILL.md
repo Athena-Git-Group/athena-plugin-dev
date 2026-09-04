@@ -2,7 +2,8 @@
 name: pm-to-eng-spec
 description: >
   Spec stage 的多 phase 編排 skill：把 PM 需求文件轉成工程化規格——
-  score（可譯性 gate）→ clarify（釐清 gate）→ 結構層（data_model /
+  score（可譯性 gate）→ clarify（釐清 gate）→ specify（需求結構化 gate，
+  產出 spec.md＝結構層以後的唯一需求真源）→ 結構層（data_model /
   class_diagram / db_table 或 screens）→ 契約層（api / ui_contract）→
   gherkin 規格層。改編自 athena-skills 的 pm-to-eng-flow，已適配
   athena-flow spec stage 契約：單一 spec agent 內順序執行 phases、
@@ -41,13 +42,16 @@ Spec stage 是 headless 執行——**不得**以互動詢問取得設定；缺�
 specs/<slug>/
   ├─ source/requirement.md      # 需求原文（自 point-report 抄錄，不可變）
   ├─ score/score-report.md      # Phase 0，開頭含 VERDICT
-  ├─ clarify/clarified.md       # Phase 1，開頭含 STATUS
-  ├─ clarify/questions.md       # Phase 1 待澄清問題（headless 協議，見下）
+  ├─ clarify/clarified.md       # Phase 1，開頭含 STATUS（**specify 的輸入**）
+  ├─ clarify/questions.md       # 待澄清問題（headless 協議；clarify 與 specify 共用此檔）
   ├─ clarify/answers.md         # 使用者的回答（由 flow 主對話寫入）
-  ├─ data_model/ class_diagram/ db_table/   # Phase 2（backend）
-  ├─ screens/                   # Phase 2（frontend）
-  ├─ api/ ui_contract/          # Phase 3
-  ├─ gherkin/                   # Phase 4（fullstack 分 backend/ frontend/）
+  ├─ specify/spec.md            # Phase 2，開頭含 STATUS；**結構層以後的唯一需求真源**
+  ├─ specify/requirements-checklist.md      # Phase 2 規格品質自檢
+  ├─ design/                    # 【輸入】設計師視覺稿，選用，pack 不寫入
+  ├─ data_model/ class_diagram/ db_table/   # 結構層（backend）
+  ├─ screens/                               # 結構層（frontend）
+  ├─ api/ ui_contract/                      # 契約層
+  ├─ gherkin/                   # 規格層（fullstack 分 backend/ frontend/）
   └─ handoffs/<stage>.md        # 各 phase 的內部交接便條
 ```
 
@@ -56,7 +60,8 @@ specs/<slug>/
 ## 執行程序
 
 0. **斷點續跑檢查**——逐 phase 檢查 artifact 是否已存在且非空、gate 是否已過
-   （score 看 VERDICT、clarify 看 STATUS）；已完成的 phase **跳過不重跑**。
+   （score 看 `score-report.md` 首行 VERDICT、clarify 看 `clarified.md` 首行 STATUS、
+   **specify 看 `specify/spec.md` 首行 `STATUS: READY`**）；已完成的 phase **跳過不重跑**。
    這讓 clarify FAIL → 使用者補答 → flow 重跑 spec stage 的迴圈成本最小化。
 1. **準備**——解析設定；把需求原文寫入 `specs/<slug>/source/requirement.md`。
 2. **Phase 0 · score**——Read `phases/score/SKILL.md`，傳入 target 執行。
@@ -73,17 +78,26 @@ specs/<slug>/
       預設選項與影響說明），最終 handoff：`FAIL — 待使用者澄清，見
       specs/<slug>/clarify/questions.md #spec-gap`，**停止**。flow 會回報使用者；
       使用者的回答由主對話寫入 `clarify/answers.md` 後重跑 spec stage
-4. **Phase 2–4 · 依 target 走 track**——順序照下表（原版可並行的 phase 在此
+4. **Phase 2 · specify（需求結構化 gate）**——Read `phases/specify/SKILL.md`，
+   把 `clarify/clarified.md` 收斂成 `specs/<slug>/specify/spec.md`。
+   讀 `spec.md` 首行 STATUS：
+   - `NEEDS-CLARIFICATION` → 缺口已由本 phase **追寫**到 `clarify/questions.md`；
+     最終 handoff：`FAIL — 待澄清，見 specs/<slug>/clarify/questions.md #spec-gap`，**停止**
+   - `READY` → 繼續。**自此之後的所有 phase 一律以 `specify/spec.md` 為需求真源**
+5. **Phase 3–5 · 依 target 走 track**——順序照下表（原版可並行的 phase 在此
    **依序執行**）。每個 phase：Read `phases/<name>/SKILL.md` → 執行 → 確認
    artifact 存在且非空 → 確認內部 handoff 已寫。
 
    | target | 順序 |
    |--------|------|
-   | backend | data_model → class_diagram → db_table → api → gherkin |
-   | frontend | screens → ui_contract → gherkin |
-   | fullstack | data_model → class_diagram → db_table → screens → api → ui_contract → gherkin(backend) → gherkin(frontend) |
+   | backend | specify → data_model → class_diagram → db_table → api → gherkin |
+   | frontend | specify → screens → ui_contract → gherkin |
+   | fullstack | specify → data_model → class_diagram → db_table → screens → api → ui_contract → gherkin(backend) → gherkin(frontend) |
 
-5. **api phase 的環境前置檢查**——執行前先驗 `command -v python3` 與
+   > 各 phase 自己的 `SKILL.md` 標題裡的「階段 N」字樣沿用上游 vendored 的舊編號
+   > （尚未計入 `specify`），**與本檔的 Phase 編號不對應**。順序與 gate 一律**以本檔為準**。
+
+6. **api phase 的環境前置檢查**——執行前先驗 `command -v python3` 與
    `python3 -c "import yaml"`：
    - 缺 → 保留已產出的 `*.intent.yaml`，最終 handoff：`FAIL — api phase 需
      python3 + pyyaml，環境缺失 #env`，明說 openapi.yaml 未產出，**停止**
@@ -91,7 +105,7 @@ specs/<slug>/
    - phases/api 建議的 spec 驗證工具（`openapi-spec-validator` / `npx @redocly/cli`）
      屬**選用**：兩者皆不可用時**跳過驗證、不 FAIL、不觸網安裝**，
      在最終 handoff 的 Risks 記「openapi.yaml 未經 validator 驗證」
-6. **收尾**——寫最終 handoff `handoffs/<slug>-spec.md`（格式見下），
+7. **收尾**——寫最終 handoff `handoffs/<slug>-spec.md`（格式見下），
    Gate Verdict: `PASS`。
 
 ## Gate Verdict 映射（原版語彙 → flow 契約）
@@ -100,6 +114,8 @@ specs/<slug>/
 |------|--------------------------|
 | score VERDICT = `BLOCKED` | `FAIL — 需求可譯性不足（score BLOCKED），退回 PM 補件 #spec-gap` |
 | clarify 有未解問題 | `FAIL — 待澄清，見 specs/<slug>/clarify/questions.md #spec-gap` |
+| specify `STATUS: NEEDS-CLARIFICATION` | `FAIL — 待澄清，見 specs/<slug>/clarify/questions.md #spec-gap` |
+| `spec.md` 缺失 / 為空 / 首行非 `STATUS: READY` 而下游被觸發 | `FAIL — specify 產出缺失 #skill-defect` |
 | 任一 phase artifact 缺失或為空 | `FAIL — <phase> 產出缺失 #skill-defect` |
 | api transpiler 環境缺失 | `FAIL — 需 python3 + pyyaml #env` |
 | 全部 phase 完成 | `PASS` |
@@ -124,7 +140,8 @@ spec（pm-to-eng-spec，target: <target>）
 - specs/arguments.yml（或「缺，target 由需求推斷」）
 
 ## Artifacts Produced
-<逐一列出 specs/<slug>/ 下實際產出的檔案路徑>
+<逐一列出 specs/<slug>/ 下實際產出的檔案路徑；含 specify/spec.md 與
+specify/requirements-checklist.md>
 
 ## Gate Verdict
 <PASS，或 FAIL — 原因 #tag（照上方映射表）>
@@ -147,11 +164,13 @@ plan
 
 ## 非協商規則
 
-1. score BLOCKED 不得進 clarify；clarify 未 RESOLVED 不得進結構層（兩道 gate 沿用原版）
+1. **三道 gate**：score BLOCKED 不得進 clarify；clarify 未 RESOLVED 不得進 specify；
+   **specify 未 READY 不得進結構層**
 2. 任一 phase artifact 缺失或為空 → FAIL 停止，不硬闖下一 phase
 3. clarify 不得腦補使用者未給的答案——不確定就寫進 questions.md 走 FAIL 協議
 4. 依 target 走 track，不混跑；backend 結構層 data_model 先於 class_diagram / db_table；
-   fullstack 的 ui_contract 必須在 api 之後
+   fullstack 的 ui_contract 必須在 api 之後。**結構層與其後的 phase 一律以
+   `specify/spec.md` 為需求真源，不得回讀 `clarify/clarified.md`**
 5. 前端一律 Nuxt 4 + TypeScript strict，依
    `phases/pm-to-eng-flow/references/frontend-stack-conventions.md`
 6. 不寫實作程式碼、不越界做 plan 的工作（phase 拆解是下一個 stage 的事）

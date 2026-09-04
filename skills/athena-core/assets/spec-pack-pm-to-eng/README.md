@@ -9,12 +9,16 @@
 
 ```
 PM 需求 → score（可譯性 gate）→ clarify（釐清 gate）
+        → specify（需求結構化 gate → specify/spec.md）
         → 結構層（data_model / class_diagram / db_table ∣ screens）
         → 契約層（api → openapi.yaml ∣ ui_contract）
         → gherkin（可執行 .feature 規格）
 ```
 
 產出全部落在 `specs/<slug>/`，最終 handoff 寫 `handoffs/<slug>-spec.md`。
+
+`specify/spec.md` 是**結構層與其後所有 phase 的唯一需求真源**；
+`clarify/clarified.md` 是 `specify` 的輸入，結構層之後不再被直接讀取。
 
 ## 安裝（選用——**不裝也會用到**）
 
@@ -71,3 +75,7 @@ spec_pack:
 - 原版可並行的 phase（class_diagram ∥ db_table、fullstack 雙 gherkin）在
   spec stage shell 內**依序執行**（shell 無 Agent 工具）。
 - 來源與同步方式見 `VENDORED.md`。
+- **授權與概念來源**：本 pack 多數 phase vendored 自內部 athena-skills；
+  `specify` 等 plugin 原創 phase 的判準借鑑自 CH3-SDD-workflow（Apache-2.0）與
+  GitHub Spec Kit（MIT）。完整標註、我們改了什麼、以及 vendored 檔的本地改寫清單，
+  見 `VENDORED.md` 的「本地改寫清單」與「概念來源與授權標註」兩節。
