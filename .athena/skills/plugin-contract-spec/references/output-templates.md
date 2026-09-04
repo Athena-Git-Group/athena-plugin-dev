@@ -134,8 +134,14 @@ fresh reader 通讀抓到 3 個結構缺口，全部是 grep 與 lint 抓不到�
 
 ## 6. Handoff（`handoffs/<slug>-spec.md`）
 
+> **前三行是機械契約**：第 1 行逐字 `# Handoff: spec`、第 2 行空行、第 3 行是**這次 spec 做了什麼**
+> 的一句摘要。`hooks/auto-commit.sh` 取第 3 行為 commit 描述——H1 改字樣、或第 3 行寫成欄位標籤，
+> commit 訊息會**靜默**缺描述（不報錯）。契約真源見 `skills/athena-flow/references/agent-handoff.md`。
+
 ```markdown
-# Spec Handoff — <slug>
+# Handoff: spec
+
+<一行摘要——這次 spec 做了什麼；H1 後隔一空行的第 3 行，auto-commit.sh 取此行為 commit desc>
 
 ## Stage
 spec（plugin-contract-spec，經 team-spec-index 路由）
@@ -160,7 +166,7 @@ spec（plugin-contract-spec，經 team-spec-index 路由）
 ## Gate Verdict
 <PASS，或 FAIL — 原因 #tag>
 
-## Risks
+## Risks / Unresolved Issues
 - <未解衝突、擴大的 impact、未查證的假設>
 
 ## Next Recommended Stage

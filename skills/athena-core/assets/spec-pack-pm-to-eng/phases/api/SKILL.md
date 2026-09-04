@@ -7,12 +7,12 @@ description: >
   openapi.yaml 是 build artifact、不可手改——要改 API 就改 DSL 重編。schema 為實體的 DTO 視圖
   （response 全欄位 / Request 去除 PK 與系統欄位），由 transpiler 機械產生。
   由 pm-to-eng-flow 編排器以全新 agent 觸發，也可獨立使用。
-  前提：clarify 已 RESOLVED、data_model / db_table（erm.dbml）已產出。
+  前提：specify 已 READY、data_model / db_table（erm.dbml）已產出。
 ---
 
 # api · API Contract（階段 3 / 後端 track · 編譯器模型）
 
-> 流水線位置：score(gate) → clarify(gate) → data_model →（class_diagram ∥ db_table）→ **api** → gherkin。
+> 流水線位置：score(gate) → clarify(gate) → specify(gate) → data_model →（class_diagram ∥ db_table）→ **api** → gherkin。
 > 本階段是**伺服器端契約的產出方**；前端 `ui_contract` 與後端 `gherkin` 消費 openapi.yaml。
 
 ## 架構：編譯器模型（這是本 skill 的核心）
@@ -36,9 +36,10 @@ erm.dbml（annotated）      ─┼──►  transpiler/openapi.py  ──►  
 
 ## 輸入
 
-> 優先序：**行為與資源以 clarified.md 為準**；**欄位型別 / 值域 / enum / 機制欄位以 erm.dbml + data_model 為準**。歧義回查上游、仍不足則回報，**絕不腦補**。
+> 優先序：**行為與資源以 `specify/spec.md` 為準**；**欄位型別 / 值域 / enum / 機制欄位以 erm.dbml + data_model 為準**。歧義回查上游、仍不足則回報，**絕不腦補**。
 
-- `specs/<slug>/clarify/clarified.md`（**行為 / 規則真相**；STATUS 必須為 RESOLVED）。
+- `specs/<slug>/specify/spec.md`（**行為 / 規則真相**；首行 STATUS 必須為 READY）——
+  其 FR / 全域需求 / 邊界情況即資源與行為的來源。
 - `specs/<slug>/db_table/erm.dbml`（**transpiler 的型別來源**；annotated DBML，含 enum / note / pk / not null）。
 - `specs/<slug>/data_model/data-model.md`（enum 封閉集合 / derived / PII 標記，輔助判斷 DSL 該開哪些操作）。
 - `specs/<slug>/class_diagram/class-diagram.mmd`（選讀，Controller 方法 → 操作的線索）。
@@ -51,7 +52,7 @@ erm.dbml（annotated）      ─┼──►  transpiler/openapi.py  ──►  
 
 ## 執行步驟
 
-1. [ ] 從 clarified.md 收斂出資源清單（對齊 data_model / erm.dbml 的實體）與每個資源的行為。
+1. [ ] 從 spec.md 收斂出資源清單（對齊 data_model / erm.dbml 的實體）與每個資源的行為。
 2. [ ] 為每個資源寫一份 `*.intent.yaml`：`api`（複數資源 base，kebab）、`entity`（照抄 DBML Table Name，單數）、`exposes.standard`（CRUD 子集）、`exposes.operations`（塞不進 CRUD 的領域動作，帶 `method` / `path`）。格式規約見 `references/dsl-format-anchor.md`。
 3. [ ] 跑 transpiler（`<api-skill-dir>` = 本 SKILL.md 所在目錄）：
    ```
@@ -103,6 +104,9 @@ erm.dbml（annotated）      ─┼──►  transpiler/openapi.py  ──►  
 1. **openapi.yaml 是 build artifact**：不可手動編輯；要改 API 一律改 `*.intent.yaml` / erm.dbml 後重跑 transpiler。
 2. **判斷只在 DSL，生成全靠 transpiler**：不繞過 transpiler 手寫 OpenAPI；慣例（狀態碼/錯誤/DTO/命名）由 transpiler 強制、不靠人逐條遵守。
 3. **DSL 遵循 Intent Format Anchor**：base=api 用複數名詞、entity 照抄 Table Name（單數）、path/method 只在 exposes；禁止格式由 transpiler 報錯擋下。
-4. **絕不腦補**：資源 / 行為 / 型別，clarified / erm.dbml 沒給的，標 `待釐清` 回報，不自填。
+4. **絕不腦補**：資源 / 行為 / 型別，spec.md / erm.dbml 沒給的，標 `待釐清` 回報，不自填。
 5. **範圍外不半套**：認證/授權、分頁/filter/sorting 若被需求觸發，於 handoff 標「待後續」，不靜默丟失也不自行實作。
-6. clarified.md 的 STATUS 非 RESOLVED、或缺 erm.dbml 時，回報並中止。
+6. `specify/spec.md` 的 STATUS 非 READY、或缺 erm.dbml 時，回報並中止。
+7. `specs/<slug>/specify/spec.md` **缺失、為空、或首行非 `STATUS: READY`** 時，**回報並中止**——
+   **不得**改讀 `clarify/` 的訪談產出、**不得**回頭讀 `source/requirement.md` 自行腦補、
+   **不得**產出空 artifact 後宣告完成。

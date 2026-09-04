@@ -2,17 +2,17 @@
 name: data_model
 description: >
   PM → 工程化流水線的階段 2（後端 track，概念/邏輯實體層，**實體集合的唯一真相**）。讀取已釐清的需求
-  （clarified.md），用萃取決策樹把散文收斂成一組實體：判定 entity / attribute / enum / junction、
+  （specify/spec.md），用萃取決策樹把散文收斂成一組實體：判定 entity / attribute / enum / junction、
   區分 stored vs derived、合併同義實體、分類 master vs transactional、補出 class diagram 看不到的
   data-only 實體（junction / history / i18n），並以覆蓋帳本證明沒漏掉任何需求名詞。
   下游 class_diagram（物件設計）與 db_table（持久化）都對齊它、互不依賴。
-  由 pm-to-eng-flow 在 target = backend / fullstack 時以全新 agent 觸發，也可獨立使用。前提：clarify 已 RESOLVED。
+  由 pm-to-eng-flow 在 target = backend / fullstack 時以全新 agent 觸發，也可獨立使用。前提：specify 已 READY。
 ---
 
 # data_model · 概念/邏輯實體模型（階段 2 / 後端 track · 實體集合真相）
 
-> 流水線位置：score(gate) → clarify(gate) → **data_model**(概念/邏輯實體) →（class_diagram 物件設計 ∥ db_table 持久化）→ api → gherkin。
-> 本階段是「從需求萃取 entity」的唯一現場：把 clarified.md 的散文收斂成一組實體與關係。
+> 流水線位置：score(gate) → clarify(gate) → specify(gate) → **data_model**(概念/邏輯實體) →（class_diagram 物件設計 ∥ db_table 持久化）→ api → gherkin。
+> 本階段是「從需求萃取 entity」的唯一現場：把 spec.md 的散文收斂成一組實體與關係。
 > class_diagram 與 db_table 是本階段的**消費者**（彼此是兄弟、互不依賴）；實體集合衝突時以本檔產出為準。
 
 ## 定位（為什麼獨立成一個 stage）
@@ -31,8 +31,9 @@ class_diagram 的鏡頭是三層職責（行為），它**看不到沒有行為�
 
 ## 輸入
 
-- `specs/<slug>/clarify/clarified.md`（**唯一資料來源**；STATUS 必須為 RESOLVED）——
-  其「資料維度」段（身分 / 基數 / optionality / 值域 / 狀態 / 保存 / PII / 範例資料）即本階段素材。
+- `specs/<slug>/specify/spec.md`（**唯一資料來源**；首行 STATUS 必須為 READY）——
+  其「資料維度與範例資料」段（身分 / 基數 / optionality / 值域 / 狀態 / 保存 / PII / 量級 /
+  存取樣式 / 範例資料）即本階段素材；「關鍵實體」與「全域需求」段補業務語意。
 - `specs/<slug>/score/score-report.md`（選讀，當複雜度線索）。
 
 ## 輸出
@@ -43,13 +44,13 @@ class_diagram 的鏡頭是三層職責（行為），它**看不到沒有行為�
   3. **關係**：關係 | 基數（1:1 / 1:N / N:M）| 存在性 | 刪除行為（業務語言）
   4. **生命週期**（有狀態實體）：狀態集合 + 合法轉移 + 是否留歷史
   5. **關係圖**：Mermaid `erDiagram`
-  6. **覆蓋帳本**：clarified.md 每個名詞片語 → 歸類（entity / attribute / enum / derived / junction / ignore）+ 去向
+  6. **覆蓋帳本**：spec.md 每個名詞片語 → 歸類（entity / attribute / enum / derived / junction / ignore）+ 去向
   7. **通用語言詞彙表**（複雜時）：核心業務術語 | 定義 | 別名 / 同義詞 | 對應實體或屬性 —— 統一團隊術語，與覆蓋帳本一致。簡單需求可省略。
 - `specs/<slug>/handoffs/data_model.md`（依 handoff-contract）
 
 ## 萃取決策樹（名詞 → 什麼）
 
-逐一掃 clarified.md 的名詞片語，依序判定（每個結果都記進覆蓋帳本）：
+逐一掃 spec.md 的名詞片語，依序判定（每個結果都記進覆蓋帳本）：
 
 1. 純敘述噪音、UI 字眼、無資料意義 → **忽略**（標 ignore）。
 2. 封閉且固定的值集合（狀態種類、類別、角色名）→ **enum**；
@@ -75,16 +76,16 @@ class_diagram 的鏡頭是三層職責（行為），它**看不到沒有行為�
 7. [ ] 有狀態實體畫狀態集合 + 合法轉移，標是否留歷史。
 8. [ ] 彙整通用語言詞彙表（複雜時）：把合併的同義詞、核心術語定義收斂成詞彙表，術語對齊覆蓋帳本。
 9. [ ] 產出 data-model.md（依複雜度伸縮）+ Mermaid `erDiagram`；handoff 列關鍵萃取決策與假設。
-10. [ ] 覆蓋驗收：確認 clarified.md 每個名詞都在帳本裡有歸類與去向。
+10. [ ] 覆蓋驗收：確認 spec.md 每個名詞都在帳本裡有歸類與去向。
 
 ## 完成判準
 
-- [ ] clarified.md 每個名詞片語都在覆蓋帳本中被歸類、有去向（無「未處理」）。
+- [ ] spec.md 每個名詞片語都在覆蓋帳本中被歸類、有去向（無「未處理」）。
 - [ ] 每個實體都有業務識別與分類；無同義重複、無一詞多義殘留。
 - [ ] 每個屬性都標了 stored / derived；derived 都有計算來源。
 - [ ] 每個關係都有基數、存在性、刪除行為。
 - [ ] data-only 實體（junction / history / i18n）依需求補齊，不多不少。
-- [ ] 未決資訊不腦補：clarified.md 沒給的，標 `待釐清` 並回報，不自行編。
+- [ ] 未決資訊不腦補：spec.md 沒給的，標 `待釐清` 並回報，不自行編。
 - [ ] （複雜時）通用語言詞彙表涵蓋所有核心術語，別名 / 同義詞已標注，與覆蓋帳本一致。
 
 ## references/
@@ -95,8 +96,11 @@ class_diagram 的鏡頭是三層職責（行為），它**看不到沒有行為�
 
 ## 非協商規則
 
-1. **只依 clarified.md 萃取** —— data-only 實體（junction / history / i18n）屬持久化/結構必需、不算擴張，但仍須由需求觸發。
+1. **只依 spec.md 萃取** —— data-only 實體（junction / history / i18n）屬持久化/結構必需、不算擴張，但仍須由需求觸發。
 2. **絕不腦補** —— 資料語意缺漏標 `待釐清` 回報，不自填值域 / 基數 / 身分。
 3. **本檔是實體集合真相** —— class_diagram 與 db_table 對齊本檔；衝突時它們回報，不在下游悄悄改實體集合。
-4. clarified.md 的 STATUS 非 RESOLVED 時，回報並中止。
+4. `specify/spec.md` 的 STATUS 非 READY 時，回報並中止。
 5. 探索既有 codebase 時優先用 graphify；探索結果回頭跟使用者確認，不擅自當定論。
+6. `specs/<slug>/specify/spec.md` **缺失、為空、或首行非 `STATUS: READY`** 時，**回報並中止**——
+   **不得**改讀 `clarify/` 的訪談產出、**不得**回頭讀 `source/requirement.md` 自行腦補、
+   **不得**產出空 artifact 後宣告完成。

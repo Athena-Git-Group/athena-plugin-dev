@@ -43,6 +43,7 @@ Plugin 透過 Claude Code 的四個 manifest 入口（`skills` / `commands` / `a
 | **athena-flow** | 編排器 | 否 | 單一入口流程編排器，串接所有階段 |
 | **athena-point** | 閘門 | 否 | 需求評分與分流（決定是否需要走 spec） |
 | **athena-core** | 參考庫 | — | 共用參考庫（Reconciler Contract、Skill 模板等） |
+| **athena-spec-default** | standard-with-plugin-default | 是（有預設） | 團隊未提供 `stage: spec` skill 時的 plugin 預設；薄殼，指向 athena-core 的 spec pack。`user-invocable: false`——只由 flow 在 resolution 退回時載入，不供使用者直接呼叫 |
 | **athena-pre-build** | flow-inline | 是（有預設） | Build 前自動建立 Git 分支 |
 | **athena-post-build** | flow-inline | 是（有預設） | Build/Verify 通過後自動 Git commit |
 | **athena-skill-audit** | 輔導工具 | — | 團隊主動觸發的 skill 品質健檢（L1+L2 靜態，獨立於 flow） |
@@ -94,16 +95,32 @@ Subagent description 標註「only via athena-flow」以避免 main agent 繞過
 
 ## Stage 分類
 
+Stage 分**三類**：**Standard Stage**（fresh agent 執行，團隊必須提供，缺少 → 停止＋引導）、
+**Standard Stage with Plugin Default**（fresh agent 執行，團隊優先，缺少 → 退回 plugin 預設、
+不停止——**目前只有 `spec`**）與 **Flow-Inline Stage**（flow agent 內聯執行，團隊優先，
+缺少 → 用 plugin 預設、不停止）。分類的逐字來源是
+`skills/athena-core/references/skill-metadata-spec.md`「Stage 分類」。
+
 ### Standard Stage（團隊必須提供）
 
 | Stage | 職責 | 執行方式 |
 |-------|------|----------|
-| **spec** | 需求分析，產出結構化規格 | Fresh agent |
 | **plan** | 將規格轉換為可執行工程計畫 | Fresh agent |
 | **build** | 根據計畫執行實作 | Fresh agent |
 | **verify** | 驗證 build 產出的正確性 | Fresh agent |
 | **review** | 程式碼審查、品質把關 | Fresh agent |
 | **ship** | 部署、發布、收尾 | Fresh agent |
+
+### Standard Stage with Plugin Default（團隊優先，缺少 → 退回 plugin 預設、不停止）
+
+**目前只有 `spec`**。執行模型與 Standard Stage **完全相同**（fresh agent、產出 handoff
+artifact、完整 agent 隔離）——「有 plugin 預設」只改 resolution，不改執行方式、輸入輸出
+或 gate 契約。`.athena/skills/` 有宣告 `stage: spec` 的 skill → 用它，plugin 預設**完全
+不被載入**。
+
+| Stage | 職責 | 執行方式 | 缺團隊 skill 時 |
+|-------|------|----------|----------------|
+| **spec** | 需求分析，產出結構化規格 | Fresh agent | 退回 plugin 預設 `athena-spec-default`，不停止、不引導 |
 
 ### Flow-Inline Stage（Plugin 提供預設，團隊可選擇性替換）
 
@@ -112,12 +129,13 @@ Subagent description 標註「only via athena-flow」以避免 main agent 繞過
 | **pre-build** | Build 前建立 Git 分支 | Flow agent 內聯 |
 | **post-build** | Gate PASS 後自動 Git commit | Flow agent 內聯 |
 
-| | Standard Stage | Flow-Inline Stage |
-|---|---|---|
-| 缺少 skill 時 | 停止流程 + 引導 | 使用 plugin 預設 |
-| 執行方式 | Fresh agent | Flow agent 內聯 |
-| 交接方式 | Handoff artifact | Flow context |
-| 團隊是否必須提供 | 是 | 否（可選替換） |
+| | Standard Stage | Standard with Plugin Default（`spec`） | Flow-Inline Stage |
+|---|---|---|---|
+| 適用 stage | `plan` / `build` / `verify` / `review` / `ship` | `spec` | `pre-build` / `post-build` |
+| 缺少 skill 時 | 停止流程 + 引導 | 使用 plugin 預設（不停止、不引導） | 使用 plugin 預設 |
+| 執行方式 | Fresh agent | Fresh agent | Flow agent 內聯 |
+| 交接方式 | Handoff artifact | Handoff artifact | Flow context |
+| 團隊是否必須提供 | 是 | 否（可選替換） | 否（可選替換） |
 
 所有 stage 的契約定義見 `skills/athena-flow/references/stage-contracts.md`。
 
@@ -260,6 +278,7 @@ Flow 根據 point 評分自動決定流程重量，避免小任務走過重的�
   │
   ├─ Skill Discovery：掃描 .athena/skills/，建立 stage → skill 對應表
   │    Standard stage：團隊必須提供，缺少則停止
+  │      （spec 例外：缺團隊版退回 plugin 預設 athena-spec-default，不停止）
   │    Flow-inline stage：團隊有就用，沒有就用 plugin 預設
   │
   ├─ /point（plugin 內建）

@@ -68,8 +68,18 @@ specs/<slug>/
 
 ## Handoff（`handoffs/<slug>-spec.md`；標題級骨架，全文模板見 references/output-templates.md §6）
 
-`# Spec Handoff — <slug>` → `## Stage` → `## Inputs Used` → `## Artifacts Produced` →
-`## 契約面摘要`（改動項／錨點／必須同步的消費者／跨語言）→ `## Gate Verdict` → `## Risks` → `## Next Recommended Stage`（plan）
+**前三行是機械契約**（`hooks/auto-commit.sh` 取第 3 行為 commit 描述；違反不報錯，只會讓
+commit 訊息靜默缺描述。細節見 `skills/athena-flow/references/agent-handoff.md` 的「機械契約紅線」）：
+
+```markdown
+# Handoff: spec
+
+<一行摘要——這次 spec 做了什麼；H1 後隔一空行的第 3 行，auto-commit.sh 取此行為 commit desc>
+```
+
+其後標題序：`## Stage` → `## Inputs Used` → `## Artifacts Produced` →
+`## 契約面摘要`（改動項／錨點／必須同步的消費者／跨語言）→ `## Gate Verdict` →
+`## Risks / Unresolved Issues` → `## Next Recommended Stage`（plan）
 
 ### Gate 條件
 

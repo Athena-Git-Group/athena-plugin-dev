@@ -2,10 +2,10 @@
 # 示範檔：展示本版三理念 —— Spec by Example（具體值）、邊界優先（QA shift-left）、善用場景大綱。
 # 領域沿用 api stage 的訂單範例（apply_refund = POST /orders/{id}/apply-refund）。
 # 判定值來源（覆蓋矩陣應回指）：
-#   - 退款金額 0 < amount <= 訂單金額        ← clarified.md#退款規則 / openapi.yaml#Refund.amount
-#   - 可退款狀態：僅「已付款」                ← clarified.md#訂單狀態轉移
-#   - 訂單狀態 enum：待付款/已付款/已出貨/已取消/已退款 ← clarified.md#訂單狀態 enum
-#   - 一張訂單僅能退款一次                    ← clarified.md#退款唯一性
+#   - 退款金額 0 < amount <= 訂單金額        ← spec.md#FR-001 / openapi.yaml#Refund.amount
+#   - 可退款狀態：僅「已付款」                ← spec.md#資料維度-訂單狀態轉移
+#   - 訂單狀態 enum：待付款/已付款/已出貨/已取消/已退款 ← spec.md#資料維度-訂單狀態-enum
+#   - 一張訂單僅能退款一次                    ← spec.md#資料維度-退款唯一性
 
 @backend
 功能: 訂單退款
@@ -67,14 +67,14 @@
       那麼 退款應被拒絕
       而且 回應錯誤碼應為 INVALID_STATE_TRANSITION（HTTP 409）
 
-    # 缺則回報示範：clarified.md 的狀態轉移表沒涵蓋「已出貨可否退款」。
+    # 缺則回報示範：spec.md 的狀態轉移表沒涵蓋「已出貨可否退款」。
     # 不自行假設 —— 標 @待釐清、暫不可執行，並寫進 handoffs/gherkin.md 的「回饋訊號」段。
     @error @待釐清
     場景: 已出貨訂單可否退款（需求未定義）
       假設 系統中存在訂單 ORD-004，金額為 1200 元、狀態為「已出貨」
       當 我對訂單 ORD-004 申請退款 1200 元
       那麼 退款結果應為 待釐清
-      # 待釐清:「已出貨」訂單能否退款？若可，是否需先處理退貨？（clarified.md#訂單狀態轉移 未涵蓋）
+      # 待釐清:「已出貨」訂單能否退款？若可，是否需先處理退貨？（spec.md#資料維度-訂單狀態轉移 未涵蓋）
 
   # ── 規則三：一張訂單只能退款一次（唯一性 → 409）──────────────────
   Rule: 同一張訂單僅能成功退款一次

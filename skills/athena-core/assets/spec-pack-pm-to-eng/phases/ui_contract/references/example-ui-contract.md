@@ -9,7 +9,7 @@
 - `screens/screen-map.md`（畫面 + 扁平元件清單 + 互動）
 - `design/`（設計師 Claude Design HTML，若有 → 對照版面決定要規劃哪些元件）
 - `api/openapi.yaml`（資料 / 端點單一事實來源）
-- `clarify/clarified.md`（範例資料 → fixtures）
+- `specify/spec.md`（「資料維度與範例資料」段 → fixtures）
 
 ## 0. 承載元件 / composable 規劃（取代 component_design · 輕量夠用）
 
@@ -67,7 +67,7 @@
 | `OrderSchema` | `amount: positive()`, `status: enum(['待付款','已付款','已出貨','已取消','已退款'])` |
 | `RefundRequestSchema` | `amount: positive().max(order.amount)` |
 
-### fixtures（取自 clarified.md 範例）
+### fixtures（取自 spec.md 範例資料）
 `orders.normal`（3 筆）、`orders.empty`、`order.refundable`（已付款）、`order.alreadyRefunded`（已退款）
 
 ### MSW handlers
