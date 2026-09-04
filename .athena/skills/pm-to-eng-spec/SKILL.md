@@ -235,7 +235,10 @@ plan
    `specify/spec.md` 為需求真源，不得回讀 `clarify/clarified.md`**
 5. 前端棧一律 **Nuxt 4 + TypeScript strict**，依
    `phases/pm-to-eng-flow/references/frontend-stack-conventions.md`——該檔是跨前端
-   階段（`screens` / `ui_contract` / `ui_prototype` / `gherkin` 前端）的**單一事實來源**。
+   階段（`screens` / `ui_contract` / 前端 `gherkin`）的**單一事實來源**，作用域與該檔
+   自身宣告的一致。`ui_prototype` **不適用**本條：它產的是與框架無關的靜態 HTML/CSS
+   （見該 phase 非協商規則 6，明文**不產** Vue / Nuxt 元件），只在**畫面命名與路由語彙**
+   上與 `screens` 的 Nuxt 路由對照保持一致。
    本 pack **不提供**專案級的棧覆寫通道；棧不同的團隊請 fork 該 conventions 檔後
    自行調整。該檔本身**不得修改**（vendored）。
 6. 不寫實作程式碼、不越界做 plan 的工作（phase 拆解是下一個 stage 的事）

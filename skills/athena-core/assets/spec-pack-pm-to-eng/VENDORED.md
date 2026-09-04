@@ -83,6 +83,7 @@ grep -rn 'clarified\.md' skills/athena-core/assets/spec-pack-pm-to-eng/phases/ \
 | `phases/api/references/example.intent.yaml` | `sources:` 錨點改為 `specify/spec.md#FR-...` | A-INPUTS | DSL 的 `sources:` 欄位會被照抄進實際產出 |
 | `phases/api/references/dsl-format-anchor.md` | 同上（`sources:` 錨點） | A-INPUTS | — |
 | `phases/api/references/haapi-format-anchor.md` | 同上（`sources:` 錨點） | A-INPUTS | — |
+| `phases/api/references/api-conventions.md` | L119「對齊 SKILL 非協商規則 #N」的回指由 `#3` 更正為 `#4`（語義對應 `phases/api/SKILL.md` 非協商規則 #4「絕不腦補」；`#3` 為上游繼承的錯號，基準 `a5a0e5e` 即存在，非本 pack 引入） | A-INPUTS（第 3 輪小修） | re-vendor 的 `rsync --delete` 會用上游版覆蓋本檔並帶回 `#3`，**必須改回 `#4`**；驗收 `grep -n '非協商規則 #' phases/api/references/api-conventions.md` 須**恰一筆**且為 `#4`（本檔兩側同時被覆蓋時 `lint-plugin.sh` 的 drift check 抓不到，只能靠本列） |
 
 **明確不改的 vendored 檔**（重放時也不要動，它們描述的是 `clarified.md` 自身的契約）：
 `phases/clarify/references/grill-with-docs.md`、
