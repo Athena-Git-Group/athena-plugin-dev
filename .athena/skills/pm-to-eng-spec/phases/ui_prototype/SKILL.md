@@ -63,8 +63,6 @@ description: >
   **不另造第三份假資料**）；「邊界情況」提供錯誤 / 空 / 衝突狀態的素材。
 - `specs/<slug>/screens/screen-map.md`（**必要**）——畫面清單、導航、每畫面的元件與 UI 四態。
 - `specs/<slug>/ui_contract/ui-contract.md`（**必要**）——元件、綁定、驗證與呈現格式。
-- `specs/<slug>/technical_research/techstack.md`（選讀）——不存在時**不影響本階段**：
-  靜態雛形不綁框架，棧只影響下游實作。
 - `specs/<slug>/design/`（選讀，**設計師 Claude Design 視覺稿 · 唯讀輸入**）——
   存在時**視覺方向以稿為準**，雛形是稿面的可點擊化；不一致處標 `待釐清` / `待補設計`，
   **不擅自選邊**（沿用 `screens` 非協商規則 2 的既有形狀）。
@@ -112,12 +110,12 @@ slash 指令。缺口一律走既有的檔案協議，**不另立第二套協議
 1. 只有**會改變頁面邊界、主流程主幹、視覺方向或可見資訊**的缺口才算高影響。
 2. 高影響缺口每輪只取最高影響的 **1–3 題**，以 PM-friendly 措辭**追寫（append）**到既有的
    `specs/<slug>/clarify/questions.md`
-   （**四支共用此檔**：clarify / specify / technical_research / ui_prototype；題號 `Q<n>` 全檔連號、標題行標 `[<phase>]` 來源——**題號與標記契約見 pack 根 `SKILL.md`「`clarify/questions.md` 共用契約」**），
+   （**三支共用此檔**：clarify / specify / ui_prototype；題號 `Q<n>` 全檔連號、標題行標 `[<phase>]` 來源——**題號與標記契約見 pack 根 `SKILL.md`「`clarify/questions.md` 共用契約」**），
    附建議選項與影響說明。
 3. 低影響缺口（次要文案、次級互動、可延後的呈現選項）在畫面上以合理預設呈現，
    並在 `ui-plan.md` 的「已知落差」節記一行，**不升級**。
 4. 本階段**不是 gate**：升級缺口後仍把可做的頁面做完，不留半套，本階段不自行中止流水線。
-   **編排器的裁決已明定**（pack 根 `SKILL.md` 執行程序第 6 步的註記、Gate Verdict 映射表
+   **編排器的裁決已明定**（pack 根 `SKILL.md` 執行程序第 5 步的註記、Gate Verdict 映射表
    對應列、非協商規則 9）：本階段追寫 `questions.md` **不改變 Gate Verdict、不停止**，
    但編排器**必須**把「追寫 N 題待澄清」記進最終 handoff 的 Risks，不得靜默吞掉。
 

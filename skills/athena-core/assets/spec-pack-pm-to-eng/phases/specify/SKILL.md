@@ -100,7 +100,7 @@ slash 指令。所有缺口一律走既有的檔案協議，**不另立第二套
    **「假設」段**或以 `[NEEDS CLARIFICATION: …]` 就地標記，**不升級**。
 3. 高影響缺口先自行排序，**每輪只取最高影響的 1–3 題**，以 PM-friendly 措辭
    **追寫（append）**到既有的 `specs/<slug>/clarify/questions.md`
-   （**四支共用此檔**：clarify / specify / technical_research / ui_prototype；題號 `Q<n>` 全檔連號、標題行標 `[<phase>]` 來源——**題號與標記契約見 pack 根 `SKILL.md`「`clarify/questions.md` 共用契約」**），附建議選項與影響說明。
+   （**三支共用此檔**：clarify / specify / ui_prototype；題號 `Q<n>` 全檔連號、標題行標 `[<phase>]` 來源——**題號與標記契約見 pack 根 `SKILL.md`「`clarify/questions.md` 共用契約」**），附建議選項與影響說明。
 4. `spec.md` 首行寫 `STATUS: NEEDS-CLARIFICATION`，其餘已收斂的內容照常寫完，**不留空檔**。
 5. 交回編排器：wrapper 會發
    `FAIL — specify 待澄清（spec.md STATUS: NEEDS-CLARIFICATION），見 specs/<slug>/clarify/questions.md #spec-gap`

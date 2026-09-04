@@ -41,6 +41,8 @@ description: >
   - **「範例資料」與「邊界」兩段是下游 gherkin 的直接素材**（Spec by Example + 邊界優先），務必寫成可直接落地的形態：
     - **範例資料**：每個核心實體 ≥3 筆真實具體資料（見完成判準「範例資料」）。
     - **邊界**：每條規則把界線寫成**帶具體觸發值**的條目（如「退款金額上限 = 訂單金額；1001 應拒」），而非抽象敘述——讓 gherkin 能直接寫 `例子` 列、不必再猜。
+- `specs/<slug>/clarify/questions.md`（**只在有高影響缺口時**）——追寫（append）給使用者的
+  待澄清問題，格式與題號契約見下方「缺口升級協議」。無高影響缺口時不建立本檔。
 - `specs/<slug>/handoffs/clarify.md`（依 handoff-contract）
 
 > **本檔的定位（Q3 = B 之後）**：`clarified.md` 是 `specify` phase 的**輸入**，
@@ -50,6 +52,28 @@ description: >
 > 本階段的**輸出格式與完成判準不變**——變的只是「誰讀它」；
 > 上面列的「範例資料」與「邊界」兩段仍要寫成可直接落地的形態，
 > 因為 `specify` 有義務把它們**逐筆無損搬進** `spec.md` 餵給 gherkin。
+
+## 缺口升級協議（headless；本 pack 無互動訪談、無 slash 委派）
+
+本 pack 在 spec stage shell 內執行時，本階段的 grill 訪談**無法即時取得使用者回答**
+（獨立使用時才有真人可問）。無法就地解決的缺口一律走既有的檔案協議，
+**不另立第二套協議、不另開新檔**：
+
+1. **只升級高影響缺口**——會改變業務目標、角色、主要流程、規則界線或驗收條件的，
+   才算高影響。低影響缺口（次要文案、可安全延後的細節）在 `clarified.md` 就地標
+   「假設：…」或「待釐清」，**不升級**。
+2. 高影響缺口先自行排序，**每輪只取最高影響的 1–3 題**，以 PM-friendly 措辭
+   **追寫（append）**到 `specs/<slug>/clarify/questions.md`
+   （**三支共用此檔**：clarify / specify / ui_prototype；題號 `Q<n>` 全檔連號、標題行標
+   `[clarify]` 來源——**題號與標記契約見 pack 根 `SKILL.md`「`clarify/questions.md` 共用契約」**），
+   附建議選項與影響說明。
+3. 先讀 `specs/<slug>/clarify/answers.md`（若存在）——已被回答的題目不重複追寫；
+   在該題標題行末追加 `（已回答）`，**不刪題、不改號**。
+4. 本階段**是 gate**：仍有高影響缺口未解時，`clarified.md` 首行寫 `STATUS: BLOCKED`
+   並在內文列出缺口，交回編排器。wrapper 會發
+   `FAIL — clarify 待使用者澄清，見 specs/<slug>/clarify/questions.md #spec-gap` 並停止；
+   使用者的回答由 flow 主對話寫入 `answers.md`，重跑 spec stage。
+   **不得**為了讓 STATUS 變成 `RESOLVED` 而自行填值（非協商規則第 1 條）。
 
 ## 執行步驟
 

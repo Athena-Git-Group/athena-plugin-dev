@@ -10,7 +10,6 @@
 ```
 PM 需求 → score（可譯性 gate）→ clarify（釐清 gate）
         → specify（需求結構化 gate → specify/spec.md）
-        →〔technical_research：條件式，**預設略過**，開啟才產 research.md + techstack.md〕
         → 結構層（data_model / class_diagram / db_table ∣ screens）
         → 契約層（api → openapi.yaml ∣ ui_contract）
         →〔ui_prototype：前端 / fullstack 專屬，靜態 HTML 雛形〕
@@ -48,25 +47,18 @@ cp -R <plugin-root>/skills/athena-core/assets/spec-pack-pm-to-eng \
 spec_pack:
   target: fullstack        # backend（預設推斷）/ frontend / fullstack
   frontend_verify: mcp     # mcp / playwright / agent-browser / vitest-testing-library
-  technical_research: run  # skip（缺鍵時的預設）/ run（跑技術研究，產 research.md + techstack.md）
 ```
 
 缺設定時 target 由需求文字推斷（假設會記入 handoff Risks），不會互動詢問。
-
-`technical_research` **缺鍵一律視為 `skip`**：沒動過這個檔的專案，行為與該 phase
-不存在時完全相同（不建目錄、不產 artifact、不 FAIL，只在 handoff Risks 記一行
-「未做技術研究，沿用預設棧」）。棧已定案的專案不需要開它。
 
 ## 環境需求
 
 - **api phase**：`python3` + `pyyaml`（transpiler 把 intent DSL 編譯成
   openapi.yaml）。缺環境時 phase 會 FAIL 並保留 intent.yaml，不會產出半套 openapi。
-- **前端 track**：**預設** Nuxt 4 + TypeScript strict 技術棧
-  （見 `phases/pm-to-eng-flow/references/frontend-stack-conventions.md`）。
-  這是**預設棧、不是唯一棧**：`specs/<slug>/technical_research/techstack.md` 存在時
-  **以它為準**；該檔不存在時（含 `technical_research` 預設略過的情況）一律沿用預設棧。
-  棧不同的團隊有兩條路：把 `spec_pack.technical_research` 開成 `run`，讓
-  `techstack.md` 定案本專案的棧；或 fork 該 conventions 檔後自行調整。
+- **前端 track**：前端棧一律 Nuxt 4 + TypeScript strict
+  （見 `phases/pm-to-eng-flow/references/frontend-stack-conventions.md`——
+  跨前端階段的**單一事實來源**）。本 pack **不提供**專案級的棧覆寫設定；
+  棧不同的團隊請把本 pack 裝到 `.athena/skills/` 後 fork 該 conventions 檔自行調整。
 
 ## 與相鄰工具的分工（避免混淆）
 

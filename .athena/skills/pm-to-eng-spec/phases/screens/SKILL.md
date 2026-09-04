@@ -15,7 +15,6 @@ description: >
 > 流水線位置：score(gate) → clarify(gate) → specify(gate) → **screens**(IA + 畫面 flow chart) → ui_contract → gherkin。
 > 這是**前端結構層唯一階段**：定義**有哪些畫面、怎麼導航、畫面上有什麼**；元件怎麼拆與型別契約由下游 ui_contract（Nuxt 4）接手。**前端不畫 class diagram / 元件物件圖**。
 > 前端技術棧：**Nuxt 4 + TypeScript strict**（畫面 = `pages/` 檔案式路由，導航 = `navigateTo` / `<NuxtLink>`）。完整規範見 `../pm-to-eng-flow/references/frontend-stack-conventions.md`。
-> **棧覆蓋鏈（本 pack 特有，先看這行）**：技術棧以 `specs/<slug>/technical_research/techstack.md` 為準；**該檔不存在時**（含 `technical_research` 略過的預設情況）才依 `../pm-to-eng-flow/references/frontend-stack-conventions.md` 的**預設棧**（Nuxt 4 + TypeScript strict）——本檔其餘 Nuxt 4 敘述皆屬該預設棧的指標式引用。見 pack 根 `SKILL.md` 非協商規則 5。
 > UX flow 真相：設計師的 `design/` HTML 已含 UX flow；screens 的導航 flow chart 在**無 `design/`** 時補位，有 `design/` 時則作為對照用的 route / 導航地圖。
 
 ## 先讀（references/）

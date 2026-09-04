@@ -51,7 +51,7 @@ DOGFOOD=".athena/skills/pm-to-eng-spec"
 # phases/ tree, so a new dir propagates to .athena/ on its own. A name may be
 # registered here before the dir exists — step 0 warns instead of failing.
 UPSTREAM_PHASE_DIRS=(score clarify data_model class_diagram db_table api screens ui_contract gherkin)
-PLUGIN_OWN_PHASE_DIRS=(specify technical_research ui_prototype)
+PLUGIN_OWN_PHASE_DIRS=(specify ui_prototype)
 
 ok()   { echo "  ✅ $*"; }
 warn() { echo "  ⚠️  $*"; }

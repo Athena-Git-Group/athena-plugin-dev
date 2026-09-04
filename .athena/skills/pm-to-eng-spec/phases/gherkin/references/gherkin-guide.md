@@ -124,9 +124,13 @@ zh-TW 關鍵字對照（只用這些，混用英文中文會 parse 失敗）：
 
 1. **不要自己填一個數字**（違反「絕不腦補」）。
 2. 把該場景標 `@待釐清`，步驟內用 `# 待釐清:<具體問題>` 註記。
-3. 在 `handoffs/gherkin.md` 的「回饋訊號」段列出這些缺口（PM-friendly 問句），交由編排器決定：補進 `specify/spec.md` 後重跑本階段，或回退 clarify → specify。
+3. 在 `handoffs/gherkin.md` 的「回饋訊號」段列出這些缺口（PM-friendly 問句）。
+4. 這條回饋**不擋本階段**：可寫的場景照常寫完，缺口留 `@待釐清`。編排器把 handoff 的
+   「回饋訊號」段收斂進最終 spec handoff 的 Risks 回報使用者；使用者補答後經
+   `clarify/answers.md` 進入**下一輪** spec stage（重跑 clarify → specify → … → gherkin）。
+   **本 run 內不回退階段、不由編排器代筆改寫 `spec.md`**（`spec.md` 只由 `specify` 產出）。
 
-> 這就是「邊界探索 shift-left」的迴圈：邊界優先 → 暴露缺口 → 回饋上游 → 釘死後落地。詳見 `boundary-checklist.md` §缺則回報。
+> 這就是「邊界探索 shift-left」的迴圈：邊界優先 → 暴露缺口 → 回饋上游 → 釘死後落地。詳見 `boundary-checklist.md` §缺則回報（措辭與本節一致）。
 
 ---
 
