@@ -108,10 +108,15 @@ specs/<slug>/
 
 ## 最終 Handoff 格式（`handoffs/<slug>-spec.md`）
 
-依 athena-flow 的 `agent-handoff.md` 契約，必含：
+依 athena-flow 的 `agent-handoff.md` 契約，必含。
+**前三行是機械契約**（見 `agent-handoff.md` 的「機械契約紅線」）：第 1 行逐字 `# Handoff: spec`、
+第 2 行空行、第 3 行是**這次 spec 做了什麼**的一句摘要。`hooks/auto-commit.sh` 取第 3 行為
+commit 描述——H1 改字樣、或第 3 行寫成 `- **Stage**: ...` 這種欄位標籤，commit 訊息會**靜默**缺描述。
 
 ```markdown
-# Spec Handoff — <slug>
+# Handoff: spec
+
+<一行摘要——這次 spec 做了什麼；H1 後隔一空行的第 3 行，auto-commit.sh 取此行為 commit desc>
 
 ## Stage
 spec（pm-to-eng-spec，target: <target>）
@@ -126,7 +131,7 @@ spec（pm-to-eng-spec，target: <target>）
 ## Gate Verdict
 <PASS，或 FAIL — 原因 #tag（照上方映射表）>
 
-## Risks
+## Risks / Unresolved Issues
 - <score PASS-WITH-GAPS 的缺口>
 - <target / frontend_verify 的推斷假設>
 - <各 phase handoff 標注的範圍外待辦與假設>
