@@ -59,6 +59,7 @@ e2e-runner 等）。所以 `.feature` 不綁特定 runner：
 - 後端：`specs/<slug>/db_table/erm.dbml` + `specs/<slug>/api/openapi.yaml`
   ——openapi 的驗證關鍵字（`minimum`/`maximum`/`minLength`/`pattern`/`enum`/`required`）是**邊界判定值的權威來源**（見 boundary-checklist）。
 - 前端：`specs/<slug>/screens/screen-map.md` + `specs/<slug>/ui_contract/ui-contract.md`（+ `specs/<slug>/api/openapi.yaml` 若存在、+ `specs/<slug>/ui_prototype/` 靜態雛形（ui_prototype phase 的產出，選讀，供視覺斷言）、+ `specs/<slug>/design/` 設計師視覺稿若有，供視覺斷言）
+- 前端棧（僅供措辭對照，`.feature` 一律 runner-agnostic、不寫死框架 API）：以 `specs/<slug>/technical_research/techstack.md` 為準；**該檔不存在時**（含 `technical_research` 略過的預設情況）依 `../pm-to-eng-flow/references/frontend-stack-conventions.md` 的預設棧（Nuxt 4 + TypeScript strict）。見 pack 根 `SKILL.md` 非協商規則 5。
 
 ## 輸出
 

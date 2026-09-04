@@ -16,6 +16,7 @@ description: >
 > ui_contract 是前端怎麼**消費**契約、怎麼把畫面綁到資料與互動。
 > **前端結構層只有 screens（不畫 class diagram）**——元件怎麼拆、各自 props/emits/型別契約，就在本階段的綁定規劃裡一併定（輕量、夠用即可），下游 Nuxt 4 實作據此落地。
 > 前端技術棧 **Nuxt 4 + TypeScript strict（禁 any）**：view model = `composables/` 的 `use*`（+ `useState` / Pinia 視範圍）；導航 = `navigateTo` / `<NuxtLink>`；資料 = `useFetch<T>` / `$fetch<T>`；API 層 = Zod + MSW + typed client。完整規範見 `../pm-to-eng-flow/references/frontend-stack-conventions.md`。
+> **棧覆蓋鏈（本 pack 特有，先看這行）**：技術棧以 `specs/<slug>/technical_research/techstack.md` 為準；**該檔不存在時**（含 `technical_research` 略過的預設情況）才依 `../pm-to-eng-flow/references/frontend-stack-conventions.md` 的**預設棧**（Nuxt 4 + TypeScript strict）——本檔其餘 Nuxt 4 敘述皆屬該預設棧的指標式引用。見 pack 根 `SKILL.md` 非協商規則 5。
 
 ## 先讀（references/）
 

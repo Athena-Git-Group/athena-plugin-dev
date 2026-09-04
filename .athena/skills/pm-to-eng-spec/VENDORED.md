@@ -68,12 +68,12 @@ grep -rn 'clarified\.md' skills/athena-core/assets/spec-pack-pm-to-eng/phases/ \
 | `phases/data_model/SKILL.md` | 「唯一資料來源」改指 `specify/spec.md`；素材段改「資料維度與範例資料」；覆蓋帳本掃描對象改 `spec.md`；非協商規則末尾加「`spec.md` 缺失／為空／非 READY 即中止」 | A-INPUTS | 保留「唯一資料來源」字樣**恰一處**且同行含 `spec.md`；新規則**附加在清單末尾**，不得插入既有條目之間 |
 | `phases/class_diagram/SKILL.md` | 行為 / 規則來源與複雜度判斷改指 `spec.md`；非協商規則 1、4 改寫並於末尾加新規則 | A-INPUTS | 同上（末尾附加） |
 | `phases/db_table/SKILL.md` | 輸入優先序與「底層權威」改指 `spec.md`；**不得留下「回查 clarified.md」殘句**；末尾加新規則 | A-INPUTS | `references/persistence-allowlist.md:3` 以 `#2` 回指本檔規則，編號不得位移 |
-| `phases/screens/SKILL.md` | 行為 / 規則 / 權限真相改指 `spec.md`；`design/ ↔ spec.md` 對照；末尾加新規則 | A-INPUTS | `design/` 角色不變（視覺真相）；`sitemap-guide.md:70`、`screen-breakdown.md:44` 以 `#1` 回指本檔規則，編號不得位移 |
+| `phases/screens/SKILL.md` | 行為 / 規則 / 權限真相改指 `spec.md`；`design/ ↔ spec.md` 對照；末尾加新規則；**標題區塊加一行「棧覆蓋鏈」**（`technical_research/techstack.md` 優先，缺檔才用 `frontend-stack-conventions.md` 的預設棧） | A-INPUTS ＋ A-RESEARCH | `design/` 角色不變（視覺真相）；`sitemap-guide.md:70`、`screen-breakdown.md:44` 以 `#1` 回指本檔規則，編號不得位移 |
 | `phases/api/SKILL.md` | 需求層檔名改 `spec.md`；末尾加新規則 | A-INPUTS | **優先序語意不變**（行為/資源看需求層、型別/值域看 erm.dbml + data_model）；`references/api-conventions.md:119` 以 `#3` 回指，編號不得位移 |
-| `phases/ui_contract/SKILL.md` | 格式值與 fixtures 素材來源改指 `spec.md` 的「資料維度與範例資料」段；末尾加新規則 | A-INPUTS | 規則 1（openapi 為單一事實來源）語意不變 |
-| `phases/gherkin/SKILL.md` | 範例資料 / 邊界素材來源改指 `spec.md`；完成判準新增「每個 `SC-nnn` 至少被一個 `Rule` 涵蓋，或 handoff 明列不涵蓋 + 理由」；末尾加新規則；**前端輸入清單（`## 輸入` 段）新增 `specs/<slug>/ui_prototype/`（選讀，供視覺斷言），與既有的 `design/` 並列** | A-INPUTS ＋ A-UIPROTO | **風險最高**：前提是 `spec.md` 真的承載了範例資料與邊界；重放後務必確認完成判準的 SC 覆蓋條款還在，且前端輸入清單的 `ui_prototype/` 一項沒被上游版本蓋掉（`grep -n 'ui_prototype' phases/gherkin/SKILL.md` 須有命中） |
-| `phases/clarify/SKILL.md` | **只加定位補述**（本檔是 `specify` 的輸入、結構層以後不直接讀它） | A-INPUTS | **輸出格式與完成判準不得變動**；非協商規則不得動（`clarify/SKILL.md` 完成判準以「第 1 條」回指） |
-| `phases/gherkin/references/boundary-checklist.md` | 「來源」欄與範例敘述改指 `spec.md`；回饋迴圈改為「補進 `spec.md` 或回退 clarify → specify」 | A-INPUTS | `erm.dbml` / `openapi.yaml` 兩欄不動 |
+| `phases/ui_contract/SKILL.md` | 格式值與 fixtures 素材來源改指 `spec.md` 的「資料維度與範例資料」段；末尾加新規則；**標題區塊加一行「棧覆蓋鏈」**（同 `screens`） | A-INPUTS ＋ A-RESEARCH | 規則 1（openapi 為單一事實來源）語意不變 |
+| `phases/gherkin/SKILL.md` | 範例資料 / 邊界素材來源改指 `spec.md`；完成判準新增「每個 `SC-nnn` 至少被一個 `Rule` 涵蓋，或 handoff 明列不涵蓋 + 理由」；末尾加新規則；**前端輸入清單（`## 輸入` 段）新增 `specs/<slug>/ui_prototype/`（選讀，供視覺斷言），與既有的 `design/` 並列**；**`## 輸入` 段加一行前端棧覆蓋鏈**（`techstack.md` 優先，缺檔用預設棧；`.feature` 仍 runner-agnostic） | A-INPUTS ＋ A-UIPROTO ＋ A-RESEARCH | **風險最高**：前提是 `spec.md` 真的承載了範例資料與邊界；重放後務必確認完成判準的 SC 覆蓋條款還在，且前端輸入清單的 `ui_prototype/` 一項沒被上游版本蓋掉（`grep -n 'ui_prototype' phases/gherkin/SKILL.md` 須有命中） |
+| `phases/clarify/SKILL.md` | **只加定位補述**（本檔是 `specify` 的輸入、結構層以後不直接讀它）；**執行步驟 2 的「下游迴圈」註記改寫**——原版寫「編排器決定補進 `clarified.md` 重跑或回退本階段」，該路徑在本 pack 不存在且與「下游不得回讀 `clarified.md`」反向，改為「`gherkin` 標 `@待釐清` → 寫進 `handoffs/gherkin.md` 回饋訊號 → 編排器收進最終 handoff Risks → 使用者經 `answers.md` 進入下一輪」 | A-INPUTS ＋ A-WRAPPER | **輸出格式與完成判準不得變動**；非協商規則不得動（`clarify/SKILL.md` 完成判準以「第 1 條」回指）；`clarified.md` 的內容契約與 grill 流程不得動 |
+| `phases/gherkin/references/boundary-checklist.md` | 「來源」欄與範例敘述改指 `spec.md`；**回饋迴圈第 4 點改為「本階段不擋、缺口收進最終 handoff Risks、經 `answers.md` 進下一輪」**（原寫「編排器決定補進 `spec.md` 或回退 clarify → specify」，wrapper 無該裁決） | A-INPUTS ＋ A-WRAPPER | `erm.dbml` / `openapi.yaml` 兩欄不動；此處措辭須與 `phases/clarify/SKILL.md` 的「下游回饋」註記一致 |
 | `phases/gherkin/references/gherkin-guide.md` | §2 / §4 / §7 的來源宣告改寫；回指格式 `clarified.md#規則X` → `spec.md#FR-00X` | A-INPUTS | §4 對「≥3 筆範例資料」的說明改指 `../../specify/references/spec-structure.md` §6 |
 | `phases/gherkin/references/example.feature` | 註解內的溯源錨點改寫為 `spec.md#...` | A-INPUTS | **模板性範例**，agent 會照抄格式——錨點寫錯會被複製到實際產出 |
 | `phases/screens/references/sitemap-guide.md` | §0 對照原則兩方由 `design/ ↔ clarified.md` 改為 `design/ ↔ spec.md` | A-INPUTS | L70 的「非協商規則 #1」回指不得失效 |
@@ -188,3 +188,15 @@ bash scripts/sync-spec-pack.sh <athena-skills 路徑>
   「`techstack.md` 優先、缺檔退回 Nuxt 4」、末尾新增規則 8（`design/` 是輸入）。
   vendored 檔只動 `phases/gherkin/SKILL.md`（前端輸入清單 +1 項，見「本地改寫清單」）；
   `phases/pm-to-eng-flow/references/` **零改動**。**上游 athena-skills 未變動**，本次無 re-vendor。
+- 2026-09-04（同 slug，verify 通讀缺口修補；**未新增 / 刪除任何檔案**）：
+  wrapper `SKILL.md` 新增「`clarify/questions.md` 共用契約」段（四個寫入者、題號 `Q<n>`
+  全檔連號、`[<phase>]` 來源標記、`（已回答）` 標示）、clarify 分支補 `STATUS: BLOCKED`
+  路徑（與未解問題同一道 gate、下一輪不算已完成）、clarify 與 specify 兩道 gate 的
+  FAIL 字串改為可區分、`technical_research` / `ui_prototype` 追寫 questions.md 的
+  **非 gate 裁決**（不改 verdict 但 Risks 必記）並附加**非協商規則 9**（不得靜默吞掉）；
+  `phases/technical_research/SKILL.md` 判準條數由「四條」更正為「判準 1–5」
+  （原自報漏掉 `research-artifact.md` 判準 5「偏離預設棧必須寫理由」）、`Rule 2` 統一為「判準 2」；
+  `phases/screens|ui_contract|gherkin/SKILL.md` 各加一行**棧覆蓋鏈**指標
+  （不逐處改寫 40 處 Nuxt 4 指標式引用）；`phases/clarify/SKILL.md` 與
+  `phases/gherkin/references/boundary-checklist.md` 的下游回饋路徑改寫為與 wrapper 一致。
+  `phases/pm-to-eng-flow/references/` **仍為零改動**（含 `frontend-stack-conventions.md`）。

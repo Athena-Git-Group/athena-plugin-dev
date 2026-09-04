@@ -47,7 +47,8 @@ specs/<slug>/
   ├─ source/requirement.md      # 需求原文（自 point-report 抄錄，不可變）
   ├─ score/score-report.md      # Phase 0，開頭含 VERDICT
   ├─ clarify/clarified.md       # Phase 1，開頭含 STATUS（**specify 的輸入**）
-  ├─ clarify/questions.md       # 待澄清問題（headless 協議；clarify 與 specify 共用此檔）
+  ├─ clarify/questions.md       # 待澄清問題（headless 協議；clarify / specify /
+  │                             #   technical_research / ui_prototype **四支共用**，見下方共用契約）
   ├─ clarify/answers.md         # 使用者的回答（由 flow 主對話寫入）
   ├─ specify/spec.md            # Phase 2，開頭含 STATUS；**結構層以後的唯一需求真源**
   ├─ specify/requirements-checklist.md      # Phase 2 規格品質自檢
@@ -65,11 +66,33 @@ specs/<slug>/
 
 最終 stage handoff 寫 `handoffs/<slug>-spec.md`（repo 根目錄，flow 契約位置）。
 
+## `clarify/questions.md` 共用契約（四個寫入者）
+
+這份檔是本 pack **唯一**的「問使用者」通道，有 **4 個寫入者**：
+`clarify`、`specify`、`technical_research`、`ui_prototype`。四者一律**追寫（append）**，
+**不得**重寫全檔、**不得**重編既有題號；**不另立第二套協議、不另開新檔**。
+
+- **題號**：全檔連號 `Q<n>`。新題取「檔內現有最大題號 + 1」；檔案不存在時自 `Q1` 起。
+- **來源標記**：每題標題行必須標出提問的 phase——
+  `### Q<n> · [<phase>] <一句話問題>`，`<phase>` ∈ `clarify` / `specify` /
+  `technical_research` / `ui_prototype`。使用者要能一眼看出某題是哪一階段問的。
+- **內容**：PM-friendly 措辭，附建議選項與「答案會改變什麼」的影響說明。
+- **已回答標示**：使用者的回答由 flow 主對話寫入 `clarify/answers.md`。
+  後續輪次讀到 `answers.md` 已涵蓋的題目時，在該題標題行末追加 `（已回答）`——
+  **不刪題、不改號**，歷史必須可追。
+- **每輪題數**：每支 phase 每輪 ≤ 3 題（各 phase 自己的「缺口升級協議」）。
+- **編排器責任**：本檔負責在最終 handoff 收斂——gate 型寫入者（`clarify` / `specify`）
+  走 FAIL 停止；非 gate 型寫入者（`technical_research` / `ui_prototype`）不改 verdict，
+  但**必須**進 Risks（見 Gate Verdict 映射表對應列）。
+
 ## 執行程序
 
 0. **斷點續跑檢查**——逐 phase 檢查 artifact 是否已存在且非空、gate 是否已過
    （score 看 `score-report.md` 首行 VERDICT、clarify 看 `clarified.md` 首行 STATUS、
    **specify 看 `specify/spec.md` 首行 `STATUS: READY`**）；已完成的 phase **跳過不重跑**。
+   **gate 未過不算「已完成」**：`clarified.md` 首行為 `STATUS: BLOCKED`、或 `spec.md`
+   首行為 `STATUS: NEEDS-CLARIFICATION` 時，該 phase **一律重跑**（重跑前先納入可能已更新的
+   `clarify/answers.md`），**不得**當成已完成跳過、**不得**沿用該 artifact 往下走。
    這讓 clarify FAIL → 使用者補答 → flow 重跑 spec stage 的迴圈成本最小化。
    兩個條件式 / 選用 phase 的判定另有規則：**`technical_research` = `skip`（含缺鍵的預設）時
    永遠視為「已完成（略過）」**，不因缺檔重跑、不因缺檔 FAIL；`= run` 時看
@@ -86,15 +109,23 @@ specs/<slug>/
    b. 先檢查 `clarify/answers.md` 是否存在——存在則把它當使用者回答納入
    c. 能從需求文件 + answers 客觀回答的問題就地解決；**不可腦補**無依據的答案
    d. 全部可解 → 產出 `clarified.md`（STATUS: RESOLVED），續跑
-   e. 仍有未解問題 → 寫入 `clarify/questions.md`（PM-friendly、逐題編號、附
-      預設選項與影響說明），最終 handoff：`FAIL — 待使用者澄清，見
+   e. 仍有未解問題 → 依「`clarify/questions.md` 共用契約」追寫 `clarify/questions.md`
+      （標 `[clarify]`），最終 handoff：`FAIL — clarify 待使用者澄清，見
       specs/<slug>/clarify/questions.md #spec-gap`，**停止**。flow 會回報使用者；
       使用者的回答由主對話寫入 `clarify/answers.md` 後重跑 spec stage
+   f. `clarified.md` 首行為 `STATUS: BLOCKED`（clarify 自判完成判準未達成）→
+      **與 e 同一道 gate**：**不得進 specify**（非協商規則 1）。把 `clarified.md`
+      內文列出的缺口依共用契約追寫進 `clarify/questions.md`（該檔已有等義題目就不重複追寫），
+      最終 handoff 用**與 e 相同**的字串
+      `FAIL — clarify 待使用者澄清，見 specs/<slug>/clarify/questions.md #spec-gap`，**停止**；
+      Risks 另記一行「clarify STATUS: BLOCKED」以區分成因。
+      下一輪重跑時 BLOCKED **不算已完成**（見第 0 步）
 4. **Phase 2 · specify（需求結構化 gate）**——Read `phases/specify/SKILL.md`，
    把 `clarify/clarified.md` 收斂成 `specs/<slug>/specify/spec.md`。
    讀 `spec.md` 首行 STATUS：
-   - `NEEDS-CLARIFICATION` → 缺口已由本 phase **追寫**到 `clarify/questions.md`；
-     最終 handoff：`FAIL — 待澄清，見 specs/<slug>/clarify/questions.md #spec-gap`，**停止**
+   - `NEEDS-CLARIFICATION` → 缺口已由本 phase 依共用契約**追寫**到 `clarify/questions.md`
+     （標 `[specify]`）；最終 handoff：`FAIL — specify 待澄清（spec.md STATUS:
+     NEEDS-CLARIFICATION），見 specs/<slug>/clarify/questions.md #spec-gap`，**停止**
    - `READY` → 繼續。**自此之後的所有 phase 一律以 `specify/spec.md` 為需求真源**
 5. **Phase 3 · technical_research（條件式，非 gate）**——依「設定解析」的
    `technical_research` 取值分流：
@@ -105,6 +136,12 @@ specs/<slug>/
      兩份任一缺失或為空 → `FAIL — technical_research 產出缺失 #skill-defect`，**停止**
    - 本階段**不是 gate**：它不擋下游。但一旦產出 `techstack.md`，
      **下游的技術棧一律以它為準**（見非協商規則 5）
+   - **本階段追寫 `clarify/questions.md` 時的裁決（編排器責任）**：本階段是非 gate，
+     **不改變 verdict、不停止流水線**（`research.md` 對應決策已標「待定」，下游照常執行）；
+     但編排器**必須**在最終 handoff 的 Risks 記一行
+     「technical_research 追寫 N 題待澄清，見 specs/<slug>/clarify/questions.md（決策標『待定』）」，
+     並把該檔列入 `## Artifacts Produced`。**不得靜默吞掉**——run 收在 `PASS`
+     而使用者不知道有未解問題，是流程缺陷（見非協商規則 9）
 6. **結構層 → 契約層 → 規格層 · 依 target 走 track**——順序照下表（原版可並行的 phase 在此
    **依序執行**）。每個 phase：Read `phases/<name>/SKILL.md` → 執行 → 確認
    artifact 存在且非空 → 確認內部 handoff 已寫。
@@ -119,6 +156,10 @@ specs/<slug>/
    > 缺鍵（預設）或 `skip` 時整步略過、不影響 verdict。
    > `ui_prototype` **只在 frontend / fullstack track** 執行（backend 完全不觸發），
    > 它也**不是 gate**，但 artifact 缺失時依下方映射表判 FAIL。
+   > `ui_prototype` 追寫 `clarify/questions.md` 時比照 `technical_research`：
+   > **不改變 verdict、不停止**，但編排器**必須**在 Risks 記
+   > 「ui_prototype 追寫 N 題待澄清，見 specs/<slug>/clarify/questions.md（已知落差記於 ui-plan.md）」，
+   > 並把該檔列入 `## Artifacts Produced`（非協商規則 9）。
 
    > 各 phase 自己的 `SKILL.md` 標題裡的「階段 N」字樣沿用上游 vendored 的舊編號
    > （尚未計入 `specify`），**與本檔的 Phase 編號不對應**。順序與 gate 一律**以本檔為準**。
@@ -139,12 +180,13 @@ specs/<slug>/
 | 情況 | 最終 handoff Gate Verdict |
 |------|--------------------------|
 | score VERDICT = `BLOCKED` | `FAIL — 需求可譯性不足（score BLOCKED），退回 PM 補件 #spec-gap` |
-| clarify 有未解問題 | `FAIL — 待澄清，見 specs/<slug>/clarify/questions.md #spec-gap` |
-| specify `STATUS: NEEDS-CLARIFICATION` | `FAIL — 待澄清，見 specs/<slug>/clarify/questions.md #spec-gap` |
+| clarify gate 未過（仍有未解問題，**或** `clarified.md` 首行 `STATUS: BLOCKED`） | `FAIL — clarify 待使用者澄清，見 specs/<slug>/clarify/questions.md #spec-gap`（BLOCKED 時 Risks 另記成因） |
+| specify `STATUS: NEEDS-CLARIFICATION` | `FAIL — specify 待澄清（spec.md STATUS: NEEDS-CLARIFICATION），見 specs/<slug>/clarify/questions.md #spec-gap` |
 | `spec.md` 缺失 / 為空 / 首行非 `STATUS: READY` 而下游被觸發 | `FAIL — specify 產出缺失 #skill-defect` |
 | `technical_research` = `run` 但 `research.md` / `techstack.md` 缺失或為空 | `FAIL — technical_research 產出缺失 #skill-defect` |
 | `technical_research` 缺鍵 / `skip`（預設） | **不影響 verdict**（略過即視為完成）；Risks 記「未做技術研究，沿用預設棧」 |
 | frontend / fullstack track 的 `ui_prototype` 產出缺失或為空 | `FAIL — ui_prototype 產出缺失 #skill-defect` |
+| `technical_research` / `ui_prototype`（**兩者皆非 gate**）追寫 `clarify/questions.md` | **不影響 verdict**（不 FAIL、不停止）；Risks **必須**逐支記「`<phase>` 追寫 N 題待澄清，見 `specs/<slug>/clarify/questions.md`」，且該檔列入 Artifacts Produced。**不得靜默吞掉** |
 | 任一 phase artifact 缺失或為空 | `FAIL — <phase> 產出缺失 #skill-defect` |
 | api transpiler 環境缺失 | `FAIL — 需 python3 + pyyaml #env` |
 | 全部 phase 完成 | `PASS` |
@@ -180,7 +222,9 @@ frontend / fullstack 另含 ui_prototype/ui-plan.md 與各張 .html>
 - <score PASS-WITH-GAPS 的缺口>
 - <target / frontend_verify 的推斷假設>
 - <technical_research 略過時（缺鍵或 skip）：未做技術研究，沿用預設棧>
-- <各 phase handoff 標注的範圍外待辦與假設>
+- <technical_research / ui_prototype 追寫 clarify/questions.md 時，逐支記「<phase> 追寫 N 題待澄清」——非 gate，不改 verdict，但不得省略>
+- <各 phase handoff 標注的範圍外待辦與假設——含 gherkin handoff 的「回饋訊號（待釐清缺口）」
+  逐題轉錄：本 run 不回退階段，缺口一律經使用者回答 → clarify/answers.md → 下一輪 spec stage>
 
 ## Next Recommended Stage
 plan
@@ -215,3 +259,9 @@ plan
    **pack 的任何 phase 都不得寫入它**。可點擊的雛形一律落在
    `specs/<slug>/ui_prototype/`（`ui_prototype` phase 的輸出）；兩者不得互換、不得互覆。
    與稿不一致處標 `待釐清` / `待補設計`，不擅自選邊
+9. **非 gate 的缺口升級不得靜默吞掉** —— `technical_research` 與 `ui_prototype`
+   追寫 `clarify/questions.md` 時**不改變 Gate Verdict、不停止**（它們不是 gate），
+   但編排器**必須**在最終 handoff 的 Risks 逐支記「`<phase>` 追寫 N 題待澄清」
+   並把 `questions.md` 列入 Artifacts Produced。收在 `PASS` 卻讓使用者不知道
+   `questions.md` 有新題，即為流程缺陷。四個寫入者的題號與標記依
+   「`clarify/questions.md` 共用契約」。

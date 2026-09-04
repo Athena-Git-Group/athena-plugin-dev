@@ -59,6 +59,9 @@
 3. 在 `handoffs/gherkin.md` 開「回饋訊號（待釐清缺口）」段，用 PM 看得懂的問句列出，例如：
    > - 退款金額是否可超過訂單金額？上限為何？（來源規則未定義 → ref spec.md#FR-退款）
    > - 「已出貨」訂單可否退款？（狀態轉移表未涵蓋）
-4. 交由編排器決定：補進 `specify/spec.md` 後重跑 gherkin，或回退 clarify → specify 重新釐清。
+4. 這條回饋**不擋本階段**：可寫的場景照常寫完，缺口留 `@待釐清`。編排器把 handoff 的
+   「回饋訊號」段收斂進最終 spec handoff 的 Risks 回報使用者；使用者補答後經
+   `clarify/answers.md` 進入**下一輪** spec stage（重跑 clarify → specify → … → gherkin）。
+   **本 run 內不回退階段、不由編排器代筆改寫 `spec.md`**（`spec.md` 只由 `specify` 產出）。
 
 > 這條迴圈就是「邊界探索 shift-left」的真正價值：**用寫測試的動作去稽核需求完整度**，而不是先信任需求、之後在實作期才踩雷。

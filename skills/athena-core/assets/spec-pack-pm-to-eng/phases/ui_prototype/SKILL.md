@@ -111,11 +111,15 @@ slash 指令。缺口一律走既有的檔案協議，**不另立第二套協議
 
 1. 只有**會改變頁面邊界、主流程主幹、視覺方向或可見資訊**的缺口才算高影響。
 2. 高影響缺口每輪只取最高影響的 **1–3 題**，以 PM-friendly 措辭**追寫（append）**到既有的
-   `specs/<slug>/clarify/questions.md`（clarify / specify / 本階段共用此檔），
-   逐題編號、附建議選項與影響說明。
+   `specs/<slug>/clarify/questions.md`
+   （**四支共用此檔**：clarify / specify / technical_research / ui_prototype；題號 `Q<n>` 全檔連號、標題行標 `[<phase>]` 來源——**題號與標記契約見 pack 根 `SKILL.md`「`clarify/questions.md` 共用契約」**），
+   附建議選項與影響說明。
 3. 低影響缺口（次要文案、次級互動、可延後的呈現選項）在畫面上以合理預設呈現，
    並在 `ui-plan.md` 的「已知落差」節記一行，**不升級**。
-4. 本階段**不是 gate**：升級缺口後仍把可做的頁面做完，不留半套；要不要停止由編排器裁決。
+4. 本階段**不是 gate**：升級缺口後仍把可做的頁面做完，不留半套，本階段不自行中止流水線。
+   **編排器的裁決已明定**（pack 根 `SKILL.md` 執行程序第 6 步的註記、Gate Verdict 映射表
+   對應列、非協商規則 9）：本階段追寫 `questions.md` **不改變 Gate Verdict、不停止**，
+   但編排器**必須**把「追寫 N 題待澄清」記進最終 handoff 的 Risks，不得靜默吞掉。
 
 ## 完成判準
 

@@ -13,7 +13,7 @@ description: >
 1. **單一入口**：接收一次 `/flow` 需求輸入，執行 Skill Discovery，依 point verdict 決定路由
 2. **階段隔離**：每個 standard stage 開全新 agent，spawn 用 `Agent(subagent_type: "athena-stage-<stage>")` 權限殼（見 stage-contracts.md「Named Subagent 殼」）；flow-inline stage（pre-build / post-build）在 flow agent 內聯執行，缺團隊版用 plugin 預設
 3. **交接靠 artifact**：讀 handoff / mini-handoff / flow context 的 Gate Verdict 決定下一步，不靠對話記憶。gate 判讀指標一行：`## Gate Verdict` 標題下一行，以 PASS / FAIL 前綴判定（判讀不需讀 agent-handoff.md）
-4. **Skill 可替換**：standard stage skill 必須由團隊在 `.athena/skills/` 提供，缺少即停止＋引導；`point` 與 `flow` 不可替換
+4. **Skill 可替換**：standard stage skill 必須由團隊在 `.athena/skills/` 提供，缺少即停止＋引導（**唯一具名例外是 `spec`**——表裡沒有團隊 spec skill 時退回 plugin 預設 `athena-spec-default` 繼續，不停止也不引導；細節見下方「Skill Discovery」與非協商規則 4）；`point` 與 `flow` 不可替換
 
 ## 載入拓樸（事件不發生就一行都不讀）
 

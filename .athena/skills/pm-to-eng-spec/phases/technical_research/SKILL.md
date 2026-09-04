@@ -81,15 +81,16 @@ description: >
 2. [ ] 確認 `specs/<slug>/specify/spec.md` 存在、非空、首行為 `STATUS: READY`；否則回報並中止。
 3. [ ] 從 `spec.md` 的全域需求 / NFR / 邊界 / 量級 / 保存 / PII 逐條掃出**會改變技術選擇的**
        問題，列成研究問題清單。與技術選擇無關的需求不列（判準見
-       `references/research-artifact.md` Rule 2）。
+       `references/research-artifact.md` 判準 2）。
 4. [ ] 讀 `frontend-stack-conventions.md` 與專案既有檔案，先把「已由預設棧或既有專案決定」的
        問題**標為已定**並註明依據——這一步通常會消掉大半清單。
 5. [ ] 對剩下的問題逐一收斂：列 2–3 個**真有 trade-off 差異**的選項、寫出判準
        （對回 `spec.md` 的哪條需求 / NFR）、下決策、記風險與未驗證假設。
        資訊不足而不阻塞主結論者標「**待定**」並寫清楚待定什麼，**不腦補、不編數值**。
-6. [ ] 寫 `research.md`，逐區塊自檢 `references/research-artifact.md` 的四條判準。
+6. [ ] 寫 `research.md`，逐區塊自檢 `references/research-artifact.md` 的**五條判準**
+       （判準 5 = 偏離預設棧必須寫理由，MUST，本 pack 特有——不得略過）。
 7. [ ] 從 `research.md` 抽出最終採用結果，寫 `techstack.md`（五類 + 來源回指 +
-       「本次不引入的技術」），逐項自檢 `references/techstack-artifact.md` 的四條判準。
+       「本次不引入的技術」），逐項自檢 `references/techstack-artifact.md` 的**五條判準**。
        **不把研究理由整段搬進 `techstack.md`**。
 8. [ ] 高影響缺口（會改變決策集合 / 比較維度 / 採納方向者）走「缺口升級協議」。
 9. [ ] 寫 `handoffs/technical_research.md`。
@@ -103,10 +104,14 @@ slash 指令。所有缺口一律走既有的檔案協議，**不另立第二套
 2. 局部不確定性（未量測的容量 / 效能、尚未驗證的相容性）**不升級**——寫在對應決策的
    「風險」欄並標「待定」即可。
 3. 高影響缺口每輪只取最高影響的 **1–3 題**，以 PM-friendly 措辭**追寫（append）**到既有的
-   `specs/<slug>/clarify/questions.md`（clarify / specify / 本階段共用此檔），
-   逐題編號、附建議選項與影響說明。
-4. 本階段**不是 gate**：升級缺口後仍把已收斂的部分寫完，`research.md` 對應決策標「待定」。
-   要不要因此停止由編排器裁決，本階段不自行中止流水線。
+   `specs/<slug>/clarify/questions.md`
+   （**四支共用此檔**：clarify / specify / technical_research / ui_prototype；題號 `Q<n>` 全檔連號、標題行標 `[<phase>]` 來源——**題號與標記契約見 pack 根 `SKILL.md`「`clarify/questions.md` 共用契約」**），
+   附建議選項與影響說明。
+4. 本階段**不是 gate**：升級缺口後仍把已收斂的部分寫完，`research.md` 對應決策標「待定」，
+   本階段不自行中止流水線。**編排器的裁決已明定**（pack 根 `SKILL.md` 執行程序第 5 步、
+   Gate Verdict 映射表對應列、非協商規則 9）：本階段追寫 `questions.md`
+   **不改變 Gate Verdict、不停止**，但編排器**必須**把「追寫 N 題待澄清」記進最終 handoff 的 Risks，
+   不得靜默吞掉。
 
 ## 完成判準
 
@@ -118,7 +123,8 @@ slash 指令。所有缺口一律走既有的檔案協議，**不另立第二套
 - [ ] `techstack.md` 五類（前端框架 / 型別策略 / 後端分層 / 持久化 / 測試機制）皆表態，
       不適用者明標 `N/A + 原因`；每項有 `來源：research.md#<決策>`。
 - [ ] `techstack.md` 有「本次不引入的技術」節。
-- [ ] 偏離預設棧的項目在 `research.md` 有明寫理由；未偏離者明寫「沿用預設棧」。
+- [ ] 偏離預設棧的項目在 `research.md` 有明寫理由；未偏離者明寫「沿用預設棧」
+      （`references/research-artifact.md` **判準 5**，MUST）。
 - [ ] 全程未觸外部網路、未安裝任何套件、未修改 `specs/<slug>/` 以外的檔案。
 
 ## 斷點續跑
@@ -129,8 +135,9 @@ slash 指令。所有缺口一律走既有的檔案協議，**不另立第二套
 
 ## references/
 
-- `references/research-artifact.md` — `research.md` 的最小必要資訊判準（四條規則 + good / bad 對照）。
-- `references/techstack-artifact.md` — `techstack.md` 的最小必要資訊判準（四條規則 + good / bad 對照）。
+- `references/research-artifact.md` — `research.md` 的最小必要資訊判準（**判準 1–5** + good / bad 對照；
+  判準 5「偏離預設棧必須寫理由」是本 pack 特有的 MUST）。
+- `references/techstack-artifact.md` — `techstack.md` 的最小必要資訊判準（**判準 1–5** + good / bad 對照）。
 
 ## 非協商規則
 
