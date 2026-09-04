@@ -68,7 +68,7 @@ grep -rn 'clarified\.md' skills/athena-core/assets/spec-pack-pm-to-eng/phases/ \
 | `phases/class_diagram/SKILL.md` | 行為 / 規則來源與複雜度判斷改指 `spec.md`；非協商規則 1、4 改寫並於末尾加新規則 | A-INPUTS | 同上（末尾附加） |
 | `phases/db_table/SKILL.md` | 輸入優先序與「底層權威」改指 `spec.md`；**不得留下「回查 clarified.md」殘句**；末尾加新規則 | A-INPUTS | `references/persistence-allowlist.md:3` 以 `#2` 回指本檔規則，編號不得位移 |
 | `phases/screens/SKILL.md` | 行為 / 規則 / 權限真相改指 `spec.md`；`design/ ↔ spec.md` 對照；末尾加新規則 | A-INPUTS | `design/` 角色不變（視覺真相）；`sitemap-guide.md:70`、`screen-breakdown.md:44` 以 `#1` 回指本檔規則，編號不得位移 |
-| `phases/api/SKILL.md` | 需求層檔名改 `spec.md`；末尾加新規則 | A-INPUTS | **優先序語意不變**（行為/資源看需求層、型別/值域看 erm.dbml + data_model）；`references/api-conventions.md:119` 以 `#3` 回指，編號不得位移 |
+| `phases/api/SKILL.md` | 需求層檔名改 `spec.md`；末尾加新規則 | A-INPUTS | **優先序語意不變**（行為/資源看需求層、型別/值域看 erm.dbml + data_model）；`references/api-conventions.md:119` 以 `#4` 回指（語義對應「絕不腦補」規則），編號不得位移——**原為 `#3`，係上游繼承的錯號（基準 `a5a0e5e` 即存在），本版更正為 `#4`** |
 | `phases/ui_contract/SKILL.md` | 格式值與 fixtures 素材來源改指 `spec.md` 的「資料維度與範例資料」段；末尾加新規則 | A-INPUTS | 規則 1（openapi 為單一事實來源）語意不變 |
 | `phases/gherkin/SKILL.md` | 範例資料 / 邊界素材來源改指 `spec.md`；完成判準新增「每個 `SC-nnn` 至少被一個 `Rule` 涵蓋，或 handoff 明列不涵蓋 + 理由」；末尾加新規則；**前端輸入清單（`## 輸入` 段）新增 `specs/<slug>/ui_prototype/`（選讀，供視覺斷言），與既有的 `design/` 並列** | A-INPUTS ＋ A-UIPROTO | **風險最高**：前提是 `spec.md` 真的承載了範例資料與邊界；重放後務必確認完成判準的 SC 覆蓋條款還在，且前端輸入清單的 `ui_prototype/` 一項沒被上游版本蓋掉（`grep -n 'ui_prototype' phases/gherkin/SKILL.md` 須有命中） |
 | `phases/clarify/SKILL.md` | **只加定位補述**（本檔是 `specify` 的輸入、結構層以後不直接讀它）；**執行步驟 2 的「下游迴圈」註記改寫**——原版寫「編排器決定補進 `clarified.md` 重跑或回退本階段」，該路徑在本 pack 不存在且與「下游不得回讀 `clarified.md`」反向，改為「`gherkin` 標 `@待釐清` → 寫進 `handoffs/gherkin.md` 回饋訊號 → 編排器收進最終 handoff Risks → 使用者經 `answers.md` 進入下一輪」；**`## 輸出` 新增 `clarify/questions.md`（有高影響缺口時）並新增「缺口升級協議」段**（`[clarify]` 來源標記、每輪 ≤ 3 題、回指 wrapper 的共用契約），補上原本 wrapper 把 clarify 列為寫入者、但本檔全文不提 `questions.md` 的落差 | A-INPUTS ＋ A-WRAPPER | **輸出格式（`clarified.md` 的內容契約、STATUS 值域）與完成判準不得變動**；非協商規則不得動（`clarify/SKILL.md` 完成判準以「第 1 條」回指）；grill 流程不得動；新增段須置於「執行步驟」之前，不得改動既有段落編號 |
@@ -217,4 +217,10 @@ bash scripts/sync-spec-pack.sh <athena-skills 路徑>
   的棧覆蓋句**移回零**（`grep -c techstack` 三支皆 0）；`README.md` 棧敘述與設定範例同步。
   另修兩項與撤除無關的通讀缺口：`phases/gherkin/references/gherkin-guide.md` §7 的反向裁決、
   `phases/clarify/SKILL.md` 的 `questions.md` 落差（皆見「本地改寫清單」）。
+  `phases/pm-to-eng-flow/references/` **仍為零改動**。**上游 athena-skills 未變動**，本次無 re-vendor。
+- 2026-09-04（同 slug，第 3 輪小修·範圍鎖死）：`phases/api/references/api-conventions.md:119`
+  的回指由 `#3` 更正為 `#4`（該行語義逐字對應 `phases/api/SKILL.md` 非協商規則 **#4「絕不腦補」**，
+  而非 #3「DSL 遵循 Intent Format Anchor」）。此錯號**在基準 `a5a0e5e` 即存在，屬上游繼承**，
+  非本 run 引入；但「本地改寫清單」原將其登記為「以 `#3` 回指」，等於固化錯號並在每次 re-vendor 重放，
+  故一併改為保護 `#4`。**api 非協商規則本身的內容與編號未動**；本輪未新增 / 刪除任何檔案，
   `phases/pm-to-eng-flow/references/` **仍為零改動**。**上游 athena-skills 未變動**，本次無 re-vendor。
