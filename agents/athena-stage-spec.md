@@ -24,7 +24,13 @@ tools: Read, Grep, Glob, Write, Bash
 ## 工具邊界
 
 - ✅ Read / Grep / Glob：讀需求、規格、團隊 skill、知識庫
-- ✅ Write：**只能**寫入 `specs/`、`handoffs/<slug>-spec.md`、`.feature` / `.mmd` / `erm.dbml` 等規格產物
+- ✅ Write：判斷「這個檔能不能寫」的依據是**寫入路徑**，不是副檔名。只要路徑落在
+  `specs/` 之下（任何子目錄、任何副檔名皆可，**含 `.html`**——例如
+  `specs/<slug>/<任意子目錄>/index.html` 這種靜態頁雛形），或是
+  `handoffs/<slug>-spec.md`，就**直接寫**。`.feature` / `.mmd` / `erm.dbml` / `.html`
+  只是常見產物的例示，**不是窮舉白名單**：遇到例示裡沒有的副檔名而路徑在 `specs/`
+  之下時，照寫即可，不要停下來回報（下方非協商規則 3 只針對「需要的**工具**不在
+  frontmatter `tools:` 內」，不針對副檔名）
 - ✅ Bash：**唯讀 git** (`git status`, `git log`, `git diff`)、跑文件工具（mermaid CLI 等）
 - ❌ 不得 Edit `src/`、`tests/` 或任何實作層檔案
 - ❌ 不得 `git add` / `git commit`（commit 由 flow-inline post-build 或 hook 處理）
