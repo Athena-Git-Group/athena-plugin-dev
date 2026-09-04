@@ -4,7 +4,7 @@
 
 每個可替換的 stage 都有一份契約，定義該 stage 的**輸入**（從前一個 stage 的 handoff 讀取什麼）和**輸出**（必須產出什麼 artifact 給下一個 stage）。下游團隊上繳到 `.athena/skills/` 的 skill 必須遵守對應契約，才能被 `athena-flow` 正確編排。
 
-**不可替換的 stage**：`point`（`athena-point`，流程閘門）與 `flow`（`athena-flow`，編排器本身）由 plugin 自身控制，不開放替換。其餘 stage 分兩類：**Standard Stage**（fresh agent 執行）與 **Flow-Inline Stage**（flow agent 內聯執行）。
+**不可替換的 stage**：`point`（`athena-point`，流程閘門）與 `flow`（`athena-flow`，編排器本身）由 plugin 自身控制，不開放替換。其餘 stage 分三類：**Standard Stage**（fresh agent 執行，團隊必須提供，缺少 → 停止＋引導）、**Standard Stage with Plugin Default**（fresh agent 執行，團隊優先，缺少 → 退回 plugin 預設、不停止——**目前只有 `spec`**）與 **Flow-Inline Stage**（flow agent 內聯執行，團隊優先，缺少 → 用 plugin 預設、不停止）。
 
 ## Weight Class 路由
 
@@ -19,19 +19,20 @@ Flow 根據 point verdict 決定流程重量等級，影響 Build 模式、Hando
 
 ### Skill Resolution
 
-- **Standard stage**：依 Skill Discovery 對應表找 `.athena/skills/<skill-dir>/SKILL.md`。找到 → 開 fresh agent 載入執行；找不到 → 停止流程，輸出引導訊息。
+- **Standard stage**（plan / build / verify / review / ship）：依 Skill Discovery 對應表找 `.athena/skills/<skill-dir>/SKILL.md`。找到 → 開 fresh agent 載入執行；找不到 → 停止流程，輸出引導訊息。**唯一例外是 `spec`，見下一條。**
+- **Standard stage with plugin default**（**目前只有 `spec`**）：先查對應表——表裡有團隊 skill → 行為與一般 standard stage **完全相同**（開 fresh agent、`athena-stage-spec` 殼、寫 `handoffs/<slug>-spec.md`），plugin 預設此時**完全不會被載入**；表裡沒有 → **不停止、不輸出引導訊息**，改用 plugin 預設 `athena-spec-default`（`${CLAUDE_PLUGIN_ROOT}/skills/athena-spec-default/SKILL.md`），仍開 fresh agent、仍用同一個殼、仍寫同一份 handoff。「有 plugin 預設」只改 resolution，不改執行模型。
 - **Flow-inline stage**（pre-build / post-build）：先掃 `.athena/skills/`，找不到就用 plugin 預設（`athena-pre-build` / `athena-post-build`），**不停止流程、不引導補齊**。Git 命名規範由 `git-conventions` skill 提供。
 
 ### Named Subagent 殼
 
-Plugin 在 `agents/` 提供 per-stage subagent 殼（`athena-point`、`athena-stage-spec`、`athena-stage-plan`、`athena-stage-build`、`athena-stage-verify`、`athena-stage-review`、`athena-stage-ship`），每個都帶階段化的 tool scope。Flow 啟動 standard stage 時應呼叫 `Agent(subagent_type: "athena-stage-<stage>")` 取代 generic Agent，讓 harness 強制工具邊界；團隊 skill 仍是邏輯來源，subagent 只是權限殼。**review-ship 合併 stage 用 `athena-stage-ship` 殼**——不存在 `athena-stage-review-ship` 殼，複用工具最寬的 ship 殼（其 Read/Grep/Bash 足以做 review、Bash(push/merge) 做 ship），prompt 中同時傳入 team review skill 與 ship skill。若 subagent 因 tool scope 擋掉合理操作，回報給使用者並擴充殼的 `tools` 欄位，不要繞道。
+Plugin 在 `agents/` 提供 per-stage subagent 殼（`athena-point`、`athena-stage-spec`、`athena-stage-plan`、`athena-stage-build`、`athena-stage-verify`、`athena-stage-review`、`athena-stage-ship`），每個都帶階段化的 tool scope。Flow 啟動 standard stage 時應呼叫 `Agent(subagent_type: "athena-stage-<stage>")` 取代 generic Agent，讓 harness 強制工具邊界；團隊 skill 仍是邏輯來源，subagent 只是權限殼（唯一例外：`spec` 退回 plugin 預設時，邏輯來源是 plugin 的 `athena-spec-default`，殼、工具邊界與 handoff 契約完全不變）。**review-ship 合併 stage 用 `athena-stage-ship` 殼**——不存在 `athena-stage-review-ship` 殼，複用工具最寬的 ship 殼（其 Read/Grep/Bash 足以做 review、Bash(push/merge) 做 ship），prompt 中同時傳入 team review skill 與 ship skill。若 subagent 因 tool scope 擋掉合理操作，回報給使用者並擴充殼的 `tools` 欄位，不要繞道。
 
 ## Skill Discovery（flow 啟動時執行）
 
-1. 掃描 `.athena/skills/` 下所有子目錄，讀取每個 `SKILL.md` frontmatter 的 `stage` 欄位，建立 stage → skill 對應表
-2. 檢查**路由需要經過的** standard stage 是否都有對應 skill（缺少 → 停止＋引導，訊息見下）
+1. 掃描 `.athena/skills/` 下所有子目錄，讀取每個 `SKILL.md` frontmatter 的 `stage` 欄位，建立 stage → skill 對應表。**這張表只登記 `.athena/skills/` 掃到的 skill**——plugin 預設（`athena-spec-default` / `athena-pre-build` / `athena-post-build`）**永遠不進這張表**
+2. 檢查**路由需要經過的** standard stage 是否都有對應 skill：**表裡有就結案，完全不查 plugin 預設**；表裡沒有且該 stage 是 `spec` → 取 plugin 預設 `athena-spec-default`，**繼續流程**（不停止、不引導、不輸出訊息）；表裡沒有且該 stage 是 plan / build / verify / review / ship → 停止＋引導（訊息見下）
 3. 檢查 flow-inline stage 是否有團隊版本（有則用團隊的，無則用 plugin 預設；不停止、不引導補齊）
-4. 兩個以上 skill 宣告相同 `stage` → 停止報錯（訊息見下）
+4. 兩個以上 skill 宣告相同 `stage` → 停止報錯（訊息見下）。**本步驟只作用於步驟 1 建立的那張表**——plugin 預設不在表內，所以「團隊有自己的 spec skill ＋ plugin 也有 spec 預設」**在任何情況下都不會**被判為重複綁定
 
 各路由所需 standard skill（只檢查路由會經過的 stage）：
 
@@ -40,13 +41,14 @@ Plugin 在 `agents/` 提供 per-stage subagent 殼（`athena-point`、`athena-st
 | Minimal（PASS-TRIVIAL） | build（不需要 review、ship） |
 | Lightweight / PASS-DIRECT-BUILD | build + review + ship（review-ship 合併執行） |
 | Lightweight / PASS-BUILD-WITH-VERIFY | build + verify + review + ship（review-ship 合併執行） |
-| Full（PASS-SPEC-FIRST） | spec + plan + build + verify + review + ship |
+| Full（PASS-SPEC-FIRST） | spec（**有 plugin 預設**——缺團隊版不停止）+ plan + build + verify + review + ship |
 
 ### 對應表範例
 
 ```
+# 對應表（只登記 .athena/skills/ 掃到的 skill）
 # Standard stages（團隊提供）
-spec   → .athena/skills/my-team-spec/SKILL.md
+spec   → .athena/skills/my-team-spec/SKILL.md            # 團隊有提供 stage: spec 時才有這一列
 plan   → .athena/skills/my-team-plan/SKILL.md
 build  → .athena/skills/my-team-build-index/SKILL.md
 verify → .athena/skills/my-team-verify/SKILL.md
@@ -58,13 +60,20 @@ pre-build  → .athena/skills/my-team-pre-build/SKILL.md  # 團隊有提供
 post-build → athena-post-build/SKILL.md                  # 使用 plugin 預設
 ```
 
+Plugin 預設**不是對應表的一列**，是查表落空後（步驟 2）才套用的 resolution 結果；
+`.athena/skills/` 下沒有任何 `stage: spec` 的 skill 時，上面第一列不存在，spec 解析成：
+
+```
+spec   → athena-spec-default/SKILL.md                    # 使用 plugin 預設（裸 skill 名，同 post-build 的寫法）
+```
+
 ### 缺少 Standard Skill 時的引導訊息
 
-停止流程，逐字輸出 `templates/msg-missing-skill.md` 的訊息全文（輸出那一刻才讀該檔）。
+停止流程，逐字輸出 `templates/msg-missing-skill.md` 的訊息全文（輸出那一刻才讀該檔）。**`spec` 不在此列**——它有 plugin 預設，缺團隊 skill 時退回預設繼續，不停止也不輸出本訊息。
 
 ### 重複 Stage 綁定的報錯訊息
 
-停止流程，逐字輸出 `templates/msg-stage-conflict.md` 的訊息全文（輸出那一刻才讀該檔）。
+停止流程，逐字輸出 `templates/msg-stage-conflict.md` 的訊息全文（輸出那一刻才讀該檔）。只有**兩個以上 `.athena/skills/` 下的 skill** 宣告同一 stage 才會觸發；plugin 預設不在對應表內，**不可能**觸發本訊息。
 
 ---
 
@@ -86,6 +95,7 @@ post-build → athena-post-build/SKILL.md                  # 使用 plugin 預�
 | 項目 | 說明 |
 |------|------|
 | **職責** | 需求分析，產出結構化規格 |
+| **Skill Resolution** | **團隊優先，缺則 plugin 預設**：`.athena/skills/` 有宣告 `stage: spec` 的 skill → 用它；沒有 → 用 plugin 預設 `athena-spec-default`，**不停止、不引導補齊**。兩種來源的執行方式（fresh agent + `athena-stage-spec` 殼）與下方輸入／輸出／gate 契約**完全相同** |
 | **輸入** | `points/<slug>.md` 中的需求描述與 point verdict（point stage 輸出在 `points/` 而非 `handoffs/`） |
 | **必要輸出** | 需求規格文件（Activity Diagrams、Feature Rules、Execution Plan 等） |
 | **Handoff** | `handoffs/<slug>-spec.md`，包含 artifacts produced、gate verdict |

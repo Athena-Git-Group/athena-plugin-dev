@@ -1,7 +1,8 @@
 # 缺少 Standard Skill 的引導訊息
 
 Skill Discovery 發現路由所需 standard stage 缺 skill 時，停止流程並逐字輸出下列訊息
-（缺哪些 stage 就列哪些行）：
+（缺哪些 stage 就列哪些行；**`spec` 不列入——它有 plugin 預設 `athena-spec-default`，
+缺團隊 skill 時退回預設繼續，不停止也不輸出本訊息**。若只缺 `spec`，本訊息**完全不輸出**）：
 
 ```
 ⚠️ 缺少 stage 對應的 skill

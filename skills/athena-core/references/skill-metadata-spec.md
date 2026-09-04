@@ -29,7 +29,7 @@ user-invocable: <bool>  # 選填。是否可被使用者直接呼叫，**預設 
 | stage 值 | 類型 | 說明 |
 |----------|------|------|
 | `pre-build` | flow-inline | Build 前的準備操作（如建立 Git 分支） |
-| `spec` | standard | 需求分析階段 |
+| `spec` | standard-with-plugin-default | 需求分析階段（**團隊未提供時 flow 退回 plugin 預設 `athena-spec-default`，不停止**） |
 | `plan` | standard | 工程計畫產生階段 |
 | `build` | standard | 實作階段 |
 | `post-build` | flow-inline | Build/Verify 後的收尾操作（如自動 commit） |
@@ -41,12 +41,25 @@ user-invocable: <bool>  # 選填。是否可被使用者直接呼叫，**預設 
 
 ### Stage 分類
 
+stage 分**三類**（此三行是 `athena-skill-audit` L1 靜態檢查合法值分類的逐字來源）：
+
+- Standard（團隊必須提供，缺少 → flow 停止＋引導）：`plan` / `build` / `verify` / `review` / `ship`
+- Standard-with-plugin-default（團隊優先，缺少 → 退回 plugin 預設、不停止）：`spec`
+- Flow-inline（團隊優先，缺少 → 用 plugin 預設、不停止）：`pre-build` / `post-build`
+
 #### Standard Stage
 
 - 由 **fresh agent** 執行（每個 stage 獨立 agent）
 - **團隊必須提供**，缺少時 flow 停止並引導
 - 產出 handoff artifact 到 `handoffs/` 目錄
 - 完整的 agent 隔離，不共享對話上下文
+
+#### Standard Stage with Plugin Default（目前只有 `spec`）
+
+- 執行模型與 Standard Stage **完全相同**：fresh agent、產出 handoff artifact、完整 agent 隔離
+- **團隊優先**：`.athena/skills/` 有宣告 `stage: spec` 的 skill → 用它，plugin 預設**完全不被載入**
+- **團隊未提供時退回 plugin 預設** `athena-spec-default`，**不停止流程、不引導補齊**
+- 「有 plugin 預設」只改 resolution，不改執行方式、輸入輸出或 gate 契約
 
 #### Flow-Inline Stage
 
@@ -55,25 +68,30 @@ user-invocable: <bool>  # 選填。是否可被使用者直接呼叫，**預設 
 - 透過 **flow context** 傳遞資訊（不產出 handoff artifact）
 - 適用於輕量級的跨 stage 輔助操作
 
-### Flow-Inline Stage 的 Discovery 規則
+### 有 Plugin 預設的 stage 的 Discovery 規則
 
-Flow-inline stage 的 discovery 與 standard stage 不同：
+`spec`（standard-with-plugin-default）與 flow-inline stage 的 discovery 都是「團隊優先、缺則預設」，
+與其餘 standard stage 不同：
 
 ```
 1. 掃描 .athena/skills/ 尋找對應 stage 的 skill
-2. 若找到 → 使用團隊的 skill（團隊替換了預設）
-3. 若未找到 → 使用 plugin 預設（athena-pre-build / athena-post-build）
+   （plugin 預設本身永遠不進 flow 的 stage → skill 對應表）
+2. 若找到 → 使用團隊的 skill（團隊替換了預設），plugin 預設完全不被載入
+3. 若未找到 → 使用 plugin 預設
+   （spec → athena-spec-default；pre-build / post-build → athena-pre-build / athena-post-build）
 4. 不會停止流程，也不會引導團隊補齊（因為有預設）
+5. 因為 plugin 預設不在對應表內，「團隊有 + plugin 有」不會被判為重複 stage 綁定
 ```
 
-**與 standard stage 的關鍵差異**：
+**三類的關鍵差異**：
 
-| | Standard Stage | Flow-Inline Stage |
-|---|---|---|
-| 缺少 skill 時 | 停止流程 + 引導 | 使用 plugin 預設 |
-| 執行方式 | Fresh agent | Flow agent 內聯 |
-| 交接方式 | Handoff artifact | Flow context |
-| 團隊是否必須提供 | 是 | 否（可選替換） |
+| | Standard Stage | Standard with Plugin Default（`spec`） | Flow-Inline Stage |
+|---|---|---|---|
+| 適用 stage | `plan` / `build` / `verify` / `review` / `ship` | `spec` | `pre-build` / `post-build` |
+| 缺少 skill 時 | 停止流程 + 引導 | 使用 plugin 預設（不停止、不引導） | 使用 plugin 預設 |
+| 執行方式 | Fresh agent | Fresh agent | Flow agent 內聯 |
+| 交接方式 | Handoff artifact | Handoff artifact | Flow context |
+| 團隊是否必須提供 | 是 | 否（可選替換） | 否（可選替換） |
 
 ### 何時需要
 

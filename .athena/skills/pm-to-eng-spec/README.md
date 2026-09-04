@@ -1,8 +1,9 @@
 # Spec Pack: PM → Engineering（starter pack）
 
-把 PM 需求文件轉成工程化規格的 **spec stage 實作**，供團隊安裝到自己專案的
-`.athena/skills/` 使用。這是 **opt-in** 的 starter pack——不安裝不影響任何
-既有 flow 行為；安裝後 `PASS-SPEC-FIRST`（Full 路由）的 spec 階段由它執行。
+把 PM 需求文件轉成工程化規格的 **spec stage 實作**。它同時是 **plugin 的 spec 預設**：
+專案的 `.athena/skills/` 下沒有任何宣告 `stage: spec` 的 skill 時，`/athena-flow` 的
+`PASS-SPEC-FIRST`（Full 路由）spec 階段就由本 pack 執行——**不必安裝**。
+把它裝到自己專案的 `.athena/skills/` 是為了**改它**（見下方「安裝」）。
 
 ## 它做什麼
 
@@ -15,16 +16,25 @@ PM 需求 → score（可譯性 gate）→ clarify（釐清 gate）
 
 產出全部落在 `specs/<slug>/`，最終 handoff 寫 `handoffs/<slug>-spec.md`。
 
-## 安裝（在你的專案根目錄）
+## 安裝（選用——**不裝也會用到**）
+
+**不裝也會生效**：`.athena/skills/` 下找不到 `stage: spec` 的 skill 時，flow 退回
+plugin 預設 skill `athena-spec-default`，由它載入本 pack 執行。flow **不會**停下來
+要你補齊 spec skill，也**不會**因此報錯。
+
+**裝到 `.athena/skills/` 只有一個理由：你要改它**（增刪 phase、換技術棧、加團隊判準）。
+在你的專案根目錄：
 
 ```bash
 cp -R <plugin-root>/skills/athena-core/assets/spec-pack-pm-to-eng \
       .athena/skills/pm-to-eng-spec
 ```
 
-裝完 `/athena-flow` 的 Skill Discovery 會自動把它綁到 `stage: spec`。
-注意：**同一 stage 只能有一個 skill**——若你的專案已有宣告 `stage: spec` 的
-skill，flow 會報 duplicate-stage 錯，請先擇一。
+裝完 `/athena-flow` 的 Skill Discovery 會掃到它並綁到 `stage: spec`，你的副本從此
+**取代** plugin 預設（預設完全不會被載入——plugin 預設永遠不進 discovery 對應表，
+所以「團隊有 + plugin 有」不會被判為 duplicate-stage）。
+注意：**同一 stage 只能有一個 skill**——若你的專案 `.athena/skills/` 下已有**另一個**
+宣告 `stage: spec` 的 skill（例如自己的 spec index），flow 會報 duplicate-stage 錯，請先擇一。
 
 ## 設定（選用，在專案的 `specs/arguments.yml` 追加）
 

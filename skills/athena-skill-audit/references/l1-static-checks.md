@@ -81,10 +81,11 @@ listing 總預算為模型 context window 的 **1%**（settings `skillListingBud
 
 ## `stage` 合法值
 
-依 metadata spec：
+依 metadata spec「Stage 分類」（三類，與 `skills/athena-core/references/skill-metadata-spec.md` **逐字同步**）：
 
-- Standard：`spec` / `plan` / `build` / `verify` / `review` / `ship`
-- Flow-inline：`pre-build` / `post-build`
+- Standard（團隊必須提供，缺少 → flow 停止＋引導）：`plan` / `build` / `verify` / `review` / `ship`
+- Standard-with-plugin-default（團隊優先，缺少 → 退回 plugin 預設、不停止）：`spec`
+- Flow-inline（團隊優先，缺少 → 用 plugin 預設、不停止）：`pre-build` / `post-build`
 
 不在此清單內 → 🟡。`point` 與 `flow` 為 plugin 保留，團隊不得宣告 → 🟡。
 
