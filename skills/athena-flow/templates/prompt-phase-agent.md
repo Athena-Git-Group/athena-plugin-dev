@@ -23,7 +23,11 @@ Timing 是**選填**欄位——agent 漏記不算 gate 失敗，emit-trace 缺�
 停下來在 mini-handoff 記 gate FAIL + 原因 `#plan-gap`，不得逕自修改。
 
 完成實作後：
-1. 執行 smoke test：<phase card 中的 smoke_test 指令>
+1. 執行測試，依 phase card `Test Mode` 分流（分類與紅綠契約見 test-gate.md）：
+   - `Test Mode: tdd` → 先寫測試跑 `<Test Command>` 記錄紅，實作後重跑**同一指令**記錄綠；
+     紅綠兩筆寫入 mini-handoff 的測試結果欄位（寫法見 agent-handoff.md tdd 段）；
+     建議附 tests_written/tests_passed metrics（## Metrics JSON，選填）
+   - `Test Mode: smoke-only` 或缺欄位 → 執行 smoke test：<phase card 中的 smoke_test 指令>
 2. 再執行一次 `date -u +%Y-%m-%dT%H:%M:%SZ` 取得 Ended At
 3. 寫 mini-handoff 到 handoffs/<slug>-build-phase-<NN>.md，
    含選填的 `## Timing` 區塊（Started At / Ended At，格式見 agent-handoff.md）

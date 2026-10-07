@@ -12,7 +12,12 @@ spawn Minimal / Lightweight 的 build agent 時使用；`{}` 擇一、`<>` 由 f
 2. points/<slug>.md（需求描述與評分）
 
 完成後：
-1. 執行 smoke test（根據變更性質選擇合理的驗證指令）
+1. 執行測試——依 test-gate.md 分類分流（分類與紅綠契約的唯一真源：
+   skills/athena-flow/references/test-gate.md）：
+   [僅 Minimal 加註] Minimal 一律 smoke-only（test-gate.md weight 表），不分類、不紅綠。
+   - 分類為 tdd → 紅綠兩次執行：先寫測試、執行並記錄紅；實作完成後重跑同一指令記錄綠。
+     tdd 模式建議附 tests_written/tests_passed metrics（## Metrics JSON，選填）
+   - 分類為 smoke-only → 執行 smoke test（根據變更性質選擇合理的驗證指令）
 2. [僅 Minimal] 執行 self-review checklist（任一項不通過 → Gate FAIL）：
    □ 改動範圍是否超出 point-report 描述？（是 → 可能低估複雜度）
    □ 是否引入新的 import / dependency？
