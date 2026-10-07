@@ -14,6 +14,10 @@ merge_target 由 flow 先問使用者再代入。
 
 流程：
 1. 先執行 code review（依據 review skill）
+   - 變更集依 test-gate.md 分類為 `tdd` 時，review 另查核測試存在：diff 含測試檔＋
+     build handoff 的測試結果欄位含紅綠（red/green）記錄；查核結果與缺漏記入
+     handoff 的 Review Notes／Risks，由 review verdict 承載處置（弱 enforce，
+     明文見 stage-contracts.md review-ship 段／test-gate.md weight 表）
 2. Review 通過後，執行 ship：push + merge to <merge_target>
 3. 寫 handoffs/<slug>-review-ship.md（Compact 格式）
 ```
