@@ -104,6 +104,8 @@ status_source: folders
 - **Spec Sections:** <只列這個 phase 需要的 section 編號或標題>
 - **Touches:** files: <glob 清單> / resources: <清單或 —>
 - **Smoke Test:** <指令；見下方「Smoke Test 表」>
+- **Test Mode:** tdd | smoke-only（選填；**缺欄位 = smoke-only**，舊卡全部向後相容）
+- **Test Command:** <指令>（`Test Mode` 為 `tdd` 時必填；紅綠兩次執行都跑這一個指令）
 
 ### 目標
 <這個 phase 要達成什麼，一段>
@@ -144,6 +146,14 @@ phase 卡的 `Smoke Test` 是該 phase 的 gate 依據。依 phase 改動的檔�
 | 動 `hooks/*.sh` | `bash scripts/lint-plugin.sh`（含 `bash -n` 與執行位檢查）+ 該 hook 的實跑冒煙 |
 | 動 `scripts/*.py` 或 `validate_plan.py` | `bash scripts/lint-plugin.sh`（含 plan validator self-test）+ 該 script 對 `tests/fixtures/` 實跑 |
 | 動 plan/trace schema | 上述 + `python3 skills/athena-specformula/scripts/validate_plan.py --require-touches tests/fixtures/plan-valid/` |
+| 分類為 `tdd` 的 phase | `Test Mode: tdd` + `Test Command`（**真測試指令，非語法檢查**）；`Smoke Test:` 並存仍可填（例如 lint），在綠之後照跑，不填則以 `Test Command` 的綠結果作為 gate 依據 |
+
+**plan 作者義務（tdd 分類）**：寫每張卡時，對該 phase 的 `Touches.files` 套
+`skills/athena-flow/references/test-gate.md` 的分類函數決定 `Test Mode`；判為
+`tdd` 的 phase **必須同時給 `Test Command`**——缺 `Test Command` 的 tdd 卡，
+phase agent 會直接 gate FAIL `#plan-gap`。code 類 phase 未標 `tdd` 是 plan 缺陷，
+verify 會依分類函數重算抓到。分類規則、weight 適用表與紅綠契約的唯一真源是
+test-gate.md，本表只做指標引用，不抄規則全文。
 
 **markdown 契約沒有測試可跑。** 這類 phase 的 smoke test 必須是**可機械判定的
 一致性檢查**，寫成具體指令，例如：
