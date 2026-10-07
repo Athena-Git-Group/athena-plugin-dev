@@ -114,7 +114,9 @@ status_source: folders
 |------|--------|------|
 | **Depends On** | 必要 | 依賴的 phase 編號 |
 | **Spec Sections** | 必要 | 此 phase agent 只需讀的 spec section 編號（避免全讀 1100+ 行 spec） |
-| **Smoke Test** | 建議 | Phase 完成後的驗證指令（無則視為 PASS） |
+| **Smoke Test** | 建議 | Phase 完成後的驗證指令（smoke-only 無則視為 PASS；`tdd` 不填則以 `Test Command` 的綠結果作為 gate 依據） |
+| **Test Mode** | 選填 | `tdd` \| `smoke-only`——**缺欄位 = smoke-only**，舊卡全部向後相容（分類函數見 flow 的 `references/test-gate.md`） |
+| **Test Command** | 選填（`Test Mode` 為 `tdd` 時必填） | 真測試指令（非語法檢查）；紅綠兩次執行都跑這一個指令 |
 
 ### Phase Card 範例
 
@@ -123,7 +125,9 @@ status_source: folders
 
 - **Depends On:** 04
 - **Spec Sections:** 1, 3, 4
-- **Smoke Test:** `cargo test && cargo clippy`
+- **Smoke Test:** `cargo clippy`
+- **Test Mode:** tdd
+- **Test Command:** `cargo test`
 ```
 
 ```markdown

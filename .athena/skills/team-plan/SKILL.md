@@ -96,4 +96,4 @@ pre-build（接著 build phase loop）
 7. **必須跑 `validate_plan.py --require-touches` 並把實際輸出貼進 handoff**——非 0 就是 FAIL，不放行、不繞過
 8. **消費者用 grep 找**——動 enum / 欄位名 / 規則編號前，先 grep 全 repo 列出所有消費者，寫進契約面清單
 9. **跨檔契約面必須有通讀驗收**——寫進驗收條件或開獨立驗證 phase，二者擇一
-10. **smoke test 必須可機械判定**——不寫「人工檢查」這種無法判定的話
+10. **smoke test 與 Test Command 皆必須可機械判定**——不寫「人工檢查」這種無法判定的話
