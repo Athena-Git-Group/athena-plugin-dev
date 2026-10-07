@@ -41,7 +41,7 @@ weight 適用表、紅綠流程契約、缺失處置。其他 references／templ
 | Weight | TDD 適用性 | 理由 |
 |--------|-----------|------|
 | Minimal（PASS-TRIVIAL） | **豁免**——維持現行 smoke + self-review，不分類、不紅綠 | 低 overhead 初衷；且 Minimal 無 verify stage，測試存在性無人獨立驗收，強制了也 enforce 不了 |
-| Lightweight（PASS-DIRECT-BUILD / PASS-BUILD-WITH-VERIFY） | 分類為 `tdd` 時適用 | BUILD-WITH-VERIFY 由 verify 驗收；DIRECT-BUILD 由 review-ship 的 review 檢查測試存在（弱 enforce，記入 handoff Risks） |
+| Lightweight（PASS-DIRECT-BUILD / PASS-BUILD-WITH-VERIFY） | 分類為 `tdd` 時適用 | BUILD-WITH-VERIFY 由 verify 驗收；DIRECT-BUILD 由 review-ship 的 review 檢查測試存在（弱 enforce，記入 handoff Risks；查核內容明文見 `stage-contracts.md` review-ship 段） |
 | Full（PASS-SPEC-FIRST） | 分類為 `tdd` 的 phase **強制** | phase card `Test Mode: tdd`，verify 獨立驗收 |
 
 ## 紅綠流程契約（`tdd` 模式下 build agent 的行為）

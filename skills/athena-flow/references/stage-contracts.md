@@ -267,11 +267,19 @@ Lightweight 路由中，review 和 ship 由**同一個 fresh agent** 執行，�
 
 | 項目 | 說明 |
 |------|------|
-| **職責** | 程式碼審查 + 推送分支 + 合併到目標環境 |
+| **職責** | 程式碼審查（含下方「tdd 變更的測試存在性查核」）+ 推送分支 + 合併到目標環境 |
 | **執行方式** | 單一 fresh agent，先 review 再 ship |
 | **輸入** | PASS-DIRECT-BUILD: `handoffs/<slug>-build.md`；PASS-BUILD-WITH-VERIFY: `handoffs/<slug>-build.md` + `handoffs/<slug>-verify.md`。加上 flow context `git_context` + `merge_target`（flow 傳入） |
 | **必要輸出** | `handoffs/<slug>-review-ship.md`（Compact 格式，見 `agent-handoff.md` 差異表 **Review-ship** 列） |
 | **Gate 條件** | Review 通過 + push 成功 + merge 成功 |
+
+**tdd 變更的測試存在性查核**（`test-gate.md` weight 適用表 Lightweight 列
+「DIRECT-BUILD 由 review-ship 的 review 檢查測試存在」的落點）：變更集依
+`test-gate.md` 分類為 `tdd` 時，review 職責包含查核 (a) diff 含測試檔、
+(b) build handoff 的測試結果欄位含紅綠（red/green）記錄。查核結果與缺漏
+記入 review-ship handoff 的 Risks／Review 意見——**弱 enforce**：不新增獨立
+gate 欄位，查核不過由 review verdict（approve / request-changes）承載處置；
+PASS-DIRECT-BUILD 無 verify stage，此查核是該路由唯一的測試存在性把關。
 
 #### review-ship Agent Prompt
 
