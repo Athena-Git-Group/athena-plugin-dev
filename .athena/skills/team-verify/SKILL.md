@@ -2,10 +2,11 @@
 name: team-verify
 description: >
   本 repo（athena-dev-plugin）的 verify stage skill。獨立驗證 build 宣稱的
-  完成項：逐條對 point-report 驗收、重跑 smoke 檢查、針對 Risks 段做機械查證。
-  只回報不修（無 Edit 權限），issues 具體到檔案:行號。Handoff 兩種模式：
-  Full（PASS-SPEC-FIRST）完整格式（讀 mini-handoff、issues 標 affected_phase）；
-  Lightweight（PASS-BUILD-WITH-VERIFY）= Full + 差異表。
+  完成項：逐條對 point-report 驗收、分類重算（test-gate.md）後依分類驗收
+  （tdd 驗測試存在＋重跑 Test Command；smoke-only 重跑 smoke 檢查）、針對
+  Risks 段做機械查證。只回報不修（無 Edit 權限），issues 具體到檔案:行號。
+  Handoff 兩種模式：Full（PASS-SPEC-FIRST）完整格式（讀 mini-handoff、issues
+  標 affected_phase）；Lightweight（PASS-BUILD-WITH-VERIFY）= Full + 差異表。
 stage: verify
 ---
 
@@ -27,8 +28,26 @@ stage: verify
 
 1. （選填）取 `Started At:`（`date -u +%Y-%m-%dT%H:%M:%SZ`）
 2. **逐條驗收**：把 point-report 的任務描述/驗收條件拆成清單，逐條對 diff 查證有做且做對
-3. **重跑 smoke**：不信 build handoff 的結果，依改動類型自己重跑（bash → `bash -n`；
-   python → `python3 -m py_compile`；markdown/skill → frontmatter 可解析 + 相對路徑引用存在；feature 檔 → 關鍵字結構檢查）
+3. **分類重算與依分類驗收**（分類函數、紅綠契約、判定層級的唯一真源：
+   `skills/athena-flow/references/test-gate.md`——指標引用，不抄全文）：
+   - **3a. 分類重算**：`git diff --name-only <base>...HEAD` 取實際變更檔案清單，
+     套 test-gate.md 分類函數重算 `tdd` / `smoke-only`，與 build handoff／phase card
+     的宣稱比對。不一致（如宣稱 smoke-only 但 diff 含 code 類檔案）→
+     issue + FAIL `#contract-violation`
+   - **3b. 依分類驗收**：
+     - `smoke-only` → 現行行為不變：不信 build handoff 的結果，依改動類型自己重跑
+       （bash → `bash -n`；python → `python3 -m py_compile`；markdown/skill →
+       frontmatter 可解析 + 相對路徑引用存在；feature 檔 → 關鍵字結構檢查）
+     - `tdd` →（i）**測試存在**：diff 中含新增或修改的測試檔／測試案例，且 build
+       handoff 的測試結果欄位含紅、綠兩筆記錄（red/green 行格式見
+       `skills/athena-flow/references/agent-handoff.md` 的 tdd 寫法）；
+       （ii）**測試通過**：自己重跑 Test Command——Full 從 phase card 讀，
+       Lightweight 從 build handoff 測試結果欄位記錄的指令讀——必須通過；
+       （iii）紅記錄缺失、或「初跑即綠」無原因記錄 → issue `#contract-violation`；
+       重跑結果與 handoff 宣稱不符 → issue（結果**不穩定**——重跑時好時壞——用
+       `#flaky`；**宣稱不實**——handoff 說過但重跑穩定地不過——用 `#contract-violation`）
+   - 判定依據是 handoff 測試結果文字欄位與 `## Gate Verdict`；`## Metrics` 僅為
+     trace 觀測，不參與驗收判定（層級句見 test-gate.md「Gate 判定層級」）
 4. **Risks 機械查證**：對 point-report Risks 段列的每一條風險，設計一個機械檢查
    （例如「可能漏改其他引用處」→ `grep -rn` 全 repo 查舊字串殘留）並執行
 5. **範圍檢查**：diff 中是否有 point-report 範圍外的改動
@@ -72,6 +91,8 @@ PASS — <一句話原因>
 ## Checks Performed
 - <驗收條目>: PASS/FAIL
 - <smoke 重跑指令>: <result>
+- <Test Command 重跑>: <result>
+- 分類重算（git diff --name-only + test-gate 分類）: <tdd|smoke-only，與宣稱一致？>
 - <risk 查證指令>: <result>
 
 ## Issues Found
