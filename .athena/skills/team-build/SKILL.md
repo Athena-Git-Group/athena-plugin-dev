@@ -4,7 +4,8 @@ description: >
   本 repo（athena-dev-plugin）的 build stage skill。產物是 markdown skill
   文件、bash hooks 與少量 python script——不是一般 app。依 point-report
   （Minimal/Lightweight）或 phase card + mini-handoff（Full）實作，
-  依改動類型執行對應 smoke test，寫 Compact 格式 build handoff。
+  依 test-gate.md 分類執行測試（tdd 紅綠／smoke-only 依改動類型 smoke test），
+  寫 Compact 格式 build handoff。
 stage: build
 ---
 
@@ -31,10 +32,21 @@ stage: build
 1. （選填）取 `Started At:`：`date -u +%Y-%m-%dT%H:%M:%SZ`
 2. 讀輸入檔，列出要改的檔案清單，確認全部落在 point-report 範圍內
 3. 實作
-4. 依改動類型執行 smoke test（見下）
+4. 依 `skills/athena-flow/references/test-gate.md` 分類執行測試（Full 看 phase card
+   `Test Mode`；Minimal 一律 smoke-only，豁免分類）：
+   - `tdd` → 紅綠流程：先寫測試執行並記錄紅 → 實作 → 重跑**同一個**指令記錄綠
+     （完整契約見 test-gate.md，本檔不複述）
+   - `smoke-only` → 依改動類型執行 smoke test（見下）
 5. 寫 handoff（見下）
 
 ## Smoke Test（依改動類型選擇）
+
+> **分類前置**：變更集先依 `skills/athena-flow/references/test-gate.md`（唯一真源：
+> code 類副檔名表、混合變更 code > doc、weight 適用表與缺失處置）判 `tdd` / `smoke-only`。
+> 本 repo 產物以 markdown skill 文件為主——markdown-only 變更依分類函數天然落
+> `smoke-only`，repo 自身開發不被 TDD 卡死。分類為 `tdd` 時先完成紅綠流程，
+> doc 部分照常跑下表檢查；tdd 模式建議附 `tests_written`/`tests_passed` metrics
+> （`## Metrics` JSON，選填，key 定義見 run-trace-extensions.md）。
 
 | 改動類型 | 檢查指令 |
 |----------|----------|

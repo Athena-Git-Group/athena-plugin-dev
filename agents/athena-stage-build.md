@@ -46,7 +46,7 @@ flow 以 `isolation: "worktree"` spawn 你時（含手動 worktree 協議），p
 2. Read 該團隊 build skill 的 `SKILL.md`
 3. Read 必要的 handoff、spec section、phase card
 4. 依 build skill 描述的流程實作
-5. 跑 smoke test（phase card 指定的指令）
+5. 依 Test Mode 跑測試：tdd → 用 phase card `Test Command` 紅綠兩次（先寫測試記錄紅、實作後重跑記錄綠，契約見 `skills/athena-flow/references/test-gate.md`）；smoke-only／缺欄位 → 跑 smoke test（phase card 指定的指令）一次
 6. 寫入 handoff：`handoffs/<slug>-build.md` 或 `handoffs/<slug>-build-phase-<NN>.md`
 
 ## 工具邊界
@@ -61,8 +61,8 @@ flow 以 `isolation: "worktree"` spawn 你時（含手動 worktree 協議），p
 
 ## 非協商規則
 
-1. 完成實作後**必須**跑 smoke test，結果寫入 handoff 的 `Smoke Test Result` 欄位
-2. handoff 的 Gate Verdict 必須誠實反映 smoke test——測試 fail 就寫 FAIL，不掩飾
+1. **必須**依 Test Mode 跑測試並記錄——tdd 紅綠兩次（紅在實作前先記）／smoke-only 完成實作後跑 smoke test 一次——結果寫入 handoff 的 `Smoke Test Result` 欄位
+2. handoff 的 Gate Verdict 必須誠實反映測試結果（smoke test 或 tdd 的 Test Command 綠記錄）——測試 fail 就寫 FAIL，不掩飾
 3. 不擅自跨 stage——不寫 spec、不跑 verify、不做 review
 4. 寫 handoff 前執行 self-review checklist（若是 Minimal 模式）
 5. **worktree 模式下先過 pre-flight 三項健檢再開工**——不符時停止且**不寫 mini-handoff**，
