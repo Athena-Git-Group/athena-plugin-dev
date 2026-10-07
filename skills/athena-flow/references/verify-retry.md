@@ -7,7 +7,7 @@
 Lightweight 路由（`PASS-BUILD-WITH-VERIFY`）的 verify 失敗處理方式不同：
 - 沒有 phase loop，無法做 targeted re-build
 - Verify fail → flow 開一個 fresh build agent（repair mode），載入 build skill + verify handoff 中的 issues
-- Agent 修復所有 issues → 重跑 smoke test → 更新 build handoff
+- Agent 修復所有 issues → 重跑測試（`test-gate.md` 分類為 `tdd` → 用 build handoff 記錄的 `Test Command` 更新 green 記錄；`smoke-only` → smoke test）→ 更新 build handoff
 - Flow 觸發 post-build commit（`triggering_stage: verify-fix-lightweight`，commit type = `fix`）
 - Re-verify（完整重跑），最多 2 輪，超過交給使用者
 - 見 `stage-contracts.md`「build（Minimal / Lightweight — 單一 agent）」段落
@@ -23,7 +23,7 @@ Verify stage 失敗時的回退與修復流程（Full Weight）。
 
 - Build 已採用 phase loop，每個 phase 都有 mini-handoff（`handoffs/<slug>-build-phase-<NN>.md`）
 - Verify agent 必須在 issue list 中標記 `affected_phase`
-- Phase-level smoke test 已通過（verify 抓到的是跨 phase 整合問題或 smoke test 未覆蓋的問題）
+- Phase-level gate 已通過（phase card 測試——`Test Command` 或 smoke test——已過；verify 抓到的是跨 phase 整合問題或 phase 測試未覆蓋的問題）
 
 ## Verify Handoff 格式（擴充）
 
@@ -53,7 +53,7 @@ Flow 讀 verify handoff
     ├── 2. Agent 修復 issues
     │      - 讀取 issues 描述
     │      - 修復程式碼
-    │      - 重跑 smoke test
+    │      - 重跑 phase card 測試（tdd：`Test Command`／否則 `smoke_test`）
     │      - 更新 mini-handoff
     │
     ├── 3. Flow 檢查更新後的 mini-handoff Gate Verdict
@@ -89,7 +89,7 @@ Re-Verify：開 fresh verify agent → 完整重跑
 
 修復步驟：
 1. 逐一修復上述 issues
-2. 重跑 smoke test：<phase card 中的 smoke_test 指令>
+2. 重跑 phase card 測試——`Test Mode: tdd` → <phase card 中的 Test Command>（更新 green 記錄，red 記錄保留）；smoke-only／缺欄位 → <phase card 中的 smoke_test 指令>（分流見 test-gate.md）
 3. 更新 mini-handoff（handoffs/<slug>-build-phase-<NN>.md）
 ```
 

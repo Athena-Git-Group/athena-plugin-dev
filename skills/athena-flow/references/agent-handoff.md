@@ -72,7 +72,7 @@ FAIL — frontend 呼叫 /api/approval 但後端是 /api/approvals (plural) #int
 | Spec | `# Handoff: spec` | `<slug>-spec.md` | = base |
 | Plan | `# Handoff: plan` | `<slug>-plan.md` | +`## Phase 列表`（Phase/Name/Depends On/Touches/可平行於 表）、+`## Validator Result`（指令、exit code、實際輸出）；Next = pre-build |
 | Build 合成（Full；flow 寫，非 agent 寫） | `# Handoff: build` | `<slug>-build.md` | +`## Phase Summary`（Phase/Gate/Commit 表，置於 Inputs Used 後）；+`## Synthesis Note`（列來源 mini-handoff 清單＋「flow 彙整，未經獨立驗證」聲明；置於 Risks 前）；Artifacts = 合併各 mini-handoff 的 Files Changed；Risks = 合併各 phase 的 Spec Deviations 與 Notes |
-| Compact build（Lightweight） | `# Handoff: build (lightweight)` | `<slug>-build.md` | −`## Stage`、−`## Inputs Used`、−`## Artifacts Produced`、−`## Next Recommended Stage`；+`## Files Changed`（new/modified 標注）、+`## Smoke Test Result`（command: result） |
+| Compact build（Lightweight） | `# Handoff: build (lightweight)` | `<slug>-build.md` | −`## Stage`、−`## Inputs Used`、−`## Artifacts Produced`、−`## Next Recommended Stage`；+`## Files Changed`（new/modified 標注）、+`## Smoke Test Result`（command: result；tdd 模式含 red/green 兩行，見 `test-gate.md` 與下方 tdd 寫法） |
 | Minimal build（PASS-TRIVIAL） | `# Handoff: build (minimal)` | `<slug>-build.md` | 同 Compact build，另 +`## Self-Review`（Scope within point-report / New dependencies / Security concerns 三行） |
 | Verify Full | `# Handoff: verify` | `<slug>-verify.md` | +`## Checks Performed`；FAIL 時必要：+`## Issues Found`（每條以 `**[Phase NN]**` 前綴標 affected phase）、+`## Affected Phases`（phase → issue 數彙整）；Next = review 或 re-build (targeted) |
 | Verify Lightweight | `# Handoff: verify (lightweight)` | `<slug>-verify.md` | +`## Checks Performed`、+`## Issues Found`（**無** `[Phase NN]` 前綴）；**無** `## Affected Phases`；Next = review-ship |
@@ -118,11 +118,24 @@ FAIL — frontend 呼叫 /api/approval 但後端是 /api/approvals (plural) #int
 [下一個 phase agent 需要的資訊，如實際 API path、schema 細節]
 ```
 
+**tdd 模式的 `## Smoke Test Result` 寫法**（分類與紅綠契約見 `test-gate.md`；
+欄位名不變，內容擴充為 red/green 兩行）：
+
+```markdown
+## Smoke Test Result
+- red: `<Test Command>` → <預期失敗摘要（哪些測試失敗）>
+- green: `<Test Command>` → <通過摘要（N passed）>
+- smoke（選填，phase card 另有 Smoke Test 時）: `<指令>` → <result>
+```
+
+smoke-only 模式維持現行單筆 `- <command>: <result>`，零變化。紅步驟初跑即綠時
+red 行寫 `red: <Test Command> → 初跑即綠，原因：<...>`（不自動 FAIL，供 verify 查證）。
+
 | 欄位 | 必要性 | 說明 |
 |------|--------|------|
 | Phase / Inputs Used / Files Changed | 必要 | 識別與可追溯性 |
 | Spec Deviations | 必要 | 防止下游在錯誤基礎上繼續 |
-| Smoke Test Result / Gate Verdict | 必要 | Gate 判定依據，flow 讀此決定是否繼續 |
+| Smoke Test Result / Gate Verdict | 必要 | Gate 判定依據，flow 讀此決定是否繼續；tdd 模式含 red/green 兩筆記錄（寫法見上方 tdd 寫法、契約見 `test-gate.md`） |
 | Worktree Branch | 選填 | 僅平行 worktree 隔離模式：phase agent 無論 gate 結果都 commit 到 worktree 分支（PASS 正常格式、FAIL 用 `wip:` 前綴）後回報所在分支，值 = `git branch --show-current` 實測（不准猜命名）；mini-handoff 本身寫在**主樹**的 `handoffs/`；flow merge-back（`git merge --no-ff`）讀此欄位且**只 merge latest gate = PASS 的分支**，協議見 `phase-orchestration.md`「Worktree 隔離」 |
 | Timing | 選填 | 見下方 Timing 段 |
 | Notes for Next Phase | 選填 | 跨 phase 的實作細節傳遞 |

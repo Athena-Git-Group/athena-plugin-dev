@@ -58,10 +58,14 @@ response 不得作為事實來源，只能觸發「去讀 handoff」。白話層
 
 ## 未驗證標示
 
-無 smoke test 定義時 gate 判定照舊（PASS 前綴保留、hook 照常 commit、流程語意不變），但：
+無任何測試定義時（smoke-only——或缺 `Test Mode`——且無 smoke test）gate 判定照舊
+（PASS 前綴保留、hook 照常 commit、流程語意不變），但：
 
 - handoff／mini-handoff 的 **verdict 原因文字必須寫明「無 smoke test，未驗證」**
 - **結束回報白話層必須含「未驗證」**——不得讓使用者把「沒有任何檢查」聽成「通過了」
+
+`Test Mode: tdd` 的 phase **不適用本段**——缺 `Test Command` 是 FAIL `#plan-gap`
+（見 `references/test-gate.md`「缺失處置」），不是未驗證 PASS。
 
 ## 合成 handoff 的如實聲明
 

@@ -19,7 +19,7 @@ Phase loop **僅在 Full Weight 流程中執行**（`PASS-SPEC-FIRST`）。
 
 Flow 讀取 `plans/<slug>/plan.md` 的 Dependency Graph，將 **implementation phases**
 （通常 Phase 05-07）拆解為 Build stage 內的獨立 sub-stage，逐一（或平行）調度。
-每個 phase 獲得與 standard stage 同等級的 fresh agent、mini-handoff、smoke test gate
+每個 phase 獲得與 standard stage 同等級的 fresh agent、mini-handoff、test gate
 與 per-phase commit。
 
 - **Stage** = flow 的一級調度單位（fresh agent + handoff artifact）
@@ -70,9 +70,9 @@ Flow 讀 plan.md frontmatter → 掃描 todo/doing/done/ → 建立依賴圖
     │     3. 載入 build skill + phase card（doing/ 中的卡）
     │     4. Agent 讀取前一個 phase 的 mini-handoff（若有）
     │     5. Agent 讀取指定的 spec sections（由 phase card 標明）
-    │     6. Agent 執行實作
-    │     7. Agent 執行 smoke test（phase card 中定義的指令）
-    │     8. Agent 寫 mini-handoff（含 smoke test 結果）
+    │     6. Agent 執行實作（`Test Mode: tdd` 時實作前先寫測試、記錄紅——見「Test Gate」段）
+    │     7. Agent 執行 phase card 測試（tdd 用 `Test Command` 記錄綠 / smoke-only 用 `smoke_test` 指令）
+    │     8. Agent 寫 mini-handoff（含測試結果）
     │     9. Flow 讀 mini-handoff → 檢查 Gate Verdict → 【結束回報】
     │        （先於一切簿記，見 rules/回報協議與read-back綁定.md）
     │     10. PASS → post-build commit（per-phase）→ mv doing/<NN>-<name>.md → done/
@@ -108,12 +108,16 @@ prompt 全文見 `templates/prompt-phase-agent.md`（spawn 那一刻才讀該檔
 > 照其注入段附加到 prompt 末尾（主樹絕對路徑、`Main Tree Branch:` / `Expected Branch:`、
 > pre-flight 三項健檢、雙路徑規則、收尾 commit 義務）；隔離協議本體見 `worktree-isolation.md`。
 
-## Smoke Test Gate
+## Test Gate
 
-Phase agent 在實作完成後、寫 mini-handoff 之前，執行 phase card 中定義的 `smoke_test` 指令。
+Phase agent 在寫 mini-handoff 之前，依 phase card 的 `Test Mode` 分流執行測試
+（分類函數、weight 適用表、紅綠契約與缺失處置的唯一真源是 `test-gate.md`）：
 
-- Smoke test 由 **phase agent 自己執行**，不另開 agent
-- 結果寫入 mini-handoff 的 `Smoke Test Result` 欄位
+- `tdd` → 紅綠流程：實作**前**先寫測試、跑 `Test Command` 記錄紅；實作完成後重跑同一指令記錄綠（契約見 `test-gate.md`）
+- `smoke-only`／缺 `Test Mode` 欄位 → 現行行為：實作完成後執行 phase card 中定義的 `smoke_test` 指令
+
+- 測試由 **phase agent 自己執行**，不另開 agent
+- 結果寫入 mini-handoff 的 `Smoke Test Result` 欄位（tdd 模式含 red/green 兩行，格式見 `agent-handoff.md`）
 - Flow 讀取 mini-handoff 的 `Gate Verdict` 欄位決定是否繼續
 
 ### Phase Card 格式（擴充）
@@ -123,17 +127,28 @@ Phase agent 在實作完成後、寫 mini-handoff 之前，執行 phase card 中
 
 - **Depends On:** 04
 - **Spec Sections:** 1, 3, 4
-- **Smoke Test:** `cargo test && cargo clippy`
+- **Smoke Test:** `cargo clippy`
+- **Test Mode:** tdd
+- **Test Command:** `cargo test`
 - **Skill:** my-team-build-backend（可選，若省略則使用 stage-level build skill）
 ```
 
+兩個**選填**欄位（plan agent 依 `test-gate.md` 分類函數決定，分類輸入 = 該 phase 的
+`Touches.files`）：
+
+- **Test Mode:** `tdd` | `smoke-only`——**缺欄位 = smoke-only**，舊卡全部向後相容
+- **Test Command:** `Test Mode` 為 `tdd` 時必填；紅綠兩次執行都跑這一個指令
+- `tdd` phase 的 `Smoke Test:` 欄位**並存**仍可填（例如 lint），在綠之後照跑；
+  不填則以 `Test Command` 的綠結果作為 gate 依據
+
 ### Gate 判定
 
-| Smoke Test 結果 | Gate Verdict | Flow 動作 |
-|-----------------|-------------|-----------|
+| 測試結果 | Gate Verdict | Flow 動作 |
+|----------|-------------|-----------|
 | 全部通過 | PASS | post-build commit → 繼續下一個 phase |
 | 有失敗 | FAIL | 停止 phase loop → 進入 phase retry |
-| 無 smoke test 定義 | PASS（預設） | 繼續（信任 agent 的自我判斷）——但 **verdict 原因文字與結束回報必標「未驗證」**（見 `rules/回報協議與read-back綁定.md`「未驗證標示」） |
+| （smoke-only／缺 `Test Mode`）無 smoke test 定義 | PASS（預設） | 繼續（信任 agent 的自我判斷）——但 **verdict 原因文字與結束回報必標「未驗證」**（見 `rules/回報協議與read-back綁定.md`「未驗證標示」） |
+| （tdd）無 `Test Command` 定義 | FAIL `#plan-gap` | 停止 phase loop → 進入 phase retry（plan 缺陷同款處置，見 `test-gate.md`「缺失處置」） |
 
 ## Phase Retry（單一 Phase 失敗時）
 
@@ -141,7 +156,7 @@ Phase loop 中某個 phase gate FAIL 時：
 
 1. Flow 讀取該 phase 的 mini-handoff → 取得失敗原因
 2. 開 fresh agent（repair mode）：載入 build skill + phase card + 失敗的 mini-handoff
-3. Agent 修復 → 重跑 smoke test → **更新** mini-handoff
+3. Agent 修復 → 重跑 phase card 測試（`Test Mode: tdd` 用 `Test Command` 更新 green 記錄，否則 `smoke_test` 指令；分流見 `test-gate.md`）→ **更新** mini-handoff
 4. Flow 再檢查 Gate Verdict：PASS → post-build commit → 繼續下一個 phase；
    FAIL → 再 retry 一次（**最多 2 輪**）；超過 2 輪 → 停止流程，交給使用者
 
@@ -290,7 +305,7 @@ verify agent 可讀該卡了解原計畫的驗證內容）。
 2. **位置即狀態、mv 即鎖** — phase 狀態的唯一真相是 `todo/doing/done/` 資料夾位置；spawn 前 mv 到 `doing/`，gate PASS 後 mv 到 `done/`
 3. **每個 phase 一個 fresh agent** — 不共享 context
 4. **Mini-handoff 是唯一交接管道** — 不靠 agent 記憶
-5. **Phase agent 自己跑 smoke test** — 不另開 agent
+5. **Phase agent 自己跑測試** — `Test Command` 或 smoke test 都由 phase agent 自己執行，不另開 agent
 6. **Gate 沒過不 commit** — 只有 PASS 才觸發 post-build（worktree 分支上的 `wip:` commit 不在此限——那是狀態保全，且 FAIL 分支絕不 merge，見 `worktree-isolation.md`）
 7. **Gate 沒過不繼續** — FAIL 停止 phase loop
 8. **Phase retry 最多 2 輪** — 超過交給使用者

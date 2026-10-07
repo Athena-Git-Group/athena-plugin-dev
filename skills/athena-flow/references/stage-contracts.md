@@ -120,14 +120,14 @@ spec   → athena-spec-default/SKILL.md                    # 使用 plugin 預�
 | **職責** | 根據 point-report 完成所有實作 |
 | **輸入** | `points/<slug>.md`（point-report）+ 實際程式碼 |
 | **必要輸出** | `handoffs/<slug>-build.md`（Compact 格式，agent 直接寫，非合成） |
-| **Smoke Test** | Agent 自行執行（從 point-report 推斷合理的驗證指令） |
+| **Smoke Test** | 依 `test-gate.md` 分類（輸入 = 預計變更檔案清單）：`tdd` → 紅綠流程（`Test Command` 兩次執行）；`smoke-only` → 現行：agent 自行執行（從 point-report 推斷合理的驗證指令）。**Minimal 一律 smoke-only**（豁免，見 `test-gate.md` weight 適用表） |
 | **Commit** | 單次 post-build commit |
 
 | 差異 | Minimal（PASS-TRIVIAL） | Lightweight（PASS-DIRECT-BUILD / PASS-BUILD-WITH-VERIFY） |
 |------|------------------------|------------------------------------------------------|
 | **Self-Review** | 寫 handoff 前執行 checklist（見 prompt），任一項不過 → Gate FAIL，flow 停下來報告使用者 | 無 |
 | **`triggering_stage`** | `build-minimal` | `build-lightweight` |
-| **Gate 條件** | Smoke test 通過 + self-review 全部通過 | Smoke test 通過 |
+| **Gate 條件** | Smoke test 通過 + self-review 全部通過 | Smoke test 通過；`test-gate.md` 分類為 `tdd` 時另需紅綠完成且測試通過 |
 | **Handoff 變體** | `agent-handoff.md` 差異表 **Minimal build** 列 | 差異表 **Compact build** 列 |
 | **後續** | commit 後 flow 輸出 push 指令直接結束——不開 review-ship agent，由使用者自行 push（見下方「Minimal 結束輸出」） | verify（僅 PASS-BUILD-WITH-VERIFY）→ review-ship |
 
@@ -151,7 +151,7 @@ Build 不再是單一 agent 執行的 opaque stage。Flow 讀取 `plan.md` 的 D
 | **輸入** | `handoffs/<slug>-plan.md` + `plans/<slug>/plan.md`（YAML frontmatter = Dependency Graph 機械真相）+ `plans/<slug>/todo/` 的 phase 卡（執行時 flow mv 至 `doing/`，gate PASS 後 mv 至 `done/`） |
 | **執行方式** | Flow 驅動的 phase loop — 每個 phase 由 fresh agent 執行 |
 | **Phase 輸出** | 每個 phase 寫 `handoffs/<slug>-build-phase-<NN>.md`（mini-handoff） |
-| **Phase Gate** | 每個 phase agent 執行 smoke test，結果寫入 mini-handoff |
+| **Phase Gate** | 每個 phase agent 執行 phase card 測試（`Test Command` 或 smoke test，依 `Test Mode` 分流——分類見 `test-gate.md`），結果寫入 mini-handoff |
 | **Phase Commit** | 每個 phase gate PASS 後，flow 執行 post-build commit（per-phase，不合併多個 phase 的變更） |
 | **最終 Handoff** | 所有 phase 完成後，flow 合成 `handoffs/<slug>-build.md`（彙整所有 mini-handoff） |
 | **Gate 條件** | 所有 phase gate PASS |
@@ -161,7 +161,7 @@ Build 不再是單一 agent 執行的 opaque stage。Flow 讀取 `plan.md` 的 D
 ```
 for each phase in dependency order:
   1. fresh agent → build skill + phase card + mini-handoff(prev) + spec sections
-  2. agent 實作 → smoke test → 寫 mini-handoff
+  2. agent 實作 → phase card 測試（`Test Command` 或 smoke test）→ 寫 mini-handoff
   3. flow 讀 Gate Verdict
      - PASS → post-build commit → 繼續
      - FAIL → phase retry（最多 2 輪）→ 仍失敗則停止
@@ -214,7 +214,7 @@ git_context:
 | **輸入** | `handoffs/<slug>-build.md` + 實際程式碼變更 |
 | **必要輸出** | 驗證報告（測試結果、覆蓋率、手動 QA 結果） |
 | **Handoff** | `handoffs/<slug>-verify.md`，包含通過/失敗狀態、問題清單 |
-| **Gate 條件** | 所有測試通過、無 blocking issue |
+| **Gate 條件** | 所有測試通過、無 blocking issue；TDD 適用變更（`test-gate.md` 分類為 `tdd`）另需：測試存在且紅綠記錄完整 |
 
 ### review
 

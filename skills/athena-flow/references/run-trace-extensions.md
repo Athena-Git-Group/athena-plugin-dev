@@ -97,6 +97,7 @@ phase loop 收斂後（所有 phase gate 判定與 conflict detection 完成）�
 | `lint_warnings` | integer ≥0 | lint 警告數 |
 | `lint_errors` | integer ≥0 | lint 錯誤數（選填）|
 | `tests_passed` / `tests_failed` | integer ≥0 | 測試通過/失敗數（選填）|
+| `tests_written` | integer ≥0 | 本次變更新增／修改的測試案例數（TDD 紅階段產出，見 `test-gate.md`；選填）|
 | `wall_seconds` | number ≥0 | **選填**。run 牆鐘時間（`ts` − run 層 `started_at`，秒）|
 | `agent_seconds` | number ≥0 | **選填**。agent 工作時間總和（`phases` 各 phase 時長加總；缺 `phases` 時退回各 stage `started_at`/`ended_at` 時長加總）|
 | `max_parallel_width` | integer ≥1 | **選填**。最大 `parallel_group` 大小（並行寬度）|
