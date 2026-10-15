@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# auto-commit.sh — Athena SubagentStop hook for post-build auto-commit.
+# auto-commit.sh — hxde SubagentStop hook for post-build auto-commit.
 #
 # Fires when a flow-spawned subagent completes. Reads the flow context
-# marker file written by athena-flow before the subagent was launched,
+# marker file written by hxde-flow before the subagent was launched,
 # determines triggering_stage, and runs the same commit logic as the
-# athena-post-build skill — but driven by a hook rather than by flow
+# hxde-post-build skill — but driven by a hook rather than by flow
 # inlining the skill.
 #
 # Activation contract (opt-in):
-#   1. flow agent writes <cwd>/.athena/.flow-context.json before
+#   1. flow agent writes <cwd>/.hxde/.flow-context.json before
 #      invoking the Agent tool:
 #         {
 #           "mode": "hook",                       # 必須是 "hook"，否則此 hook no-op
@@ -45,7 +45,7 @@ fi
 CWD="$(echo "$INPUT" | jq -r '.cwd // empty')"
 [ -z "$CWD" ] && CWD="$PWD"
 
-CONTEXT_FILE="$CWD/.athena/.flow-context.json"
+CONTEXT_FILE="$CWD/.hxde/.flow-context.json"
 [ -f "$CONTEXT_FILE" ] || exit 0
 
 MODE="$(jq -r '.mode // "inline"' "$CONTEXT_FILE" 2>/dev/null || echo "")"
@@ -68,7 +68,7 @@ fi
 # all phases complete → conflict check → ordered commits.
 PARALLEL_PHASES="$(jq -r '.parallel_phases // 0' "$CONTEXT_FILE" 2>/dev/null || echo 0)"
 if [ "$PARALLEL_PHASES" -gt 1 ] 2>/dev/null; then
-  echo "athena auto-commit: parallel phase mode (parallel_phases=${PARALLEL_PHASES}) — commit deferred to flow" >&2
+  echo "hxde auto-commit: parallel phase mode (parallel_phases=${PARALLEL_PHASES}) — commit deferred to flow" >&2
   exit 0
 fi
 
@@ -113,7 +113,7 @@ if [ -z "$(git -C "$CWD" status --porcelain)" ]; then
   exit 0
 fi
 
-# Compose commit type / phase-tag identically to athena-post-build skill.
+# Compose commit type / phase-tag identically to hxde-post-build skill.
 case "$TRIGGERING_STAGE" in
   verify) TYPE="test"; PHASE_TAG="(verify)" ;;
   verify-fix-*) TYPE="fix"; PHASE_TAG="(${TRIGGERING_STAGE})" ;;
@@ -128,7 +128,7 @@ DESC="$(awk '/^# Handoff/{getline; getline; print; exit}' "$HANDOFF" | head -c 6
 [ -z "$DESC" ] && DESC="${TRIGGERING_STAGE} changes"
 
 PREFIX=""
-[ -n "$TICKET" ] && PREFIX="[HAP-${TICKET}] "
+[ -n "$TICKET" ] && PREFIX="[HXDE-${TICKET}] "
 
 MSG_HEAD="${PREFIX}${TYPE}: ${DESC}"
 [ -n "$PHASE_TAG" ] && MSG_HEAD="${MSG_HEAD} ${PHASE_TAG}"
@@ -137,7 +137,7 @@ MSG_HEAD="${PREFIX}${TYPE}: ${DESC}"
 # mode — the parallel_phases guard above has already bailed out when
 # multiple phase agents may have concurrent in-flight edits.
 git -C "$CWD" add -A
-git -C "$CWD" commit -m "$MSG_HEAD" -m "auto-commit via athena post-build hook (${TRIGGERING_STAGE})" >/dev/null 2>&1 || true
+git -C "$CWD" commit -m "$MSG_HEAD" -m "auto-commit via hxde post-build hook (${TRIGGERING_STAGE})" >/dev/null 2>&1 || true
 
 # Consume the marker so a re-fire on the same stop event cannot
 # produce a duplicate commit.

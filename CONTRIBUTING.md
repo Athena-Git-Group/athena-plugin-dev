@@ -1,6 +1,6 @@
 # Contributing — Plugin 自身工程
 
-本檔給想要修改 athena-dev-plugin 本體的開發者。一般使用者請看 [README](README.md)。
+本檔給想要修改 hxde 本體的開發者。一般使用者請看 [README](README.md)。
 
 ## Claude 設定分層
 
@@ -15,7 +15,7 @@ Plugin repo 的 `.claude/` 下有兩份 settings，職責分開：
 
 ## Runtime artifacts 不進 git
 
-Plugin 自己會 dogfood `/athena-flow`，所以 `points/`、`handoffs/`、`requirement-feedback/`、`plans/` 在 disk 上會出現，但全部在 `.gitignore` 內、**不應該 commit**。若有特定 report 想當示範，搬到 `examples/` 並明確標註。
+Plugin 自己會 dogfood `/hxde-flow`，所以 `points/`、`handoffs/`、`requirement-feedback/`、`plans/` 在 disk 上會出現，但全部在 `.gitignore` 內、**不應該 commit**。若有特定 report 想當示範，搬到 `examples/` 並明確標註。
 
 > 例外：require-point.sh hook 仍然會看磁碟上的 `points/*.md` 來決定要不要放行；untrack 不影響 hook 偵測。
 
@@ -42,10 +42,10 @@ bash scripts/lint-plugin.sh
 
 ## Eval cases（dogfood）
 
-`.athena/evals/` 是 plugin 自己的 eval case 目錄，**不會**被 plugin 安裝程序拷貝到 consumer 專案——consumer 自己的 `.athena/evals/` 是另一份。目前提供一個 reference case：
+`.hxde/evals/` 是 plugin 自己的 eval case 目錄，**不會**被 plugin 安裝程序拷貝到 consumer 專案——consumer 自己的 `.hxde/evals/` 是另一份。目前提供一個 reference case：
 
 ```
-.athena/evals/point-cases/example-trivial.md
+.hxde/evals/point-cases/example-trivial.md
 ```
 
 包含 5 條 `[mechanical]` 條件（Expected 4 條 + Anti-patterns 1 條）+ 1 條 `[semantic]` 條件（mechanical 條件適合放進未來的 CI eval runner；semantic 條件保留給手動執行）。
@@ -53,7 +53,7 @@ bash scripts/lint-plugin.sh
 執行（手動）：
 
 ```bash
-/athena-dev-plugin:athena-skill-eval athena-point example-trivial
+/hxde:hxde-skill-eval hxde-point example-trivial
 ```
 
 ## 提交流程

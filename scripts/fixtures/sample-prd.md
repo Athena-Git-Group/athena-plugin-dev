@@ -1,12 +1,12 @@
 # Sample PRD: 使用者註冊與個人資料查詢
 
-> **用途**: athena-discovery 端到端驗證用 fixture。設計為**最小可觸發 3 種 Then handler 型態**的 PRD：
+> **用途**: hxde-discovery 端到端驗證用 fixture。設計為**最小可觸發 3 種 Then handler 型態**的 PRD：
 > - `aggregate-then`（驗 DB 屬性）
 > - `success-failure`（只驗操作成敗 + 錯誤訊息）
 > - `readmodel-then`（驗 Query response body）
 >
 > 同時涵蓋至少 3 條 Rule、至少 2 個 actor（一個外部使用者、一個第三方系統）。
-> 不需要修改即可直接餵給 `/athena-discovery`。
+> 不需要修改即可直接餵給 `/hxde-discovery`。
 
 ## 背景
 

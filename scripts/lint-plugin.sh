@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# lint-plugin.sh — static checks for the athena-dev-plugin repository.
+# lint-plugin.sh — static checks for the hxde repository.
 #
 # This is a cheap, API-free lint suitable for CI. It does NOT run
-# athena-skill-eval (which would need spawn-agent capability and an
+# hxde-skill-eval (which would need spawn-agent capability and an
 # Anthropic API key) — semantic / behavioural checks are left to a
 # manual or nightly workflow.
 #
@@ -142,7 +142,7 @@ done
 
 # ---------- 5. Plan validator self-test ----------
 step "validate_plan.py fixture self-test"
-VALIDATOR="skills/athena-specformula/scripts/validate_plan.py"
+VALIDATOR="skills/hxde-specformula/scripts/validate_plan.py"
 FIXTURE="tests/fixtures/plan-valid"
 if [ ! -f "$VALIDATOR" ]; then
   fail "$VALIDATOR missing"
@@ -224,10 +224,10 @@ else
     #   - embedded JSON detail blob (drawer data, no fetch at runtime)
     #   - dependency edges drawn (fixture DAG has 8 edges; require >= 7)
     #   - no external resource references (self-contained, file:// safe)
-    if grep -q 'type="application/json" id="athena-status-data"' "$out_html"; then
+    if grep -q 'type="application/json" id="hxde-status-data"' "$out_html"; then
       ok "$RENDERER embeds phase-detail JSON blob"
     else
-      fail "$RENDERER output missing embedded JSON blob (athena-status-data)"
+      fail "$RENDERER output missing embedded JSON blob (hxde-status-data)"
     fi
     edge_count="$(grep -oE '<(line|path)[^>]*class="dag-edge"' "$out_html" | wc -l | tr -d ' ')"
     if [ "$edge_count" -ge 7 ]; then
@@ -248,8 +248,8 @@ fi
 
 # ---------- 7. Vendored spec-pack drift ----------
 step "spec-pack drift check (plugin pack vs dogfood install)"
-PACK_PHASES="skills/athena-core/assets/spec-pack-pm-to-eng/phases"
-DOGFOOD_PHASES=".athena/skills/pm-to-eng-spec/phases"
+PACK_PHASES="skills/hxde-core/assets/spec-pack-pm-to-eng/phases"
+DOGFOOD_PHASES=".hxde/skills/pm-to-eng-spec/phases"
 if [ ! -d "$PACK_PHASES" ]; then
   fail "$PACK_PHASES missing"
 elif [ ! -d "$DOGFOOD_PHASES" ]; then

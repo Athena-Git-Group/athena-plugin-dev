@@ -7,7 +7,8 @@
 Local > Project > User
 
 ```bash
-OUTPUT_LANG=$(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/get_athena_setting.py" athena language --default "English")
+# 本 plugin 未附帶此 script，不存在時用預設 English
+OUTPUT_LANG=$(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/get_hxde_setting.py" hxde language --default "English" 2>/dev/null || echo "English")
 ```
 
 ## 支援語言

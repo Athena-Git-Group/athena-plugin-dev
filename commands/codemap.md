@@ -123,7 +123,7 @@ graphify-out/
 
 ## Notes
 
-- 此指令不修改 codebase（只產生 `graphify-out/`），**不需走 `/athena-point`**。
+- 此指令不修改 codebase（只產生 `graphify-out/`），**不需走 `/hxde-point`**。
 - 若使用者真的要在 shell / CI 直跑 `graphify <path>`，才需要設定 `ANTHROPIC_API_KEY` 等 LLM key — 但這不是 `/codemap` 的預設路徑。
 - Phase A 是冪等的：CLI 已裝、skill 已註冊、git hook 已安裝，都會自動跳過，直接進 Phase B。
 - git hook 裝好後，後續一般 commit 即可保持 `graphify-out/` 新鮮，不一定要每次手動 `/codemap` 或 `/graphify . --update`。

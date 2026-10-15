@@ -1,17 +1,17 @@
-# Skill 品質輔導（athena-skill-audit）
+# Skill 品質輔導（hxde-skill-audit）
 
-> 與 `/athena-point` 不同 —— audit 是**團隊主動觸發**的健檢工具，**不是 plugin 強制執行的閘門**。沒跑 audit 不會阻擋任何上繳、build 或合併動作。
+> 與 `/hxde-point` 不同 —— audit 是**團隊主動觸發**的健檢工具，**不是 plugin 強制執行的閘門**。沒跑 audit 不會阻擋任何上繳、build 或合併動作。
 
-獨立於 flow 的 **skill 健檢工具**，協助團隊檢查上繳到 `.athena/skills/` 的 skill 是否符合契約與命名規範。**輔導風格**，不阻擋任何 flow / CI。
+獨立於 flow 的 **skill 健檢工具**，協助團隊檢查上繳到 `.hxde/skills/` 的 skill 是否符合契約與命名規範。**輔導風格**，不阻擋任何 flow / CI。
 
 ## 用法
 
 ```bash
-# 全掃 .athena/skills/ 下所有 skill
-/athena-dev-plugin:athena-skill-audit
+# 全掃 .hxde/skills/ 下所有 skill
+/hxde:hxde-skill-audit
 
 # 只檢查單一 skill
-/athena-dev-plugin:athena-skill-audit my-team-build
+/hxde:hxde-skill-audit my-team-build
 ```
 
 ## 檢查層級
@@ -21,7 +21,7 @@
 | **L1 靜態結構** | frontmatter 必填欄位、`name` 命名規範、`stage` 值合法性、`description` 品質 | ✅ |
 | **L2 契約遵守** | 對照 `stage-contracts.md` 檢查 SKILL.md 是否提及讀寫對應 handoff | ✅ |
 | **L3 description 主觀評估** | 用 LLM 評估描述是否清楚 | ❌（未來） |
-| **L4 動態 eval** | 餵 test case 給 skill，檢查實際輸出 | ✅（由獨立 skill `athena-skill-eval` 提供，見 [skill-eval.md](skill-eval.md)） |
+| **L4 動態 eval** | 餵 test case 給 skill，檢查實際輸出 | ✅（由獨立 skill `hxde-skill-eval` 提供，見 [skill-eval.md](skill-eval.md)） |
 
 ## 輸出風格
 
@@ -37,9 +37,9 @@
 
 | 比較對象 | 差別 |
 |---------|------|
-| `athena-point` | point 是流程閘門（評估「需求要走哪條路」），audit 是 skill 品質顧問（檢查 skill 寫得好不好） |
-| `athena-flow` | flow 編排執行，audit 與 flow 完全解耦，不被 stage discovery |
-| `athena-skill-eval` | audit 是**靜態**檢查（L1+L2），eval 是**動態**執行驗證（L4），兩者互補 |
+| `hxde-point` | point 是流程閘門（評估「需求要走哪條路」），audit 是 skill 品質顧問（檢查 skill 寫得好不好） |
+| `hxde-flow` | flow 編排執行，audit 與 flow 完全解耦，不被 stage discovery |
+| `hxde-skill-eval` | audit 是**靜態**檢查（L1+L2），eval 是**動態**執行驗證（L4），兩者互補 |
 
 ---
 
