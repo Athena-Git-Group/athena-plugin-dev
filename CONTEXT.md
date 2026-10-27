@@ -1,7 +1,7 @@
 # CONTEXT.md — Flow 主鏈 Ubiquitous Language
 
 本檔是對使用者回報時的術語單一來源。每個定義只寫兩件事：**這對使用者代表什麼**、
-**需不需要使用者做什麼**。內部機制細節在 `skills/athena-flow/references/`，
+**需不需要使用者做什麼**。內部機制細節在 `skills/hxde-flow/references/`，
 由 AI 自行消化——不得原樣轉述給使用者；使用者問起才展開，且仍用本表的語言講。
 
 ## 流程與路由

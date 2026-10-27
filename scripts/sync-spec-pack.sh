@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 # sync-spec-pack.sh — one-way sync of the vendored PM→Eng spec pack.
 #
-# Direction of truth: upstream athena-skills → plugin pack → dogfood install.
+# Direction of truth: upstream hxde-skills → plugin pack → dogfood install.
 #
 #   Always performed:
-#     skills/athena-core/assets/spec-pack-pm-to-eng/phases/   (source of truth)
-#       → .athena/skills/pm-to-eng-spec/phases/               (dogfood install)
+#     skills/hxde-core/assets/spec-pack-pm-to-eng/phases/   (source of truth)
+#       → .hxde/skills/pm-to-eng-spec/phases/               (dogfood install)
 #
-#   Optional first argument: path to the upstream athena-skills directory.
+#   Optional first argument: path to the upstream hxde-skills directory.
 #     When given, first re-vendors upstream → plugin pack phases/ using the
 #     transformation rules documented in the pack's VENDORED.md (rsync every
 #     dir listed in UPSTREAM_PHASE_DIRS + pm-to-eng-flow/references, then
 #     eng-output/ → specs/ on vendored files only).
 #
 # phases/ holds two kinds of dirs, tracked by the two lists below:
-# UPSTREAM_PHASE_DIRS (vendored from athena-skills, re-vendored by step 0) and
+# UPSTREAM_PHASE_DIRS (vendored from hxde-skills, re-vendored by step 0) and
 # PLUGIN_OWN_PHASE_DIRS (originate in this repo, never re-vendored). Read the
 # comment above those lists before adding a new phase dir.
 #
@@ -31,11 +31,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-PACK="skills/athena-core/assets/spec-pack-pm-to-eng"
-DOGFOOD=".athena/skills/pm-to-eng-spec"
+PACK="skills/hxde-core/assets/spec-pack-pm-to-eng"
+DOGFOOD=".hxde/skills/pm-to-eng-spec"
 
 # ---- phases/ dir ownership — read this before adding a new phase dir --------
-#   UPSTREAM_PHASE_DIRS    phase dirs vendored from upstream athena-skills.
+#   UPSTREAM_PHASE_DIRS    phase dirs vendored from upstream hxde-skills.
 #                          Step 0 re-vendors each of them with rsync --delete,
 #                          so upstream wins and local edits are overwritten.
 #   PLUGIN_OWN_PHASE_DIRS  phase dirs that originate in THIS repo. They have no
@@ -43,12 +43,12 @@ DOGFOOD=".athena/skills/pm-to-eng-spec"
 #                          step 0 only checks that they came out intact.
 #
 # A NEW phase dir belongs in PLUGIN_OWN_PHASE_DIRS unless it really exists in
-# upstream athena-skills. Listing a plugin-original dir under
+# upstream hxde-skills. Listing a plugin-original dir under
 # UPSTREAM_PHASE_DIRS aborts the next `sync-spec-pack.sh <upstream>` run at the
 # ownership guard below, before any rsync runs — such a dir does not come from
 # upstream（該目錄不來自上游）, which is not the same as upstream missing a dir.
 # Neither list is needed for the dogfood install: step 2 rsyncs the whole
-# phases/ tree, so a new dir propagates to .athena/ on its own. A name may be
+# phases/ tree, so a new dir propagates to .hxde/ on its own. A name may be
 # registered here before the dir exists — step 0 warns instead of failing.
 UPSTREAM_PHASE_DIRS=(score clarify data_model class_diagram db_table api screens ui_contract gherkin)
 PLUGIN_OWN_PHASE_DIRS=(specify ui_prototype)
@@ -73,7 +73,7 @@ for u in "${UPSTREAM_PHASE_DIRS[@]}"; do
 done
 ok "lists disjoint (upstream: ${#UPSTREAM_PHASE_DIRS[@]}, plugin-own: ${#PLUGIN_OWN_PHASE_DIRS[@]})"
 
-# ---------- 0. Optional: upstream athena-skills → plugin pack ----------
+# ---------- 0. Optional: upstream hxde-skills → plugin pack ----------
 if [ $# -ge 1 ]; then
   SRC="$1"
   step "Re-vendor upstream: $SRC → $PACK/phases/"
@@ -84,7 +84,7 @@ if [ $# -ge 1 ]; then
       # a plugin-original dir filed under the wrong list, or a genuine upstream
       # removal (a vendored dir has a local copy too, so its presence proves
       # nothing either way). Naming only the upstream hypothesis sends the
-      # maintainer hunting through athena-skills for a dir that may only ever
+      # maintainer hunting through hxde-skills for a dir that may only ever
       # have existed in this repo, so both are named — plugin-original first,
       # since that is what a freshly added phase dir looks like. With no local
       # copy at all only the upstream hypothesis is left standing.

@@ -1,35 +1,35 @@
-# athena-dev-plugin
+# hxde
 
-Athena 開發團隊專用 Claude Code Plugin — 提供 point → spec → plan → build → review → ship 全流程骨架。
+個人開發工作流 Claude Code Plugin — 提供 point → spec → plan → build → review → ship 全流程骨架。
 
-Plugin 定義流水線的**流程契約**（每個 stage 的輸入/輸出規格），各團隊在自己的專案中提供 stage 的實際 skill 實作。
+Plugin 定義流水線的**流程契約**（每個 stage 的輸入/輸出規格），安裝它的 consumer 專案在 `.hxde/skills/` 提供 stage 的實際 skill 實作。
 流程會根據 point 評分自動分流為三種 weight class（Minimal / Lightweight / Full），避免小任務走過重的儀式。
 
 ## 架構
 
 ```
-athena-dev-plugin（本 repo）                   consumer 專案
+hxde（本 repo）                              consumer 專案
 ┌────────────────────────────────────┐     ┌──────────────────────────────┐
-│ skills/   流程 skill                │     │ .athena/skills/              │
+│ skills/   流程 skill                │     │ .hxde/skills/                │
 │   flow / point / core / pre-build  │     │   ├── my-team-spec/SKILL.md  │
 │   post-build / git-conventions /…  │     │   ├── my-team-plan/SKILL.md  │
 │                                    │     │   ├── my-team-build/SKILL.md │
 │ commands/  Slash command 入口        │     │   ├── my-team-verify/…       │
-│   /athena-flow /athena-point …     │     │   ├── my-team-review/…       │
+│   /hxde-flow /hxde-point …         │     │   ├── my-team-review/…       │
 │                                    │     │   └── my-team-ship/…         │
 │ agents/    Per-stage subagent 殼    │     │                              │
 │   stage-spec / build / verify / …  │     │   # 可選：替換 flow-inline     │
 │   每個附 tool scope                 │     │   ├── my-team-pre-build/     │
 │                                    │     │   └── my-team-post-build/    │
 │ hooks/     PreToolUse + SubagentStop│     │                              │
-│   require-point.sh  (gate)         │     │ .athena/knowledge/   (可選)   │
-│   auto-commit.sh    (opt-in)       │     │ .athena/evals/       (可選)   │
+│   require-point.sh  (gate)         │     │ .hxde/knowledge/   (可選)     │
+│   auto-commit.sh    (opt-in)       │     │ .hxde/evals/       (可選)     │
 │                                    │     │                              │
 │ scripts/   lint-plugin.sh          │     │ points/    /flow runtime      │
 │ .github/workflows/  CI lint         │     │ handoffs/  /flow runtime      │
-│ .athena/evals/  dogfood eval cases │     │ requirement-feedback/ (可選)  │
+│ .hxde/evals/  dogfood eval cases   │     │ requirement-feedback/ (可選)  │
 └────────────────────────────────────┘     └──────────────────────────────┘
-        流程骨架 + 契約 + harness 強制                  團隊上繳的 skill + 工作檔
+        流程骨架 + 契約 + harness 強制                  consumer 專案提供的 skill + 工作檔
 ```
 
 ## Plugin 結構
@@ -40,68 +40,68 @@ Plugin 透過 Claude Code 的四個 manifest 入口（`skills` / `commands` / `a
 
 | Skill | 類型 | 可替換？ | 說明 |
 |-------|------|---------|------|
-| **athena-flow** | 編排器 | 否 | 單一入口流程編排器，串接所有階段 |
-| **athena-point** | 閘門 | 否 | 需求評分與分流（決定是否需要走 spec） |
-| **athena-core** | 參考庫 | — | 共用參考庫（Reconciler Contract、Skill 模板等） |
-| **athena-spec-default** | standard-with-plugin-default | 是（有預設） | 團隊未提供 `stage: spec` skill 時的 plugin 預設；薄殼，指向 athena-core 的 spec pack。`user-invocable: false`——只由 flow 在 resolution 退回時載入，不供使用者直接呼叫 |
-| **athena-pre-build** | flow-inline | 是（有預設） | Build 前自動建立 Git 分支 |
-| **athena-post-build** | flow-inline | 是（有預設） | Build/Verify 通過後自動 Git commit |
-| **athena-skill-audit** | 輔導工具 | — | 團隊主動觸發的 skill 品質健檢（L1+L2 靜態，獨立於 flow） |
-| **athena-skill-eval** | 輔導工具 | — | L4 動態 eval runner — 對 skill 跑 case，捕捉真實行為（獨立於 flow） |
-| **athena-audit-requirement-backend** | 輔導工具 | — | PM 需求文件「後端視角」可譯性審計（獨立於 flow，PM/TL 主動觸發） |
-| **athena-audit-requirement-frontend** | 輔導工具 | — | PM 需求文件「前端視角」可譯性審計（獨立於 flow，PM/TL 主動觸發） |
-| **athena-trigger-dispatch** | 事件層（Loop 2b） | — | 事件驅動觸發層：輪詢 CI / PR review / cron / inbox，命中時製造 intake 呼叫 `/flow`（不繞過 point） |
-| **athena-hill-climb** | 自我改進（Loop 3） | — | 讀 Run Trace 找系統性失敗模式，產出改進提案（人工 gate，整合 skill-eval/audit 驗證） |
+| **hxde-flow** | 編排器 | 否 | 單一入口流程編排器，串接所有階段 |
+| **hxde-point** | 閘門 | 否 | 需求評分與分流（決定是否需要走 spec） |
+| **hxde-core** | 參考庫 | — | 共用參考庫（Reconciler Contract、Skill 模板等） |
+| **hxde-spec-default** | standard-with-plugin-default | 是（有預設） | 專案未提供 `stage: spec` skill 時的 plugin 預設；薄殼，指向 hxde-core 的 spec pack。`user-invocable: false`——只由 flow 在 resolution 退回時載入，不供使用者直接呼叫 |
+| **hxde-pre-build** | flow-inline | 是（有預設） | Build 前自動建立 Git 分支 |
+| **hxde-post-build** | flow-inline | 是（有預設） | Build/Verify 通過後自動 Git commit |
+| **hxde-skill-audit** | 輔導工具 | — | 使用者主動觸發的 skill 品質健檢（L1+L2 靜態，獨立於 flow） |
+| **hxde-skill-eval** | 輔導工具 | — | L4 動態 eval runner — 對 skill 跑 case，捕捉真實行為（獨立於 flow） |
+| **hxde-audit-requirement-backend** | 輔導工具 | — | PM 需求文件「後端視角」可譯性審計（獨立於 flow，PM/TL 主動觸發） |
+| **hxde-audit-requirement-frontend** | 輔導工具 | — | PM 需求文件「前端視角」可譯性審計（獨立於 flow，PM/TL 主動觸發） |
+| **hxde-trigger-dispatch** | 事件層（Loop 2b） | — | 事件驅動觸發層：輪詢 CI / PR review / cron / inbox，命中時製造 intake 呼叫 `/flow`（不繞過 point） |
+| **hxde-hill-climb** | 自我改進（Loop 3） | — | 讀 Run Trace 找系統性失敗模式，產出改進提案（人工 gate，整合 skill-eval/audit 驗證） |
 | **git-conventions** | 參考庫 | — | Git 分支命名與 commit message 規範 |
 
 ### Slash Commands（使用者入口）
 
 | Command | 對應 Skill | 用途 |
 |---------|-----------|------|
-| `/athena-flow <request>` | `athena-flow` | 單一入口流程編排器 |
-| `/athena-point <request>` | `athena-point` | 需求評分與分流 |
-| `/athena-skill-audit [skill]` | `athena-skill-audit` | Skill 靜態品質健檢 |
-| `/athena-skill-eval <skill> <case>` | `athena-skill-eval` | Skill 動態行為評估 |
-| `/athena-trigger-dispatch [once]` | `athena-trigger-dispatch` | 事件驅動觸發層（Loop 2b），建議搭 `/loop` 持續監看 |
-| `/athena-hill-climb` | `athena-hill-climb` | 自我改進 retro（Loop 3），讀 trace 產出改進提案 |
+| `/hxde-flow <request>` | `hxde-flow` | 單一入口流程編排器 |
+| `/hxde-point <request>` | `hxde-point` | 需求評分與分流 |
+| `/hxde-skill-audit [skill]` | `hxde-skill-audit` | Skill 靜態品質健檢 |
+| `/hxde-skill-eval <skill> <case>` | `hxde-skill-eval` | Skill 動態行為評估 |
+| `/hxde-trigger-dispatch [once]` | `hxde-trigger-dispatch` | 事件驅動觸發層（Loop 2b），建議搭 `/loop` 持續監看 |
+| `/hxde-hill-climb` | `hxde-hill-climb` | 自我改進 retro（Loop 3），讀 trace 產出改進提案 |
 
-短形式由 harness 路由到對應 skill；若有衝突可用 fully-qualified `/athena-dev-plugin:athena-flow`。Commands 是 thin wrapper，邏輯在 `skills/<name>/SKILL.md`。
+短形式由 harness 路由到對應 skill；若有衝突可用 fully-qualified `/hxde:hxde-flow`。Commands 是 thin wrapper，邏輯在 `skills/<name>/SKILL.md`。
 
 ### Agents（per-stage tool-scope shells）
 
-Flow agent 啟動 standard stage 時，會以 `Agent(subagent_type: "athena-stage-<stage>")` 包裝 fresh agent，讓 harness 替每個 stage 強制工具邊界——團隊 skill 仍是邏輯來源，subagent 只負責限縮工具範圍。
+Flow agent 啟動 standard stage 時，會以 `Agent(subagent_type: "hxde-stage-<stage>")` 包裝 fresh agent，讓 harness 替每個 stage 強制工具邊界——專案 skill 仍是邏輯來源，subagent 只負責限縮工具範圍。
 
 | Subagent | Stage | 工具範圍 |
 |----------|-------|---------|
-| `athena-point` | point | Read / Grep / Glob / Write(`points/`) |
-| `athena-stage-spec` | spec | Read / Grep / Glob / Bash(唯讀 git, diagram CLI) / Write(`specs/` + `handoffs/`) |
-| `athena-stage-plan` | plan | 同 spec，Write 改為 `plans/` + `handoffs/` |
-| `athena-stage-build` | build | 完整 Read / Edit / Write / MultiEdit / Bash / Grep / Glob（commit/push 仍禁） |
-| `athena-stage-verify` | verify | Read / Grep / Glob / Bash(測試) / Write(`handoffs/`)；**禁 Edit** |
-| `athena-stage-review` | review | Read / Grep / Glob / Bash(靜態分析) / Write(`handoffs/`)；**禁 Edit** |
-| `athena-stage-ship` | ship | Read / Grep / Glob / Bash(`git push` / `gh`) / Write(`handoffs/`)；唯一可 push 的 stage |
+| `hxde-point` | point | Read / Grep / Glob / Write(`points/`) |
+| `hxde-stage-spec` | spec | Read / Grep / Glob / Bash(唯讀 git, diagram CLI) / Write(`specs/` + `handoffs/`) |
+| `hxde-stage-plan` | plan | 同 spec，Write 改為 `plans/` + `handoffs/` |
+| `hxde-stage-build` | build | 完整 Read / Edit / Write / MultiEdit / Bash / Grep / Glob（commit/push 仍禁） |
+| `hxde-stage-verify` | verify | Read / Grep / Glob / Bash(測試) / Write(`handoffs/`)；**禁 Edit** |
+| `hxde-stage-review` | review | Read / Grep / Glob / Bash(靜態分析) / Write(`handoffs/`)；**禁 Edit** |
+| `hxde-stage-ship` | ship | Read / Grep / Glob / Bash(`git push` / `gh`) / Write(`handoffs/`)；唯一可 push 的 stage |
 
-Subagent description 標註「only via athena-flow」以避免 main agent 繞過 flow 直接觸發。
+Subagent description 標註「only via hxde-flow」以避免 main agent 繞過 flow 直接觸發。
 
 ### Hooks（harness 強制行為）
 
 | Hook 事件 | 檔案 | 行為 |
 |----------|------|------|
-| `PreToolUse` (Edit / Write / MultiEdit / NotebookEdit) | `hooks/require-point.sh` | 沒有 `points/*.md` 就 block 編輯——強制執行「先跑 /athena-point」 |
-| `SubagentStop` | `hooks/auto-commit.sh` | 看 `.athena/.flow-context.json`；`mode: hook` 才接管 commit，否則由 flow-inline post-build skill 處理 |
-| `SubagentStop` | `hooks/render-status.sh` | 重新產生 `.athena/status.html` 狀態看板（機械投影，非強制 hook；無 `.athena/` 或 `plans/` 時靜默 no-op） |
+| `PreToolUse` (Edit / Write / MultiEdit / NotebookEdit) | `hooks/require-point.sh` | 沒有 `points/*.md` 就 block 編輯——強制執行「先跑 /hxde-point」 |
+| `SubagentStop` | `hooks/auto-commit.sh` | 看 `.hxde/.flow-context.json`；`mode: hook` 才接管 commit，否則由 flow-inline post-build skill 處理 |
+| `SubagentStop` | `hooks/render-status.sh` | 重新產生 `.hxde/status.html` 狀態看板（機械投影，非強制 hook；無 `.hxde/` 或 `plans/` 時靜默 no-op） |
 
 詳細觸發範圍、自我保護路徑與 escape hatch 見下方「Hooks 機制」段。
 
 ## Stage 分類
 
-Stage 分**三類**：**Standard Stage**（fresh agent 執行，團隊必須提供，缺少 → 停止＋引導）、
-**Standard Stage with Plugin Default**（fresh agent 執行，團隊優先，缺少 → 退回 plugin 預設、
-不停止——**目前只有 `spec`**）與 **Flow-Inline Stage**（flow agent 內聯執行，團隊優先，
+Stage 分**三類**：**Standard Stage**（fresh agent 執行，專案必須提供，缺少 → 停止＋引導）、
+**Standard Stage with Plugin Default**（fresh agent 執行，專案優先，缺少 → 退回 plugin 預設、
+不停止——**目前只有 `spec`**）與 **Flow-Inline Stage**（flow agent 內聯執行，專案優先，
 缺少 → 用 plugin 預設、不停止）。分類的逐字來源是
-`skills/athena-core/references/skill-metadata-spec.md`「Stage 分類」。
+`skills/hxde-core/references/skill-metadata-spec.md`「Stage 分類」。
 
-### Standard Stage（團隊必須提供）
+### Standard Stage（專案必須提供）
 
 | Stage | 職責 | 執行方式 |
 |-------|------|----------|
@@ -111,18 +111,18 @@ Stage 分**三類**：**Standard Stage**（fresh agent 執行，團隊必須提�
 | **review** | 程式碼審查、品質把關 | Fresh agent |
 | **ship** | 部署、發布、收尾 | Fresh agent |
 
-### Standard Stage with Plugin Default（團隊優先，缺少 → 退回 plugin 預設、不停止）
+### Standard Stage with Plugin Default（專案優先，缺少 → 退回 plugin 預設、不停止）
 
 **目前只有 `spec`**。執行模型與 Standard Stage **完全相同**（fresh agent、產出 handoff
 artifact、完整 agent 隔離）——「有 plugin 預設」只改 resolution，不改執行方式、輸入輸出
-或 gate 契約。`.athena/skills/` 有宣告 `stage: spec` 的 skill → 用它，plugin 預設**完全
+或 gate 契約。`.hxde/skills/` 有宣告 `stage: spec` 的 skill → 用它，plugin 預設**完全
 不被載入**。
 
-| Stage | 職責 | 執行方式 | 缺團隊 skill 時 |
+| Stage | 職責 | 執行方式 | 缺專案 skill 時 |
 |-------|------|----------|----------------|
-| **spec** | 需求分析，產出結構化規格 | Fresh agent | 退回 plugin 預設 `athena-spec-default`，不停止、不引導 |
+| **spec** | 需求分析，產出結構化規格 | Fresh agent | 退回 plugin 預設 `hxde-spec-default`，不停止、不引導 |
 
-### Flow-Inline Stage（Plugin 提供預設，團隊可選擇性替換）
+### Flow-Inline Stage（Plugin 提供預設，專案可選擇性替換）
 
 | Stage | 職責 | 執行方式 |
 |-------|------|----------|
@@ -135,9 +135,9 @@ artifact、完整 agent 隔離）——「有 plugin 預設」只改 resolution�
 | 缺少 skill 時 | 停止流程 + 引導 | 使用 plugin 預設（不停止、不引導） | 使用 plugin 預設 |
 | 執行方式 | Fresh agent | Fresh agent | Flow agent 內聯 |
 | 交接方式 | Handoff artifact | Handoff artifact | Flow context |
-| 團隊是否必須提供 | 是 | 否（可選替換） | 否（可選替換） |
+| 專案是否必須提供 | 是 | 否（可選替換） | 否（可選替換） |
 
-所有 stage 的契約定義見 `skills/athena-flow/references/stage-contracts.md`。
+所有 stage 的契約定義見 `skills/hxde-flow/references/stage-contracts.md`。
 
 ## 安裝
 
@@ -146,36 +146,36 @@ artifact、完整 agent 隔離）——「有 plugin 預設」只改 resolution�
 啟動 Claude Code 時指定 plugin 目錄：
 
 ```bash
-claude --plugin-dir /path/to/athena-dev-plugin
+claude --plugin-dir /path/to/hxde
 ```
 
 ### 方式 B：永久安裝（透過 marketplace）
 
 ```bash
 # 1. 將本 repo 註冊為 marketplace
-claude plugin marketplace add https://github.com/Athena-Git-Group/athena-plugin-dev.git
+claude plugin marketplace add https://github.com/huangken8511429/hxde.git
 
 # 2. 安裝 plugin
-claude plugin install athena-dev-plugin
+claude plugin install hxde
 
 # 3. 確認安裝
 claude plugin list
 ```
 
-## 團隊如何上繳 Skill
+## Consumer 專案如何提供 Stage Skill
 
 ### 1. 建立目錄
 
-在專案根目錄建立 `.athena/skills/<skill-name>/` 目錄。
+在專案根目錄建立 `.hxde/skills/<skill-name>/` 目錄。
 
 ### 2. 撰寫 SKILL.md
 
-複製模板（`skills/athena-core/assets/skill-template/SKILL.md`），填入 frontmatter：
+複製模板（`skills/hxde-core/assets/skill-template/SKILL.md`），填入 frontmatter：
 
 ```yaml
 ---
 name: my-team-build
-description: 我們團隊的 build skill
+description: 我們專案的 build skill
 stage: build
 ---
 ```
@@ -184,7 +184,7 @@ stage: build
 
 ### 3. 遵守 Stage 契約
 
-每個 stage 有定義好的輸入/輸出契約（見 `skills/athena-flow/references/stage-contracts.md`）。Skill 必須：
+每個 stage 有定義好的輸入/輸出契約（見 `skills/hxde-flow/references/stage-contracts.md`）。Skill 必須：
 
 - 讀取前一個 stage 的 handoff artifact
 - 產出該 stage 要求的 artifact
@@ -195,55 +195,55 @@ stage: build
 如果一個 stage 有多種流程，建立一個 **index skill** 作為路由：
 
 ```
-.athena/skills/
+.hxde/skills/
 ├── my-team-build-index/SKILL.md    ← stage: build（路由器）
 ├── my-team-build-backend/SKILL.md  ← 無 stage（子 skill）
 └── my-team-build-frontend/SKILL.md ← 無 stage（子 skill）
 ```
 
-詳見 `skills/athena-flow/references/index-skill-pattern.md`。
+詳見 `skills/hxde-flow/references/index-skill-pattern.md`。
 
 ### 5. 替換 Flow-Inline 預設（可選）
 
-團隊可替換 plugin 預設的 pre-build / post-build 行為。在 `.athena/skills/` 中建立對應 skill：
+專案可替換 plugin 預設的 pre-build / post-build 行為。在 `.hxde/skills/` 中建立對應 skill：
 
 ```yaml
 ---
 name: my-team-pre-build
-description: 我們團隊的 pre-build skill（使用 Jira ticket 整合）
+description: 我們專案的 pre-build skill（使用 Jira ticket 整合）
 stage: pre-build
 ---
 ```
 
-若未提供，flow 會自動使用 plugin 的 `athena-pre-build` / `athena-post-build` 預設。
+若未提供，flow 會自動使用 plugin 的 `hxde-pre-build` / `hxde-post-build` 預設。
 
-## 團隊知識庫
+## 專案知識庫
 
-athena-point 在評分時會自動掃描 `.athena/knowledge/` 目錄，讀取團隊的業務規則、產品規格等知識文件來輔助判斷。
+hxde-point 在評分時會自動掃描 `.hxde/knowledge/` 目錄，讀取專案的業務規則、產品規格等知識文件來輔助判斷。
 
 ```
-.athena/knowledge/
+.hxde/knowledge/
 ├── domain-rules/        # 業務規則、政策、SOP
 ├── product-specs/       # 產品規格、PRD、功能定義
 ├── api-contracts/       # API 規格、schema 定義
 └── ...                  # 自由組織
 ```
 
-目錄結構由團隊自行組織，沒有強制規範。若目錄不存在，不影響評分流程。
+目錄結構由專案自行組織，沒有強制規範。若目錄不存在，不影響評分流程。
 
-## 輔導工具（獨立於 flow，團隊主動觸發）
+## 輔導工具（獨立於 flow，使用者主動觸發）
 
 Plugin 內建三個與 `/flow` 完全解耦的輔導工具，**都不寫機器 verdict、不阻擋任何流程**。每個工具的完整說明在獨立檔案：
 
 | 工具 | 看什麼 | 觸發者 | 完整文件 |
 |------|--------|--------|----------|
-| `/athena-skill-audit` | SKILL.md 靜態結構（L1+L2） | RD | [docs/tools/skill-audit.md](docs/tools/skill-audit.md) |
-| `/athena-skill-eval` | Skill 真實執行行為（L4） | RD | [docs/tools/skill-eval.md](docs/tools/skill-eval.md) |
-| `/athena-audit-requirement-{backend,frontend}` | PM 需求單可譯性 | PM / TL | [docs/tools/audit-requirement.md](docs/tools/audit-requirement.md) |
+| `/hxde-skill-audit` | SKILL.md 靜態結構（L1+L2） | RD | [docs/tools/skill-audit.md](docs/tools/skill-audit.md) |
+| `/hxde-skill-eval` | Skill 真實執行行為（L4） | RD | [docs/tools/skill-eval.md](docs/tools/skill-eval.md) |
+| `/hxde-audit-requirement-{backend,frontend}` | PM 需求單可譯性 | PM / TL | [docs/tools/audit-requirement.md](docs/tools/audit-requirement.md) |
 
 三者全部走 ✅ / 🟡 / 💡 三段式建議格式，**不使用 PASS / FAIL**，避免被誤用為 CI gate。
 
-> **與 `athena-point` 的劃線**：point 是 flow 閘門（決定要不要走 spec），輔導工具不影響 flow。其中 audit-requirement 與 point 的 Requirement Clarity 看似重疊，但 point 服務 RD 工程分流（低分 → 走 spec 重寫），audit-requirement 服務 PM 需求驗收（低分 → 退回 PM 補資訊，可重跑）。同一需求週期可同時用兩個工具。
+> **與 `hxde-point` 的劃線**：point 是 flow 閘門（決定要不要走 spec），輔導工具不影響 flow。其中 audit-requirement 與 point 的 Requirement Clarity 看似重疊，但 point 服務 RD 工程分流（低分 → 走 spec 重寫），audit-requirement 服務 PM 需求驗收（低分 → 退回 PM 補資訊，可重跑）。同一需求週期可同時用兩個工具。
 
 ## Weight Class（三層分流）
 
@@ -267,19 +267,19 @@ Flow 根據 point 評分自動決定流程重量，避免小任務走過重的�
 > flow 在主樹按拓撲序 `git merge --no-ff` 合回、成功後 `git branch -d`。安全網共三層：第一層
 > ownership violation（對照 touches 宣告）、第二層跨 phase Files Changed 重疊比對、
 > 第三層 merge conflict（立即停止、交使用者）。isolation 選項不可用時 fallback 到手動
-> `git worktree add .athena/worktrees/<slug>-<NN> -b athena/phase/<slug>-<NN>` 協議；
+> `git worktree add .hxde/worktrees/<slug>-<NN> -b hxde/phase/<slug>-<NN>` 協議；
 > 連 worktree 都不可用則退回 shared-tree 模式（touches 分區 + conflict detection）。
-> 詳見 `skills/athena-flow/references/phase-orchestration.md`「Worktree 隔離」。
+> 詳見 `skills/hxde-flow/references/phase-orchestration.md`「Worktree 隔離」。
 
 ## 流程概覽
 
 ```
 /flow
   │
-  ├─ Skill Discovery：掃描 .athena/skills/，建立 stage → skill 對應表
-  │    Standard stage：團隊必須提供，缺少則停止
-  │      （spec 例外：缺團隊版退回 plugin 預設 athena-spec-default，不停止）
-  │    Flow-inline stage：團隊有就用，沒有就用 plugin 預設
+  ├─ Skill Discovery：掃描 .hxde/skills/，建立 stage → skill 對應表
+  │    Standard stage：專案必須提供，缺少則停止
+  │      （spec 例外：缺專案版退回 plugin 預設 hxde-spec-default，不停止）
+  │    Flow-inline stage：專案有就用，沒有就用 plugin 預設
   │
   ├─ /point（plugin 內建）
   │     ↓
@@ -304,11 +304,11 @@ Plugin 透過兩條 harness hook 把流程契約落到 runtime 強制：一條�
 
 ### 1. Point Gate（強制，always-on）
 
-安裝本 plugin 後，**任何程式碼變更都必須先跑 `/athena-point`**。
+安裝本 plugin 後，**任何程式碼變更都必須先跑 `/hxde-point`**。
 這條規則由 `PreToolUse` hook `hooks/require-point.sh` 執行：
 找不到 `points/*.md` 時，hook 會 block `Edit` / `Write` / `MultiEdit` / `NotebookEdit` tool。
 
-**觸發範圍**：只在 cwd 是 Athena 專案（有 `.athena/` 或 `points/`）時生效，不會干擾未啟用 Athena 流程的其他專案。
+**觸發範圍**：只在 cwd 是 hxde 專案（有 `.hxde/` 或 `points/`）時生效，不會干擾未啟用 hxde 流程的其他專案。
 
 **自我保護路徑（永遠放行，避免使用者在 hook 出狀況時被鎖死）**：
 
@@ -316,7 +316,7 @@ Plugin 透過兩條 harness hook 把流程契約落到 runtime 強制：一條�
 - `.claude-plugin/**`（plugin manifest）
 - `commands/**`（slash command 入口）
 - `.claude/**`（harness settings）
-- `.athena/**`（團隊設定、escape marker、knowledge、evals）
+- `.hxde/**`（專案設定、escape marker、knowledge、evals）
 - `points/**`、`handoffs/**`（評分與交接 artifact）
 
 > v1 known gap：`agents/**` 與 `scripts/**` 尚未列入自我保護清單。修改這兩處時若沒 point report 仍會被 block，請走 escape hatch 暫時繞過。下個 minor revision 會補上。
@@ -325,19 +325,19 @@ Plugin 透過兩條 harness hook 把流程契約落到 runtime 強制：一條�
 
 ```bash
 # 方式 A：env var（單一 session）
-export ATHENA_SKIP_POINT_GATE=1
+export HXDE_SKIP_POINT_GATE=1
 
 # 方式 B：marker file（持久於專案）
-mkdir -p .athena && touch .athena/skip-point-gate
+mkdir -p .hxde && touch .hxde/skip-point-gate
 ```
 
 濫用 escape hatch 等於放棄 point gate；建議只在已明確判斷不需要分流時使用。
 
 ### 2. Auto-Commit（選用，opt-in via marker）
 
-`SubagentStop` hook `hooks/auto-commit.sh` 是 `athena-post-build` skill 的替代路徑——對於想要「subagent 結束 → 自動 commit」嚴格綁定的團隊，可以改走 hook 模式。**預設不啟用**：flow agent 沒寫 marker，hook 就 no-op，由 flow-inline post-build skill 處理。
+`SubagentStop` hook `hooks/auto-commit.sh` 是 `hxde-post-build` skill 的替代路徑——對於想要「subagent 結束 → 自動 commit」嚴格綁定的專案，可以改走 hook 模式。**預設不啟用**：flow agent 沒寫 marker，hook 就 no-op，由 flow-inline post-build skill 處理。
 
-啟用方式：flow agent 在 spawn standard stage subagent **之前**寫入 `.athena/.flow-context.json`：
+啟用方式：flow agent 在 spawn standard stage subagent **之前**寫入 `.hxde/.flow-context.json`：
 
 ```json
 {
@@ -364,13 +364,13 @@ Hook 行為：
 6. PASS → `git add -A && git commit`（不 push、不 amend、不 rebase）
 7. 刪掉 marker（避免重複觸發）
 
-Marker schema 與 mode 選擇建議詳見 `skills/athena-flow/references/flow-context.md`。
+Marker schema 與 mode 選擇建議詳見 `skills/hxde-flow/references/flow-context.md`。
 
 > 平行 phase：marker 有選填欄位 `parallel_phases`（flow 在同時 spawn >1 個 phase agent 前寫入）。值 >1 時 hook 不 commit，log「parallel phase mode — commit deferred to flow」後讓位給 flow 層「全部 phase 完成 → conflict check → 依序 commit」；序列情境（欄位不存在、0 或 1）行為不變。worktree 平行模式下主樹 marker 照寫 `parallel_phases` 當保險；worktree 內沒有 marker（untracked 不跟隨 worktree），hook 自然 no-op，per-phase commit 由 phase agent 在 worktree 分支自己做。
 
 ## 狀態看板（Status Dashboard）
 
-打開 **`.athena/status.html`** 就能看到目前所有 flow 的進行狀況：每個
+打開 **`.hxde/status.html`** 就能看到目前所有 flow 的進行狀況：每個
 `plans/<slug>/` 一個 section（DAG 依賴圖 SVG、todo/doing/done 三欄看板、
 gate verdict 表），加上最近 10 筆歷史 run。頁面每 5 秒自動重新載入
 （inline JS），支援亮／暗主題，完全 self-contained（無任何外部資源，
@@ -387,12 +387,12 @@ verdict、phase 卡原文與對應 mini-handoff 的 Files Changed / Risks 摘要
   subagent 結束後自動重渲染；渲染失敗不會中斷 hook chain。
 - **手動產生**：
   ```bash
-  python3 scripts/render_status.py .   # 輸出到 .athena/status.html
+  python3 scripts/render_status.py .   # 輸出到 .hxde/status.html
   ```
 - **核心原則——機械投影，勿手編**：看板是
   `plans/*/plan.md` frontmatter（DAG）、`plans/*/todo|doing|done/`
   （phase 狀態唯一真相）、`handoffs/<slug>-*.md`（gate verdict）、
-  `.athena/.flow-context.json`（當前 stage）、`.athena/traces/runs.jsonl`
+  `.hxde/.flow-context.json`（當前 stage）、`.hxde/traces/runs.jsonl`
   （歷史 run）的**純函數**，由 `scripts/render_status.py` 唯讀產生。
   任何手動編輯都會在下次渲染被整頁覆蓋；看板不對就修狀態或修 script，
   不准改 HTML。
@@ -407,27 +407,27 @@ verdict、phase 卡原文與對應 mini-handoff 的 Files Changed / Risks 摘要
 
 | 文件 | 位置 | 說明 |
 |------|------|------|
-| Stage 編排 | `athena-flow/references/stage-orchestration.md` | Weight Class 路由與 stage 順序定義 |
-| Stage 契約 | `athena-flow/references/stage-contracts.md` | 每個 stage 的輸入/輸出規格 |
-| Phase 編排 | `athena-flow/references/phase-orchestration.md` | Full Weight 內的 phase loop、平行模式、conflict detection |
-| Flow Context | `athena-flow/references/flow-context.md` | Auto-commit hook 的 `.athena/.flow-context.json` schema 與 mode 選擇建議 |
-| Run Trace 基座 | `athena-flow/references/run-trace.md` | Run Trace schema + Failure Taxonomy + Handoff GC（v3 Loop Engineering 基座） |
-| 事件觸發契約 | `athena-trigger-dispatch/references/event-triggers.md` | `triggers.yml` schema / source adapter / dedup / autonomy / 輪詢節奏（Loop 2b） |
-| 自我改進契約 | `athena-hill-climb/references/hill-climb.md` | 六步流程 / systemic 判定 / 失敗模式映射 / metrics schema（Loop 3） |
-| Skill 元資料規格 | `athena-core/references/skill-metadata-spec.md` | SKILL.md frontmatter 欄位定義 |
-| Index Skill 模式 | `athena-flow/references/index-skill-pattern.md` | 同 stage 多 skill 的路由規範 |
-| Agent Handoff 契約 | `athena-flow/references/agent-handoff.md` | stage 間的交接格式 |
-| Git Lifecycle Hooks | `athena-flow/references/git-lifecycle-hooks.md` | Git 操作的觸發時機定義 |
+| Stage 編排 | `hxde-flow/references/stage-orchestration.md` | Weight Class 路由與 stage 順序定義 |
+| Stage 契約 | `hxde-flow/references/stage-contracts.md` | 每個 stage 的輸入/輸出規格 |
+| Phase 編排 | `hxde-flow/references/phase-orchestration.md` | Full Weight 內的 phase loop、平行模式、conflict detection |
+| Flow Context | `hxde-flow/references/flow-context.md` | Auto-commit hook 的 `.hxde/.flow-context.json` schema 與 mode 選擇建議 |
+| Run Trace 基座 | `hxde-flow/references/run-trace.md` | Run Trace schema + Failure Taxonomy + Handoff GC（v3 Loop Engineering 基座） |
+| 事件觸發契約 | `hxde-trigger-dispatch/references/event-triggers.md` | `triggers.yml` schema / source adapter / dedup / autonomy / 輪詢節奏（Loop 2b） |
+| 自我改進契約 | `hxde-hill-climb/references/hill-climb.md` | 六步流程 / systemic 判定 / 失敗模式映射 / metrics schema（Loop 3） |
+| Skill 元資料規格 | `hxde-core/references/skill-metadata-spec.md` | SKILL.md frontmatter 欄位定義 |
+| Index Skill 模式 | `hxde-flow/references/index-skill-pattern.md` | 同 stage 多 skill 的路由規範 |
+| Agent Handoff 契約 | `hxde-flow/references/agent-handoff.md` | stage 間的交接格式 |
+| Git Lifecycle Hooks | `hxde-flow/references/git-lifecycle-hooks.md` | Git 操作的觸發時機定義 |
 | Git 規範 | `git-conventions/SKILL.md` | 分支命名與 commit message 規範 |
-| Skill 模板 | `athena-core/assets/skill-template/SKILL.md` | 一般 skill 起手模板 |
-| Index Skill 模板 | `athena-core/assets/index-skill-template/SKILL.md` | Index skill 起手模板 |
+| Skill 模板 | `hxde-core/assets/skill-template/SKILL.md` | 一般 skill 起手模板 |
+| Index Skill 模板 | `hxde-core/assets/index-skill-template/SKILL.md` | Index skill 起手模板 |
 
 ## 內建參考 Skills
 
-本 repo 也包含以下 skills 作為**參考實作範例**。這些不會被 flow 自動使用——團隊應將它們作為建立自己 stage skill 的參考：
+本 repo 也包含以下 skills 作為**參考實作範例**。這些不會被 flow 自動使用——專案應將它們作為建立自己 stage skill 的參考：
 
 | Skill | 對應 Stage | 說明 |
 |-------|-----------|------|
-| **athena-discovery** | spec | 需求分析（8 步流程，產出 Activity + Feature Files **含 Examples、可執行**）。Step 8 自動 DELEGATE `athena-form-bdd-analysis` 將 Rules 骨架展開為含 Examples 的 .feature。從 PRD 到 cucumber-ready 一個指令完成。 |
-| **athena-specformula** | plan | 工程計畫產生器（產出 plan.md + Phase 卡片） |
-| **athena-carry-on-engineering-plan** | build | 計畫執行器（human-in-the-loop 逐 Phase 推進） |
+| **hxde-discovery** | spec | 需求分析（8 步流程，產出 Activity + Feature Files **含 Examples、可執行**）。Step 8 自動 DELEGATE `hxde-form-bdd-analysis` 將 Rules 骨架展開為含 Examples 的 .feature。從 PRD 到 cucumber-ready 一個指令完成。 |
+| **hxde-specformula** | plan | 工程計畫產生器（產出 plan.md + Phase 卡片） |
+| **hxde-carry-on-engineering-plan** | build | 計畫執行器（human-in-the-loop 逐 Phase 推進） |

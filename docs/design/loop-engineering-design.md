@@ -1,10 +1,10 @@
-# Athena Flow — Loop Engineering 設計（v3：三圈閉環）
+# hxde Flow — Loop Engineering 設計（v3：三圈閉環）
 
 > **狀態**：設計提案（draft），尚未實作。團隊 review 後依「基座 → 2b → 3」順序落地。
 > **定位**：承接 Flow v2（phase-level orchestration，已實作）的後續演進。v2 把 Build 拆成
 > phase loop，強化的是**單發管線內部**；v3 在管線**外面**包兩個迴圈：何時啟動（2b）、如何學習（3）。
 > **基建邊界**：純 Claude Code 原生（hooks / `/loop` / `ScheduleWakeup` / cron routines / subagents），
-> 所有狀態存成 `.athena/` 內檔案，零外部依賴。
+> 所有狀態存成 `.hxde/` 內檔案，零外部依賴。
 
 ---
 
@@ -31,11 +31,11 @@ v3 在它外面加兩個迴圈，但**不重寫核心**：
 | **Task-completion loop** | Verification Loop + Event Driven Loop | 觸發 → 執行 → 驗證 → 重試/停止/交人 |
 | **Self-improvement loop** | Hill Climbing Loop | 分析每次執行的紀錄，回頭改善 agent 系統 |
 
-疊到現在的 `athena-flow`：
+疊到現在的 `hxde-flow`：
 
 | Loop | 現況 | 強度 |
 |---|---|---|
-| **1. Agent loop** | 每 stage/phase 開 fresh agent，內部 read→edit→smoke→fix。harness 只提供 tool-scope shell（`athena-stage-*`）+ smoke gate 契約 | 中 |
+| **1. Agent loop** | 每 stage/phase 開 fresh agent，內部 read→edit→smoke→fix。harness 只提供 tool-scope shell（`hxde-stage-*`）+ smoke gate 契約 | 中 |
 | **2a. Verification loop** | gate verdict + `verify-retry`（targeted re-build ≤2 輪）+ per-phase smoke gate + conflict detection | **強（現核心）** |
 | **2b. Event-driven loop** | 幾乎沒有 — 全靠 `/flow <request>` 人工觸發。現有兩 hook（require-point / auto-commit）是*內部強制*，非*外部事件觸發* | **缺** |
 | **3. Self-improvement loop** | `points/`、`handoffs/`、gate verdict、retry 次數全是現成 trace，但沒有東西回讀它們改系統。skill-audit / skill-eval 是靜態 + 與 flow 脫鉤 | **缺** |
@@ -71,7 +71,7 @@ flow 在結束前，以 **flow-inline 步驟**（跟 post-build 一樣不開 age
 flow context 裡）序列化出一筆 trace：
 
 ```
-.athena/traces/runs.jsonl        # append-only，一行一個 run，只會長不會爆
+.hxde/traces/runs.jsonl        # append-only，一行一個 run，只會長不會爆
 ```
 
 每筆骨架：
@@ -137,7 +137,7 @@ housekeeping tick：「刪掉已有 shipped trace 且超過 X 天的 handoff」�
 生命週期*，不是外部世界）。所以事件層 = 一個用 **`/loop`（自我節奏，靠 `ScheduleWakeup`
 續跑）** 或 **cron routine（時間觸發）** 跑的**輪詢式 Dispatcher**。
 
-### 4.1 Trigger Registry — `.athena/triggers.yml`
+### 4.1 Trigger Registry — `.hxde/triggers.yml`
 
 ```yaml
 triggers:
@@ -161,7 +161,7 @@ triggers:
     intake: hill-climb
 
   - name: external
-    source: inbox         # 監看 .athena/inbox/ 有沒有新檔
+    source: inbox         # 監看 .hxde/inbox/ 有沒有新檔
     intake: from-file
 ```
 
@@ -169,10 +169,10 @@ triggers:
 
 1. 唯讀 CLI 評估各 trigger 的 source（`gh` 等）
 2. 套 `guard` + `when`
-3. **Dedup / debounce**：`.athena/triggers/state.json` 記「上次見過的 event id / 上次 dispatch」，
+3. **Dedup / debounce**：`.hxde/triggers/state.json` 記「上次見過的 event id / 上次 dispatch」，
    同一個 CI failure 不重觸發
 4. **Single-flight**：同一 slug/branch 已有 in-flight run 就不再起第二條
-5. 命中 → **製造一個 intake**（CI 紅燈 = 一張 bug 單，含失敗 test + log 摘要）→ 呼叫 `/athena-flow`
+5. 命中 → **製造一個 intake**（CI 紅燈 = 一張 bug 單，含失敗 test + log 摘要）→ 呼叫 `/hxde-flow`
 6. 寫一筆 `trigger:` 標記的 trace
 
 ### 4.3 三個必須講清楚的設計決策
@@ -182,7 +182,7 @@ triggers:
 - **Autonomy gate（安全核心）**：自動起一條會改 code 的 flow 很危險，預設 **`notify`**
   （用 `PushNotification`/task 問「要不要起 fix flow？」）；信任類別才 `auto-to-gate`
   （自動跑但**停在 ship 前**，絕不自動 push）；`auto-full` 要顯式開。
-- **Inbox 縫合（純原生但 webhook-ready）**：`source: inbox` 監看 `.athena/inbox/` 檔案佇列。
+- **Inbox 縫合（純原生但 webhook-ready）**：`source: inbox` 監看 `.hxde/inbox/` 檔案佇列。
   今天人/本地腳本丟檔；哪天想接 GitHub Action webhook，Action 只要把事件寫進 inbox，
   dispatcher 完全不用改。
 
@@ -196,11 +196,11 @@ triggers:
 **目標**：讀 trace → 找**系統性**模式 → 對 skill / rubric / prompt / contract / memory 提改進
 → **人工 gate 採納** → 量測是否真的爬上山。
 
-新技能 `athena-hill-climb`（由 `nightly-retro` trigger 或「累積 N 筆新 trace」門檻觸發——
+新技能 `hxde-hill-climb`（由 `nightly-retro` trigger 或「累積 N 筆新 trace」門檻觸發——
 所以 **2b 最有價值的客戶就是 3**）。六步：
 
 1. **Collect**：從 `runs.jsonl` 讀上次 watermark 之後的 run（watermark 存
-   `.athena/hill-climb/state.json`），按 taxonomy / stage / skill / phase 邊界聚合。
+   `.hxde/hill-climb/state.json`），按 taxonomy / stage / skill / phase 邊界聚合。
 
 2. **Diagnose**：只挑**重複出現**的系統問題，每條附 trace 證據（run_ids）。例：
    > `integration-mismatch` 在 9 條 Full run 命中 4 條，全在 05↔06 endpoint 命名
@@ -218,18 +218,18 @@ triggers:
 
 4. **Verify 改進（閉環關鍵 — 復活孤兒工具）**：
    - skill 類 → **trace 本身就是現成 regression eval case**（有 intake=輸入、expected=本該如何、
-     actual=怎麼壞），餵給既有 `athena-skill-eval` 真跑驗證。
+     actual=怎麼壞），餵給既有 `hxde-skill-eval` 真跑驗證。
    - rubric 類 → 拿 trace 裡歷史 intake **重新 point 一次**，看 verdict 分布有否改善。
-   - contract 類 → 既有 `athena-skill-audit` 靜態檢查。
+   - contract 類 → 既有 `hxde-skill-audit` 靜態檢查。
 
    > 這一步把現在**靜態、與 flow 脫鉤**的 `skill-audit`/`skill-eval` 接成 hill-climbing 的
    > 「改完有沒有比較好」測量臂——從「手動體檢工具」變「自我改進圈的測量儀」。
 
 5. **Apply — 一律人工 gate**：hill-climb **絕不自動改 skill/rubric**，只吐
-   `.athena/hill-climb/<date>-proposals.md`（沿用 ✅/🟡/💡 格式，不用 PASS/FAIL 以免被當 CI gate）。
+   `.hxde/hill-climb/<date>-proposals.md`（沿用 ✅/🟡/💡 格式，不用 PASS/FAIL 以免被當 CI gate）。
    被採納的提案本身變成一張 `/flow` intake——**系統用自己改進自己（dogfooding）**。
 
-6. **Measure（hill-climbing 的「hill」）**：`.athena/hill-climb/metrics.jsonl` 追蹤少數
+6. **Measure（hill-climbing 的「hill」）**：`.hxde/hill-climb/metrics.jsonl` 追蹤少數
    flow-health 指標隨時間變化：gate 一次過率、verify-retry 率、scope 準確率
    （point verdict vs 實際是否 escalate）、平均 agents/run、人工介入率。
    **沒有指標的「自我改進」只是感覺。** Retro 報告秀趨勢線。
@@ -254,7 +254,7 @@ triggers:
                │        每個 stage = agent loop (Loop 1)             │
                │        每次 run ──── EMIT Run Trace + GC handoffs ───┼─┐
                └──────────────────────────────────────────────────┘ │
-                                  └──── .athena/traces/ ◄────────────┘
+                                  └──── .hxde/traces/ ◄────────────┘
 ```
 
 樞紐是 **Run Trace**：2b 餵進會 emit trace 的同一條管線；3 消費 trace、吐出的提案又以 intake
@@ -285,22 +285,22 @@ triggers:
 
 ## 8. plugin 具體改動清單
 
-> 真正寫 code 依 repo 非協商規則先走 `/athena-point`；以下只列 scope。
+> 真正寫 code 依 repo 非協商規則先走 `/hxde-point`；以下只列 scope。
 
 **① 基座（Step 1，先做）**
-- 新 `skills/athena-flow/references/run-trace.md`（schema + failure taxonomy + handoff retention policy）
-- 改 `athena-flow/SKILL.md`：收尾加 flow-inline「emit trace + GC handoffs」步驟
+- 新 `skills/hxde-flow/references/run-trace.md`（schema + failure taxonomy + handoff retention policy）
+- 改 `hxde-flow/SKILL.md`：收尾加 flow-inline「emit trace + GC handoffs」步驟
 - 改 `agent-handoff.md`：gate verdict FAIL 多帶 taxonomy tag enum
 
 **② Loop 2b（Step 2）**
-- 新技能 `athena-trigger-dispatch`（`/loop` dispatcher）
+- 新技能 `hxde-trigger-dispatch`（`/loop` dispatcher）
 - 新 `references/event-triggers.md`（sources / dedup / autonomy / 輪詢 cache 節奏 / single-flight）
-- `.athena/triggers.yml` schema + `.athena/inbox/` 約定
+- `.hxde/triggers.yml` schema + `.hxde/inbox/` 約定
 
 **③ Loop 3（Step 3）**
-- 新技能 `athena-hill-climb`（retro，整合既有 skill-eval / skill-audit 當驗證臂）
+- 新技能 `hxde-hill-climb`（retro，整合既有 skill-eval / skill-audit 當驗證臂）
 - 新 `references/hill-climb.md`（六步 + metrics schema）
-- `.athena/hill-climb/`（state / proposals / metrics）
+- `.hxde/hill-climb/`（state / proposals / metrics）
 
 ---
 
@@ -324,7 +324,7 @@ triggers:
 - **Autonomy 誤觸發**：2b 自動起 flow 若 dedup/guard 有 bug 會洗版或誤改 code。預設 notify + single-flight 是主要護欄。
 - **Trace 隱私/體積**：`runs.jsonl` append-only 會長，但一行一 run、且 gitignore（runtime artifact）。需要時加 rotate（按月分檔）。
 - **Hill-climb 過擬合**：對少量 trace 過度推論。靠「只挑重複出現」+ metric 趨勢防止。
-- **plugin 自身 dogfood 限制**：此 repo `.athena/skills/` 無完整 standard stage skill，
+- **plugin 自身 dogfood 限制**：此 repo `.hxde/skills/` 無完整 standard stage skill，
   跑不了完整 `/flow`，只能驗 point + harness 機制；完整三圈驗證需在 consumer 專案。
 </content>
 </invoke>

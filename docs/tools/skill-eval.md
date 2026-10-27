@@ -1,25 +1,25 @@
-# L4 動態評估（athena-skill-eval）
+# L4 動態評估（hxde-skill-eval）
 
-> 與 `/athena-point` 不同 —— eval 是**團隊主動觸發**的離線回歸測試工具，**不是 plugin 強制執行的閘門**。
+> 與 `/hxde-point` 不同 —— eval 是**團隊主動觸發**的離線回歸測試工具，**不是 plugin 強制執行的閘門**。
 
 對 skill 進行**行為測試** — 給 skill 一個具象 case → spawn fresh sub-agent 真實執行 → 評分。L1+L2 ([audit](skill-audit.md)) 看 skill 寫得好不好；L4 (eval) 看 skill 跑出來對不對。
 
 ## 用法
 
 ```bash
-/athena-dev-plugin:athena-skill-eval <target-skill> <case-name>
+/hxde:hxde-skill-eval <target-skill> <case-name>
 ```
 
 範例：
 
 ```bash
-/athena-dev-plugin:athena-skill-eval crs-build-impl typo-fix
+/hxde:hxde-skill-eval crs-build-impl typo-fix
 ```
 
 ## Case 檔案位置
 
 ```
-<project>/.athena/evals/
+<project>/.hxde/evals/
 ├── spec-cases/
 ├── plan-cases/
 ├── build-cases/
@@ -28,9 +28,9 @@
 └── ship-cases/
 ```
 
-每個 case 一個 `.md`，依 `skills/athena-skill-eval/references/case-spec.md` 格式撰寫。
-起手請複製 `skills/athena-skill-eval/assets/case-template.md`。
-完整範例見 `skills/athena-skill-eval/assets/case-example-build.md`。
+每個 case 一個 `.md`，依 `skills/hxde-skill-eval/references/case-spec.md` 格式撰寫。
+起手請複製 `skills/hxde-skill-eval/assets/case-template.md`。
+完整範例見 `skills/hxde-skill-eval/assets/case-example-build.md`。
 
 ## 評分機制
 

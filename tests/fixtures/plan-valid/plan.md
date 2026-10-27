@@ -48,7 +48,7 @@ status_source: folders
 # 工程計畫：plan-valid（lint fixture）
 
 > Fixture for `scripts/lint-plugin.sh` — a minimal valid 8-phase plan used to
-> self-test `skills/athena-specformula/scripts/validate_plan.py`.
+> self-test `skills/hxde-specformula/scripts/validate_plan.py`.
 
 ## Dependency Graph
 

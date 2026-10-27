@@ -84,7 +84,7 @@ git checkout -b feature/main_hap3621_member_export_v2
 
 ```
 # 分支有 HAP ticket 時
-[HAP-XXXX] type(scope): 簡述
+[HXDE-XXXX] type(scope): 簡述
 
 # 分支無 HAP ticket 時
 type(scope): 簡述
@@ -94,12 +94,12 @@ type(scope): 簡述
 
 | Type | 用途 | 範例（有 HAP） | 範例（無 HAP） |
 |------|------|----------------|----------------|
-| `feat` | 新功能 | `[HAP-1234] feat(member): add export API` | `feat(member): add export API` |
-| `fix` | Bug 修復 | `[HAP-1234] fix(tier): correct calculation` | `fix(tier): correct calculation` |
-| `docs` | 文件更新 | `[HAP-1234] docs(api): update swagger spec` | `docs(api): update swagger spec` |
-| `refactor` | 重構 | `[HAP-1234] refactor(service): extract helper` | `refactor(service): extract helper` |
-| `test` | 測試相關 | `[HAP-1234] test(member): add unit tests` | `test(member): add unit tests` |
-| `chore` | 維護性工作 | `[HAP-1234] chore(deps): update dependencies` | `chore(deps): update dependencies` |
+| `feat` | 新功能 | `[HXDE-1234] feat(member): add export API` | `feat(member): add export API` |
+| `fix` | Bug 修復 | `[HXDE-1234] fix(tier): correct calculation` | `fix(tier): correct calculation` |
+| `docs` | 文件更新 | `[HXDE-1234] docs(api): update swagger spec` | `docs(api): update swagger spec` |
+| `refactor` | 重構 | `[HXDE-1234] refactor(service): extract helper` | `refactor(service): extract helper` |
+| `test` | 測試相關 | `[HXDE-1234] test(member): add unit tests` | `test(member): add unit tests` |
+| `chore` | 維護性工作 | `[HXDE-1234] chore(deps): update dependencies` | `chore(deps): update dependencies` |
 
 ### Scope Guidelines
 
@@ -128,21 +128,21 @@ Scope 應反映變更的模組或領域：
 **參考 `references/output-language.md`** 以取得用戶語言偏好：
 
 ```bash
-# 使用共用 script 讀取語言設定（優先順序：Local > Project > User）
-OUTPUT_LANG=$(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/get_athena_setting.py" athena language --default "English")
+# 讀取語言設定（優先順序：Local > Project > User；本 plugin 未附帶此 script，不存在時用預設 English）
+OUTPUT_LANG=$(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/get_hxde_setting.py" hxde language --default "English" 2>/dev/null || echo "English")
 ```
 
 Commit message 的簡述可依語言偏好撰寫：
 
 ```bash
 # 英文（預設）
-git commit -m "[HAP-3621] feat(member): add member export API"
+git commit -m "[HXDE-3621] feat(member): add member export API"
 
 # 繁體中文
-git commit -m "[HAP-3621] feat(member): 新增會員匯出 API"
+git commit -m "[HXDE-3621] feat(member): 新增會員匯出 API"
 
 # 日文
-git commit -m "[HAP-3621] feat(member): メンバーエクスポートAPIを追加"
+git commit -m "[HXDE-3621] feat(member): メンバーエクスポートAPIを追加"
 ```
 
 **注意**：type 和 scope 保持英文，僅簡述部分可使用其他語言。
@@ -151,9 +151,9 @@ git commit -m "[HAP-3621] feat(member): メンバーエクスポートAPIを追�
 
 ```bash
 # === 分支有 HAP ticket 時 ===
-git commit -m "[HAP-3621] feat(member): add member export API"
-git commit -m "[HAP-3449] fix(tier): correct upgrade calculation logic"
-git commit -m "[HAP-3600] refactor(service): extract common validation"
+git commit -m "[HXDE-3621] feat(member): add member export API"
+git commit -m "[HXDE-3449] fix(tier): correct upgrade calculation logic"
+git commit -m "[HXDE-3600] refactor(service): extract common validation"
 
 # === 分支無 HAP ticket 時 ===
 git commit -m "feat(member): add member export API"
@@ -179,16 +179,16 @@ BRANCH=$(git rev-parse --abbrev-ref HEAD)
 TICKET=$(echo "$BRANCH" | grep -oP '(?<=hap)\d+' | head -1)
 
 # 格式化為 commit prefix
-PREFIX="[HAP-${TICKET}]"
+PREFIX="[HXDE-${TICKET}]"
 ```
 
 ### 範例推斷
 
 | 分支名稱 | 推斷的 Ticket |
 |----------|---------------|
-| `feature/main_hap3621_member_export` | `[HAP-3621]` |
-| `bugfix/develop_hap3449_tier_calculation` | `[HAP-3449]` |
-| `feature/main_hap3621_v2` | `[HAP-3621]` |
+| `feature/main_hap3621_member_export` | `[HXDE-3621]` |
+| `bugfix/develop_hap3449_tier_calculation` | `[HXDE-3449]` |
+| `feature/main_hap3621_v2` | `[HXDE-3621]` |
 
 ---
 
@@ -223,7 +223,7 @@ git fetch origin main && git checkout -b feature/main_hap<TICKET>_<description> 
 ### Commit with Convention
 
 ```bash
-git commit -m "[HAP-<TICKET>] <type>(<scope>): <description>"
+git commit -m "[HXDE-<TICKET>] <type>(<scope>): <description>"
 ```
 
 ### Full Workflow Example
@@ -238,11 +238,11 @@ git checkout -b feature/main_hap3621_member_export
 
 # 3. 開發並提交
 git add .
-git commit -m "[HAP-3621] feat(member): add member export API"
+git commit -m "[HXDE-3621] feat(member): add member export API"
 
 # 4. 追加提交
-git commit -m "[HAP-3621] test(member): add export unit tests"
-git commit -m "[HAP-3621] docs(api): document export endpoint"
+git commit -m "[HXDE-3621] test(member): add export unit tests"
+git commit -m "[HXDE-3621] docs(api): document export endpoint"
 
 # 5. 推送前再次同步（可選，減少 PR 衝突）
 git fetch origin main
@@ -263,7 +263,7 @@ git rebase origin/main  # 或 git merge origin/main
 
 ### Commit Message
 
-- [ ] 若分支有 HAP，包含 `[HAP-XXXX]` prefix
+- [ ] 若分支有 HAP，包含 `[HXDE-XXXX]` prefix
 - [ ] 使用正確的 type (`feat`, `fix`, `docs`, `refactor`, `test`, `chore`)
 - [ ] 包含有意義的 scope
 - [ ] 簡述使用祈使句

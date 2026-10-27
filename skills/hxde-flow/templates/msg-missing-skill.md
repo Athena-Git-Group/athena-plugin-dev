@@ -1,0 +1,20 @@
+# 缺少 Standard Skill 的引導訊息
+
+Skill Discovery 發現路由所需 standard stage 缺 skill 時，停止流程並逐字輸出下列訊息
+（缺哪些 stage 就列哪些行；**`spec` 不列入——它有 plugin 預設 `hxde-spec-default`，
+缺團隊 skill 時退回預設繼續，不停止也不輸出本訊息**。若只缺 `spec`，本訊息**完全不輸出**）：
+
+```
+⚠️ 缺少 stage 對應的 skill
+
+以下 stage 尚未找到團隊上繳的 skill：
+- [ ] build — 在 .hxde/skills/ 下建立一個 SKILL.md，frontmatter 包含 stage: build
+- [ ] verify — 在 .hxde/skills/ 下建立一個 SKILL.md，frontmatter 包含 stage: verify
+
+請參考：
+- Stage 契約：hxde/skills/hxde-flow/references/stage-contracts.md
+- Skill 元資料規格：hxde/skills/hxde-core/references/skill-metadata-spec.md
+- Skill 模板：hxde/skills/hxde-core/assets/skill-template/
+
+建立完成後重新執行 /flow。
+```

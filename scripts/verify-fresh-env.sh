@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # verify-fresh-env.sh
 #
-# 用途：驗證 athena-dev-plugin 在 fresh 環境（無 user-level
-# ~/.claude/skills/athena-*）下能獨立支撐 /athena-discovery 含 Step 8
+# 用途：驗證 hxde 在 fresh 環境（無 user-level
+# ~/.claude/skills/hxde-*）下能獨立支撐 /hxde-discovery 含 Step 8
 # 的端到端流程。
 #
-# ⚠ 限制：/athena-discovery 是 interactive Skill（透過 Claude Code 的 Skill
+# ⚠ 限制：/hxde-discovery 是 interactive Skill（透過 Claude Code 的 Skill
 # tool 由人類觸發），bash 無法直接 headless 呼叫。本腳本只負責：
 #
-#   1. 在隔離的 HOME 確認沒有 user-level athena skills 殘留
+#   1. 在隔離的 HOME 確認沒有 user-level hxde skills 殘留
 #   2. 確認 plugin 自身的所有必要 skill 存在
 #   3. 確認 discovery SKILL.md 含 Step 8 章節（P3 已導入）
 #   4. 確認 sample PRD fixture 就位
@@ -38,8 +38,8 @@ while [[ $# -gt 0 ]]; do
             cat <<USAGE
 Usage: $0 [--dry-run]
 
-Verifies plugin can run /athena-discovery end-to-end without depending
-on user-level ~/.claude/skills/athena-* copies.
+Verifies plugin can run /hxde-discovery end-to-end without depending
+on user-level ~/.claude/skills/hxde-* copies.
 
 Options:
   --dry-run    Only verify environment isolation and plugin
@@ -88,12 +88,12 @@ echo "✓ Isolated HOME has no user-level skills (baseline confirmed)"
 # 2. Verify all skills discovery DELEGATEs to are present in plugin
 # ---------------------------------------------------------------------
 REQUIRED_SKILLS=(
-    athena-discovery
-    athena-composition-analysis
-    athena-form-activity
-    athena-form-feature-spec
-    athena-form-bdd-analysis
-    athena-core
+    hxde-discovery
+    hxde-composition-analysis
+    hxde-form-activity
+    hxde-form-feature-spec
+    hxde-form-bdd-analysis
+    hxde-core
 )
 missing=()
 for s in "${REQUIRED_SKILLS[@]}"; do
@@ -110,7 +110,7 @@ echo "✓ All ${#REQUIRED_SKILLS[@]} required plugin skills present"
 # ---------------------------------------------------------------------
 # 3. Verify cross-skill reference target (reconciler-contract.md)
 # ---------------------------------------------------------------------
-RC_PATH="$PLUGIN_ROOT/skills/athena-core/references/reconciler-contract.md"
+RC_PATH="$PLUGIN_ROOT/skills/hxde-core/references/reconciler-contract.md"
 if [ ! -f "$RC_PATH" ]; then
     echo "FAIL: missing reconciler-contract.md at $RC_PATH" >&2
     echo "  (form-bdd-analysis and form-feature-spec depend on this)" >&2
@@ -121,7 +121,7 @@ echo "✓ reconciler-contract.md present (cross-skill dep satisfied)"
 # ---------------------------------------------------------------------
 # 4. Verify Step 8 lives in discovery (the change this plan ships)
 # ---------------------------------------------------------------------
-DISCOVERY_MD="$PLUGIN_ROOT/skills/athena-discovery/SKILL.md"
+DISCOVERY_MD="$PLUGIN_ROOT/skills/hxde-discovery/SKILL.md"
 if ! grep -q "^## Step 8: Examples 填入" "$DISCOVERY_MD"; then
     echo "FAIL: discovery SKILL.md missing Step 8 section" >&2
     exit 1
@@ -135,7 +135,7 @@ echo "✓ Discovery has Step 8 + 3-layer fallback protection"
 # ---------------------------------------------------------------------
 # 5. Verify dependency-graph.mmd updated
 # ---------------------------------------------------------------------
-DEP_GRAPH="$PLUGIN_ROOT/skills/athena-discovery/references/dependency-graph.mmd"
+DEP_GRAPH="$PLUGIN_ROOT/skills/hxde-discovery/references/dependency-graph.mmd"
 if ! grep -q "S8\[" "$DEP_GRAPH"; then
     echo "FAIL: dependency-graph.mmd missing S8 node" >&2
     exit 1
@@ -168,16 +168,16 @@ if $DRY_RUN; then
 ===================================================================
 DRY RUN COMPLETE — plugin is self-contained, environment ready
 
-Next step (manual, interactive — bash cannot run /athena-discovery):
+Next step (manual, interactive — bash cannot run /hxde-discovery):
 
   1. Confirm your active Claude Code session has THIS plugin installed
-     and that NO user-level ~/.claude/skills/athena-* duplicates would
+     and that NO user-level ~/.claude/skills/hxde-* duplicates would
      shadow plugin versions. (Plan P5 will add deprecation banners to
      those user-level copies.)
 
   2. Invoke:
 
-       /athena-discovery $FIXTURE
+       /hxde-discovery $FIXTURE
 
   3. After Step 8 completes, verify (Plan AC1):
      - features/系統抽象.md exists
@@ -203,7 +203,7 @@ fi
 
 # Without --dry-run, we have nothing safe to do (cannot invoke discovery)
 cat <<ERR >&2
-ERROR: This script cannot drive /athena-discovery directly because the
+ERROR: This script cannot drive /hxde-discovery directly because the
 skill is interactive (requires Claude Code Skill tool).
 
 Re-run with --dry-run to prepare the environment and follow the manual

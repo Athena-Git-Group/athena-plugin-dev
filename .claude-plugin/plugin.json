@@ -1,12 +1,12 @@
 {
-  "name": "athena-dev-plugin",
-  "description": "Athena development workflow plugin — spec, plan, build, review, ship pipeline for teams",
+  "name": "hxde",
+  "description": "hxde development workflow plugin — spec, plan, build, review, ship pipeline",
   "author": {
-    "name": "Athena-Git-Group"
+    "name": "huangken8511429"
   },
-  "repository": "https://github.com/Athena-Git-Group/athena-plugin-dev",
+  "repository": "https://github.com/huangken8511429/hxde",
   "license": "MIT",
-  "keywords": ["athena", "workflow", "bdd", "spec-driven", "engineering-plan"],
+  "keywords": ["hxde", "workflow", "bdd", "spec-driven", "engineering-plan"],
   "skills": "./skills",
   "commands": "./commands"
 }

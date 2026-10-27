@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""render_status.py — project Athena flow state into a static HTML dashboard.
+"""render_status.py — project hxde flow state into a static HTML dashboard.
 
 The dashboard is a MECHANICAL PROJECTION of on-disk state. It is generated
 by this script (normally via the SubagentStop hook `hooks/render-status.sh`)
@@ -10,16 +10,16 @@ fix the state or this script, not the page.
 Inputs (all read-only):
   - plans/<slug>/plan.md          YAML frontmatter = DAG topology
                                   (mini-parser vendored from
-                                  skills/athena-specformula/scripts/validate_plan.py)
+                                  skills/hxde-specformula/scripts/validate_plan.py)
   - plans/<slug>/todo|doing|done/ phase cards — folder location is the
                                   single source of truth for phase status
   - handoffs/<slug>-*.md          Gate Verdict per stage (loose parse;
                                   unparseable -> "unknown")
-  - .athena/.flow-context.json    current stage / parallel_phases (optional)
-  - .athena/traces/runs.jsonl     historical run summaries (last 10)
+  - .hxde/.flow-context.json    current stage / parallel_phases (optional)
+  - .hxde/traces/runs.jsonl     historical run summaries (last 10)
 
 Output:
-  - .athena/status.html (default) — fully self-contained: no external
+  - .hxde/status.html (default) — fully self-contained: no external
     resources (works over file://), auto-reloads via inline JS
     (~5 s, paused while the detail drawer is open), light/dark via
     prefers-color-scheme. DAG nodes and kanban cards are clickable and
@@ -46,7 +46,7 @@ STATUS_FOLDERS = ("todo", "doing", "done")
 
 # ---------------------------------------------------------------------------
 # Frontmatter mini-parser
-# Vendored from skills/athena-specformula/scripts/validate_plan.py (the
+# Vendored from skills/hxde-specformula/scripts/validate_plan.py (the
 # canonical mechanical parser for plan.md frontmatter). Keep in sync with it;
 # validate_plan.py stays the source of truth for validation semantics.
 # ---------------------------------------------------------------------------
@@ -223,7 +223,7 @@ def collect_handoffs(root, slug):
 
 
 def load_flow_context(root):
-    ctx_path = root / ".athena" / ".flow-context.json"
+    ctx_path = root / ".hxde" / ".flow-context.json"
     if not ctx_path.is_file():
         return None
     try:
@@ -234,7 +234,7 @@ def load_flow_context(root):
 
 
 def load_runs(root, limit=10):
-    runs_path = root / ".athena" / "traces" / "runs.jsonl"
+    runs_path = root / ".hxde" / "traces" / "runs.jsonl"
     if not runs_path.is_file():
         return []
     runs = []
@@ -657,7 +657,7 @@ def render_gate_table(handoffs):
 
 def render_runs_table(runs):
     if not runs:
-        return '<p class="muted">尚無 run 紀錄（<code>.athena/traces/runs.jsonl</code> 不存在或為空）。</p>'
+        return '<p class="muted">尚無 run 紀錄（<code>.hxde/traces/runs.jsonl</code> 不存在或為空）。</p>'
     rows = []
     for r in runs:
         point = r.get("point") or {}
@@ -882,7 +882,7 @@ JS = r"""
 (function () {
   "use strict";
   var RELOAD_MS = 5000;
-  var dataEl = document.getElementById("athena-status-data");
+  var dataEl = document.getElementById("hxde-status-data");
   var DATA = {};
   try { DATA = dataEl ? JSON.parse(dataEl.textContent) : {}; } catch (e) { DATA = {}; }
 
@@ -1104,14 +1104,14 @@ def render_page(root):
     detail_data = {}
 
     body = []
-    body.append("<h1>Athena Flow 狀態看板</h1>")
+    body.append("<h1>hxde Flow 狀態看板</h1>")
     body.append(
         f'<p class="gen-meta">產生時間 {esc(now)} · 每 5 秒自動重新載入'
         "（開啟詳情面板時暫停）</p>"
     )
     body.append(
         '<p class="principle">此頁為機械投影（由 <code>scripts/render_status.py</code> '
-        "從 plans/ · handoffs/ · .athena/ 唯讀產生），請勿手動編輯——任何手改都會在下次渲染被覆蓋。</p>"
+        "從 plans/ · handoffs/ · .hxde/ 唯讀產生），請勿手動編輯——任何手改都會在下次渲染被覆蓋。</p>"
     )
 
     # Only plans whose plan.md carries machine-parseable frontmatter (a
@@ -1141,8 +1141,8 @@ def render_page(root):
             "資料來源：<code>plans/*/plan.md</code>（DAG frontmatter）、"
             "<code>plans/*/todo|doing|done/</code>（phase 狀態）、"
             "<code>handoffs/</code>（gate verdict）、"
-            "<code>.athena/.flow-context.json</code>（當前 stage）、"
-            "<code>.athena/traces/runs.jsonl</code>（歷史 run）。</p></section>"
+            "<code>.hxde/.flow-context.json</code>（當前 stage）、"
+            "<code>.hxde/traces/runs.jsonl</code>（歷史 run）。</p></section>"
         )
 
     body.append('<section class="runs"><h2>歷史 Run（最近 10 筆）</h2>')
@@ -1154,7 +1154,7 @@ def render_page(root):
             "（plan.md 缺機械 frontmatter）："
             + esc("、".join(skipped)) + "</p>"
         )
-    body.append("<footer>athena-dev-plugin status dashboard — mechanical projection, do not hand-edit.</footer>")
+    body.append("<footer>hxde status dashboard — mechanical projection, do not hand-edit.</footer>")
 
     # Detail data for the drawer, embedded at projection time (no fetch).
     # "</" is escaped so markdown content can never terminate the script tag.
@@ -1177,22 +1177,22 @@ def render_page(root):
         '<html lang="zh-Hant">\n<head>\n'
         '<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-        "<title>Athena Flow 狀態看板</title>\n"
+        "<title>hxde Flow 狀態看板</title>\n"
         f"<style>{CSS}</style>\n"
         "</head>\n<body>\n<main>\n" + "\n".join(body) + "\n</main>\n"
         + drawer_html + "\n"
-        f'<script type="application/json" id="athena-status-data">{blob}</script>\n'
+        f'<script type="application/json" id="hxde-status-data">{blob}</script>\n'
         f"<script>{JS}</script>\n"
         "</body>\n</html>\n"
     )
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Render Athena flow status dashboard.")
+    ap = argparse.ArgumentParser(description="Render hxde flow status dashboard.")
     ap.add_argument("project_root", nargs="?", default=".",
                     help="project root containing plans/ (default: cwd)")
     ap.add_argument("--output", "-o", default=None,
-                    help="output HTML path (default: <root>/.athena/status.html)")
+                    help="output HTML path (default: <root>/.hxde/status.html)")
     args = ap.parse_args()
 
     root = Path(args.project_root).resolve()
@@ -1200,7 +1200,7 @@ def main():
         print(f"render_status: {root} is not a directory", file=sys.stderr)
         sys.exit(1)
 
-    out = Path(args.output) if args.output else root / ".athena" / "status.html"
+    out = Path(args.output) if args.output else root / ".hxde" / "status.html"
     page = render_page(root)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(page, encoding="utf-8")
