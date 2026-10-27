@@ -19,3 +19,12 @@ description: >
 - `rules/fail-reporting.md` — Gate FAIL 的回報格式：taxonomy tag、FAIL 時仍要寫 handoff、ship 階段 git 失敗處理表。
 - `rules/smoke-test.md` — smoke test 唯一真源：plan 時怎麼規劃、build 時怎麼跑、verify 時怎麼重跑。
 - `rules/clarify-protocol.md` — headless clarify 協議：`questions.md` / `answers.md` 的問答流程。
+
+內含 scripts：
+
+- `scripts/run_smoke.py` — smoke test 的 deterministic runner：依
+  `rules/smoke-test.md` Rule 3 的表（可被目標專案 `.athena/smoke-checks.json`
+  覆寫）逐檔配對逐條執行，輸出 PASS/FAIL/SKIP 報告。預設以
+  `uv run .athena/skills/team-common/scripts/run_smoke.py` 執行（零第三方
+  依賴，`uv` 不可用時可用 `python3`）。由 team-build Phase 2 與
+  team-verify Phase 2 的 SOP step 呼叫。

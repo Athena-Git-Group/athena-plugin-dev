@@ -26,7 +26,15 @@ stage: build
 
 1. WRITE 依任務描述實作，逐條避開 point-report（或 phase card）Risks 段列出的風險。
 2. READ 讀取 `.athena/skills/team-common/rules/smoke-test.md` 的 Rule 3（build 時怎麼跑）。
-3. DELEGATE 依改動類型逐類執行 smoke test 指令，記錄實際輸出；任一失敗即 Gate FAIL。
+3. DELEGATE 實作完成後，依改動類型逐類執行 smoke test：執行
+   `uv run .athena/skills/team-common/scripts/run_smoke.py`（預設掃
+   `git diff HEAD` + untracked；phase loop 下用 `--base <base ref>` 或
+   `--files <f1> <f2> ...` 限定本次改動），script 會依 Rule 3 的表逐檔配對
+   逐條執行並輸出 Smoke Test Result；把該輸出原樣記入 handoff，任一檢查
+   FAIL 即 Gate FAIL。報告中的 SKIP 清單（沒配對到檢查的檔案）要照列進
+   handoff，不得當作已通過。依賴已宣告在 script 檔頭 metadata（目前為零
+   第三方依賴）；若 `uv` 不可用，可直接改用
+   `python3 .athena/skills/team-common/scripts/run_smoke.py` 執行同一命令。
 
 ## Phase 3 -- 寫 handoff 交接
 
