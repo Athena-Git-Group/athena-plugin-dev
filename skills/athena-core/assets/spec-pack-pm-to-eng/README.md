@@ -7,19 +7,12 @@
 
 ## 它做什麼
 
-```
-PM 需求 → score（可譯性 gate）→ clarify（釐清 gate）
-        → specify（需求結構化 gate → specify/spec.md）
-        → 結構層（data_model / class_diagram / db_table ∣ screens）
-        → 契約層（api → openapi.yaml ∣ ui_contract）
-        →〔ui_prototype：前端 / fullstack 專屬，靜態 HTML 雛形〕
-        → gherkin（可執行 .feature 規格）
-```
+把 PM 需求文件依序推過 score → clarify → specify → 結構層 → 契約層 →
+〔ui_prototype〕→ gherkin 等 phase；完整 phase 順序與分支條件見 `SKILL.md`。
 
 產出全部落在 `specs/<slug>/`，最終 handoff 寫 `handoffs/<slug>-spec.md`。
 
-`specify/spec.md` 是**結構層與其後所有 phase 的唯一需求真源**；
-`clarify/clarified.md` 是 `specify` 的輸入，結構層之後不再被直接讀取。
+`specify/spec.md` 的「結構層以後唯一需求真源」地位與 gate 細節見 `SKILL.md`。
 
 ## 安裝（選用——**不裝也會用到**）
 
@@ -53,12 +46,13 @@ spec_pack:
 
 ## 環境需求
 
-- **api phase**：`python3` + `pyyaml`（transpiler 把 intent DSL 編譯成
-  openapi.yaml）。缺環境時 phase 會 FAIL 並保留 intent.yaml，不會產出半套 openapi。
-- **前端 track**：前端棧一律 Nuxt 4 + TypeScript strict
-  （見 `phases/pm-to-eng-flow/references/frontend-stack-conventions.md`——
-  跨前端階段的**單一事實來源**）。本 pack **不提供**專案級的棧覆寫設定；
-  棧不同的團隊請把本 pack 裝到 `.athena/skills/` 後 fork 該 conventions 檔自行調整。
+- **api phase**：`python3` + `pyyaml`（transpiler `phases/api/scripts/openapi.py`
+  把 intent DSL 編譯成 openapi.yaml）。缺環境時 phase 會 FAIL 並保留
+  intent.yaml，不會產出半套 openapi。
+- **前端 track**：前端棧依 `phases/common/rules/frontend-stack-conventions.md`
+  （單一事實來源）固定為 Nuxt 4 + TypeScript strict。本 pack **不提供**專案級
+  的棧覆寫設定；棧不同的團隊請把本 pack 裝到 `.athena/skills/` 後 fork 該
+  conventions 檔自行調整。
 
 ## 與相鄰工具的分工（避免混淆）
 
@@ -76,8 +70,10 @@ spec_pack:
   使用者回答寫入 `clarify/answers.md` 後重跑 flow，spec stage 會斷點續跑。
 - 原版可並行的 phase（class_diagram ∥ db_table、fullstack 雙 gherkin）在
   spec stage shell 內**依序執行**（shell 無 Agent 工具）。
-- 來源與同步方式見 `VENDORED.md`。
-- **授權與概念來源**：本 pack 多數 phase vendored 自內部 athena-skills；
-  `specify` 等 plugin 原創 phase 的判準借鑑自 CH3-SDD-workflow（Apache-2.0）與
-  GitHub Spec Kit（MIT）。完整標註、我們改了什麼、以及 vendored 檔的本地改寫清單，
-  見 `VENDORED.md` 的「本地改寫清單」與「概念來源與授權標註」兩節。
+- **血緣與同步紀律**：本 pack 已於 2026-10-27 正式 fork，`athena-skills` 不再
+  是真源，詳見 `VENDORED.md`。真源（本目錄）→ dogfood 安裝
+  （`.athena/skills/pm-to-eng-spec/`）仍維持單向同步，只改真源側，用
+  `scripts/sync-spec-pack.sh` 同步、由 `scripts/lint-plugin.sh` 把關 drift。
+- **授權與概念來源**：`specify` / `ui_prototype` 等 plugin 原創 phase 的判準
+  借鑑自 CH3-SDD-workflow（Apache-2.0）與 GitHub Spec Kit（MIT）；完整標註見
+  `VENDORED.md` 的「概念來源與授權標註」節。

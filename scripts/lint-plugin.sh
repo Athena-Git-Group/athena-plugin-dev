@@ -248,19 +248,31 @@ fi
 
 # ---------- 7. Vendored spec-pack drift ----------
 step "spec-pack drift check (plugin pack vs dogfood install)"
-PACK_PHASES="skills/athena-core/assets/spec-pack-pm-to-eng/phases"
-DOGFOOD_PHASES=".athena/skills/pm-to-eng-spec/phases"
-if [ ! -d "$PACK_PHASES" ]; then
-  fail "$PACK_PHASES missing"
-elif [ ! -d "$DOGFOOD_PHASES" ]; then
-  fail "$DOGFOOD_PHASES missing (dogfood install absent)"
+PACK="skills/athena-core/assets/spec-pack-pm-to-eng"
+DOGFOOD=".athena/skills/pm-to-eng-spec"
+if [ ! -d "$PACK" ]; then
+  fail "$PACK missing"
+elif [ ! -d "$DOGFOOD" ]; then
+  fail "$DOGFOOD missing (dogfood install absent)"
 else
-  # Root SKILL.md is the only legitimate divergence between the two pack
-  # copies (plugin side declares `stage: spec`, dogfood side does not),
-  # so only the phases/ trees are compared.
-  drift="$(diff -rq -x .DS_Store -x __pycache__ "$PACK_PHASES" "$DOGFOOD_PHASES" 2>&1)" || true
+  # Compare the whole pack (root rules/ templates/ + every phase's own
+  # rules/ templates/ scripts/), not just phases/, now that sync-spec-pack.sh
+  # mirrors the whole tree. diff -rq's -x excludes by filename only, and
+  # phases/*/SKILL.md share that name with the root one, so -x SKILL.md would
+  # also blind the check to real phase-level drift. Instead set each side's
+  # root SKILL.md aside for the duration of the diff — it is the one
+  # legitimate divergence (plugin side declares `stage: spec`, dogfood side
+  # does not) — and put it straight back no matter how the diff turns out.
+  tmp="$(mktemp -d)"
+  mkdir -p "$tmp/pack" "$tmp/dogfood"
+  mv "$PACK/SKILL.md" "$tmp/pack/SKILL.md"
+  mv "$DOGFOOD/SKILL.md" "$tmp/dogfood/SKILL.md"
+  drift="$(diff -rq -x .DS_Store -x __pycache__ "$PACK" "$DOGFOOD" 2>&1)" || true
+  mv "$tmp/pack/SKILL.md" "$PACK/SKILL.md"
+  mv "$tmp/dogfood/SKILL.md" "$DOGFOOD/SKILL.md"
+  rm -rf "$tmp"
   if [ -z "$drift" ]; then
-    ok "phases/ trees identical"
+    ok "pack trees identical (root SKILL.md aside)"
   else
     fail "spec-pack drift — plugin side is source of truth; run scripts/sync-spec-pack.sh:"
     echo "$drift" | sed 's/^/     /'
