@@ -10,72 +10,44 @@ stage: ship
 
 # Team Ship（athena-dev-plugin）
 
-你是 ship 階段的執行者。**非互動**：不問使用者任何問題。
+你是 ship 階段的執行者。**非互動**：不問使用者任何問題，所有決策來自
+flow 傳入的參數。
 
-> `merge_target` 由 flow 在啟動你之前向使用者取得並傳入。
-> 若 prompt 中沒有 `merge_target` → Gate FAIL（#contract-violation），不猜、不問。
+# SOP
 
-## 先讀哪些檔 / 輸入
+## Phase 1 -- 讀取輸入與前置檢查
 
-1. `handoffs/<slug>-review.md`（或 Lightweight 模式下的 build/verify handoff）
-2. flow context：`git_context`（branch_name、base_branch、commits）+ `merge_target`
+1. READ 讀取 `.athena/skills/team-common/rules/agent-isolation.md`，確認 fresh agent 的
+   輸入來源要求。
+2. READ 讀取 `handoffs/<slug>-review.md`（Lightweight 合併模式改讀 build/verify
+   handoff）與 flow context：`git_context`（branch_name、base_branch、commits）
+   + `merge_target`（flow 在啟動你之前向使用者取得並傳入）。
+3. THINK 若 prompt 中沒有 `merge_target` → Gate FAIL（#contract-violation），
+   不猜、不問，直接跳到 Phase 3 寫 handoff。
+4. THINK 確認 review gate 為 PASS；FAIL 則不 ship，直接跳到 Phase 3 回報。
 
-## 執行步驟
+## Phase 2 -- push 與 merge
 
-1. 確認 review gate 為 PASS（FAIL 則不 ship，回報）
-2. 有未提交變更 → `git add` + `git commit`（依 git-conventions 格式）
-3. `git push -u origin <branch_name>`
-4. `git checkout <merge_target>` → `git pull origin <merge_target>`
-5. `git merge --no-ff <branch_name>`
-6. `git push origin <merge_target>`
-7. `git checkout <branch_name>`（切回工作分支）
-8. 記下 merge commit hash（`git rev-parse HEAD` 於 merge_target 上），寫 handoff
+1. WRITE 有未提交變更 → `git add` + `git commit`（commit message 依
+   git-conventions skill 的格式）。
+2. WRITE `git push -u origin <branch_name>`。
+3. WRITE `git checkout <merge_target>` → `git pull origin <merge_target>`。
+4. WRITE `git merge --no-ff <branch_name>`。
+5. WRITE `git push origin <merge_target>`。
+6. WRITE `git checkout <branch_name>`（切回工作分支）。
+7. READ 記下 merge commit hash（於 merge_target 上 `git rev-parse HEAD`）。
+8. READ 上述任一 git 步驟失敗（push 被拒、merge conflict、merge_target 不存在）
+   時，讀取 `.athena/skills/team-common/rules/fail-reporting.md` 的 Rule 4 失敗處理表，
+   依表停止、恢復現場並記錄，然後進 Phase 3。
 
-## 失敗處理
+## Phase 3 -- handoff
 
-| 狀況 | 處理 |
-|------|------|
-| push 失敗（remote rejected） | 停止，Gate FAIL #env，附錯誤輸出 |
-| merge conflict | **停止**，不自動解、不 force merge；`git merge --abort` 恢復，列出衝突檔案，Gate FAIL #env |
-| merge_target 分支不存在 | 停止，Gate FAIL #env，列出 `git branch -r` 可用分支 |
-
-> merge conflict 屬 repo 狀態衝突（環境/repo 狀態問題，非邏輯缺陷），暫歸 `#env`
-> （`#integration-mismatch` 依 run-trace.md 定義專指跨 phase 介面不符，不適用）；
-> 若團隊需要專屬分類，應透過 hill-climb 提案擴充 taxonomy，不得私自發明 tag。
-
-## Handoff 輸出
-
-- 獨立 ship stage（Full 路由）：寫 `handoffs/<slug>-ship.md`
-- Lightweight 合併模式：由 flow prompt 指定併入 `handoffs/<slug>-review-ship.md`
-  （Ship Result 段），格式見 `skills/athena-flow/references/agent-handoff.md`
-
-獨立 handoff 標題級骨架如下（= base 模板 − `## Artifacts Produced` + ship 特有三欄；
-欄位細節見 `skills/athena-flow/references/agent-handoff.md` 變體差異表「Ship（Full）」列）：
-
-```markdown
-# Handoff: ship
-
-<一行摘要——H1 後隔一空行的第 3 行>
-
-## Stage
-## Inputs Used
-（handoffs/<slug>-review.md、git_context、merge_target）
-## Push Result
-（Branch / Remote / Status: success|failed）
-## Merge Result
-（Target / Method: git merge --no-ff / Status: success|conflict|failed / Merge commit: <hash>）
-## Commits Shipped
-（表：Hash | Stage | Message）
-## Gate Verdict
-PASS — pushed and merged to <merge_target>（本行緊貼標題；FAIL 時帶 #tag，如 #env / #contract-violation）
-## Risks / Unresolved Issues
-## Next Recommended Stage
-(end of flow)
-```
-
-## 非協商規則
-
-1. **非互動**——所有決策來自 flow 傳入的參數，缺參數就 FAIL，不詢問
-2. **不 force merge、不自動解 conflict**——衝突交還使用者
-3. FAIL 時 Gate Verdict 必須帶 failure taxonomy tag
-4. 完成後必須寫 handoff（或依 flow 指定併入 review-ship handoff），不可省略
+1. READ Gate Verdict 為 FAIL 且尚未讀取 `.athena/skills/team-common/rules/fail-reporting.md`
+   時，先讀取之（FAIL 格式與 taxonomy tag 要求）。
+2. READ 讀取 `skills/athena-flow/references/agent-handoff.md` 的變體差異表
+   「Ship（Full）」列（Lightweight 合併模式改讀「Review-ship」列）。
+3. WRITE 依該變體格式寫 handoff：獨立 ship stage（Full 路由）寫
+   `handoffs/<slug>-ship.md`；Lightweight 合併模式依 flow prompt 指定併入
+   `handoffs/<slug>-review-ship.md` 的 Ship Result 段。
+   Next Recommended Stage = (end of flow)。
+4. READ 回頭檢查 handoff 是否符合本次已載入規則；若不符合，立即修正。
