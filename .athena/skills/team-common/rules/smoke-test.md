@@ -93,6 +93,23 @@ $ bash -n hooks/require-point.sh         # exit 0
 Smoke Test Result：通過。
 ```
 
+# 機械執行：scripts/run_smoke.py
+
+- Rule 3 / Rule 4 那張「改動類型 → 檢查指令」表的**機械執行**已由
+  `.athena/skills/team-common/scripts/run_smoke.py` 承載：它逐檔配對、逐條
+  執行、輸出 PASS/FAIL/SKIP 統計與 Smoke Test Result 段，任一 FAIL 以
+  exit code 1 結束。預設執行方式 `uv run .athena/skills/team-common/scripts/run_smoke.py`
+  （零第三方依賴，`uv` 不可用時可直接用 `python3` 跑）。
+- **本檔仍是該表的 single source of truth**：改動 Rule 3 的表（新增檔型、
+  換檢查指令）時，必須同步修改 script 內的 `BUILTIN_CHECKS` 內建表，兩邊
+  在同一次改動中一起動。
+- 語言／tech stack 知識不寫死在 script：目標專案可放
+  `.athena/smoke-checks.json` 覆寫表，格式為 `{"<glob>": "<指令模板>"}`
+  （`{file}` 為檔案路徑佔位；值可為字串、字串陣列，或 `null` 停用該內建
+  條目）。覆寫表與內建表合併，同 pattern 以覆寫表為準。
+- 沒配對到任何檢查的檔案會列入 SKIP 清單明確輸出——不是 silent pass；
+  handoff 必須照列 SKIP 清單。
+
 # Rule 4 - （verify 時）不採信 build 的 smoke 結果，依改動類型自己重跑
 
 - Level: `MUST`

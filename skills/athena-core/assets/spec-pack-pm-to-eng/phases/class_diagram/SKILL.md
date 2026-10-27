@@ -1,7 +1,7 @@
 ---
 name: class_diagram
 description: >
-  PM → 工程化流水線的階段 2a（後端 track，物件設計，對齊 data_model）。讀取 data_model 的實體模型與已釐清的需求，
+  PM → 工程化流水線的後端 track 物件設計（對齊 data_model）。讀取 data_model 的實體模型與已釐清的需求，
   推導**物件設計模型**並輸出 Mermaid classDiagram。對齊團隊的三層式架構
   （Controller / Service / DAO + Entity / DTO），並把複雜需求的物件拆分畫清楚
   （遵循 SRP / OCP）。Entity / DTO 對齊 data_model 的實體；db_table 與本階段平行（同讀 data_model、互不依賴），api 對齊本階段的物件邊界。複雜度比例原則：簡單 CRUD 只畫
@@ -9,10 +9,10 @@ description: >
   由 pm-to-eng-flow 在 target = backend / fullstack 時以全新 agent 觸發。前提：specify 已 READY、data_model 已產出實體模型。
 ---
 
-# class_diagram · 物件設計模型（階段 2a / 後端 track · 物件設計）
+# class_diagram · 物件設計模型（後端 track · 物件設計）
 
 > 流水線位置：score(gate) → clarify(gate) → specify(gate) → data_model(實體真相) → **class_diagram**(物件設計) ∥ db_table(持久化) → api → gherkin。
-> 對齊 data_model：實體集合的真相在 data_model；本階段把那些實體**拆成三層物件與職責**，不自行增刪實體集合。db_table 與本階段平行、同讀 data_model。
+> 對齊 data_model：實體集合的真相在 data_model；本 phase 把那些實體**拆成三層物件與職責**，不自行增刪實體集合。db_table 與本 phase 平行、同讀 data_model。
 
 ## 架構：三層式（layered）
 
@@ -30,8 +30,6 @@ description: >
 - **複雜（多分支規則 / 跨實體流程 / 明顯該拆）** → 畫出 SRP/OCP 拆分：哪些 Service、為何拆、介面 / 策略在哪。
 - 複雜度從 spec.md 判斷（實體數、行為數、規則分支）；可參考 `score/score-report.md` 的維度分數當線索。
 
-> 何時拆 / 怎麼抽 / OCP 變化點怎麼認、over-design 反例見 `references/layering-heuristics.md`。
-
 ## 輸入
 
 - `specs/<slug>/data_model/data-model.md`（**實體集合真相**；Entity / DTO 對齊其實體，不自行增刪實體集合）
@@ -45,15 +43,27 @@ description: >
   - 三層類別：Controller / Service / DAO + Entity / DTO
   - 複雜時：額外協作物件（Validator / Mapper / Strategy / helper）與其職責
   - 類別間關係（關聯 / 依賴 / 必要的介面實作）
-- `specs/<slug>/handoffs/class_diagram.md`（依 handoff-contract；簡單時可標 N/A）
+- `specs/<slug>/handoffs/class_diagram.md`（依 `phases/common/rules/handoff-contract.md` 的格式；簡單時可標 N/A）
 
-## 執行步驟
+## SOP
 
-1. [ ] 判斷複雜度（簡單 → 標準三層骨架 / N/A；複雜 → 往下拆）。
-2. [ ] 對應出 Controller / Service / DAO 與 Entity / DTO。
-3. [ ] 複雜需求：找出該拆的職責，依 SRP 拆 Service / 抽協作物件；依 OCP 留擴充點。
-4. [ ] 連類別關係（關聯 / 依賴 / 介面實作）。
-5. [ ] 輸出 Mermaid classDiagram；handoff 列出拆分理由與關鍵設計決策（或標 N/A）。
+### Phase 1 -- 判斷複雜度與基本對應
+
+1. READ 讀取 `data_model/data-model.md`（實體集合真相）與 `specify/spec.md`（行為 / 規則細節，首行須為 `STATUS: READY`），選讀 `score/score-report.md` 當複雜度線索。
+2. THINK 依上方「複雜度比例原則」判斷本次需求屬於簡單（CRUD / 單一 Service 就夠）或複雜（多分支規則 / 跨實體流程 / 明顯該拆）。
+3. WRITE 對應出 Controller / Service / DAO 與 Entity / DTO；Entity / DTO 須與 data_model 的實體同名同義，不自行增刪實體集合。
+
+### Phase 2 -- 複雜需求的拆分設計
+
+4. THINK 若判定為複雜，先讀取 `rules/layering-heuristics.md` 的「何時拆 Service（SRP 訊號）」與「何時抽協作物件」判準，再找出該拆的職責，依 SRP 拆分 Service 或抽出協作物件（Validator / Mapper / Strategy /計算 helper）。
+5. THINK 若需求明示或明確預示多型 / 未來變體，讀取 `rules/layering-heuristics.md` 的「OCP 變化點怎麼認」判準，抽出介面 / 策略，讓新增變體不改既有類別；若需求沒有變化點訊號，維持單一實作（YAGNI），不預先抽介面。
+6. WRITE 連接類別間關係（關聯 / 依賴 / 必要的介面實作）。
+
+### Phase 3 -- 輸出與交接
+
+7. WRITE 輸出 `class_diagram/class-diagram.mmd`（Mermaid `classDiagram`）；簡單時可標 `N/A — 標準三層，無額外拆分`，不硬擠低資訊量的拆分。
+8. WRITE 依 `phases/common/rules/handoff-contract.md` 的格式寫 `handoffs/class_diagram.md`，列出拆分理由與關鍵設計決策（或標 N/A）。
+9. READ 回頭依「完成判準」逐項檢查三層式對齊、比例原則、SRP、OCP、可交接五個面向；不符合立即修正。
 
 ## 完成判準
 
@@ -77,12 +87,6 @@ description: >
 **可交接**
 - [ ] 類別關係（關聯 / 依賴 / 介面實作）標示清楚。
 - [ ] handoff 列出關鍵設計決策與拆分理由（簡單時可標 N/A）。
-
-## references/
-
-- `references/layering-heuristics.md` — 三層式拆分準則（何時拆 Service、何時抽 Validator / Mapper / Strategy、OCP 變化點怎麼認、over-design 反例）+ 命名慣例。
-
-> 不另附 Mermaid `classDiagram` 語法速查——agent 已內建語法。
 
 ## 非協商規則
 

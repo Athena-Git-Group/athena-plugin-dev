@@ -23,7 +23,7 @@ user-invocable: false
    —— 那是 spec 的真源（PM 需求 → 工程化規格的多 phase 編排）。
 2. **在同一個 agent 內**依它的指示執行。**不要開新 agent**——spec 殼沒有 Agent 工具，
    pack 本身就是設計成單一 agent 內順序跑完 `phases/`。
-   pack 內的相對路徑（`phases/`、`references/`）一律相對於
+   pack 內的相對路徑（`phases/`、`rules/`、`templates/`）一律相對於
    `${CLAUDE_PLUGIN_ROOT}/skills/athena-core/assets/spec-pack-pm-to-eng/` 解析。
 3. Gate 映射與最終 `handoffs/<slug>-spec.md` **由 pack 的 wrapper 負責**——
    本薄殼不自己產 verdict、不自己寫 handoff。

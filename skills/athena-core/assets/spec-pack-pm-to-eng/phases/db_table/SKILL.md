@@ -1,17 +1,17 @@
 ---
 name: db_table
 description: >
-  PM → 工程化流水線的階段 2b（後端 track，持久化）。讀取 data_model 的概念/邏輯實體模型，
+  PM → 工程化流水線的後端 track 持久化層。讀取 data_model 的概念/邏輯實體模型，
   把它**落地成關聯式持久化模型**並輸出 DBML 格式的 Table 設計（實體、欄位、型別、關聯、約束、索引），
   再補需求未明言但持久化必需的機制欄位（稽核 / 樂觀鎖 / soft-delete / junction 物理落地 / 索引）。
   與 class_diagram 平行（同讀 data_model、互不依賴）。由 pm-to-eng-flow 編排器以全新 agent 觸發，也可獨立使用。
   前提：specify 已 READY、data_model 已產出實體模型。
 ---
 
-# db_table · Table 設計（階段 2b / 後端 track · 持久化，落地 data_model）
+# db_table · Table 設計（後端 track · 持久化，落地 data_model）
 
 > 流水線位置：score(gate) → clarify(gate) → specify(gate) → data_model(實體真相) → class_diagram(物件設計) ∥ **db_table**(持久化) → api → gherkin。
-> 本階段把 data_model 的**邏輯實體模型落地成關聯式持久化模型**——不依賴 class_diagram（物件設計與持久化是兩件事）。
+> 本 phase 把 data_model 的**邏輯實體模型落地成關聯式持久化模型**——不依賴 class_diagram（物件設計與持久化是兩件事）。
 
 ## 輸入
 
@@ -25,24 +25,35 @@ description: >
 ## 輸出
 
 - `specs/<slug>/db_table/erm.dbml`（DBML 資料模型）
-- `specs/<slug>/handoffs/db_table.md`（依 handoff-contract）
+- `specs/<slug>/handoffs/db_table.md`（依 `phases/common/rules/handoff-contract.md` 的格式）
 
-## 執行步驟
+## SOP
 
-1. [ ] 從 data_model 的實體目錄與屬性表取需持久化的實體與屬性（stored 的才落欄；derived 預設不存，除非標 denormalized）；
-       值域 / 基數 / 唯一性 / 業務識別直接沿用 data_model，歧義處回查 spec.md。
-2. [ ] 決定每個 Table 的欄位、型別與精度、主鍵、唯一鍵、可空性（NOT NULL / NULL）、預設值。
-3. [ ] 落地關聯：1:1 / 1:N 用 FK（指定 ON DELETE / ON UPDATE，對齊 data_model 的刪除行為）；N:M 建 junction table。
-4. [ ] 落地 enum 值域（DB enum / code 欄位 / lookup table，依團隊慣例）與必要的 CHECK / UNIQUE / partial unique 約束。
-5. [ ] 補持久化機制（**僅限 allowlist**）：稽核欄位 / 樂觀鎖 / soft-delete；不越界新增 data_model 沒有的業務實體 / 欄位。標準樣式 / FK 行為對照 / 命名見 `references/persistence-allowlist.md`。
-6. [ ] 依 data_model 的存取樣式與 FK 建索引；複合索引遵守最左前綴原則，避免冗餘索引。
-7. [ ] 撰寫慣例（見 `references/dbml-style.md`）：每個 Table 給業務 `Note`、語意不明顯 / 帶約束 / enum 的欄位給 inline note；有狀態 / 衍生的實體把不變條件（來自 data_model 的 derived 計算來源與生命週期）寫進 Table 的 `Note` block，能落成 CHECK 的同時落 CHECK；索引以 `Indexes` block 明寫。
-8. [ ] 輸出 erm.dbml；handoff 列關鍵建模決策、假設，以及 PII / 保存政策的處理或延後標注。
+### Phase 1 -- 從 data_model 落地基本結構
+
+1. READ 讀取 `data_model/data-model.md`（主輸入，邏輯實體模型），data_model 未涵蓋的邊界細節回查 `specify/spec.md`（首行須為 `STATUS: READY`）。
+2. WRITE 從 data_model 的實體目錄與屬性表取出需持久化的實體與屬性（stored 的才建成實際欄位；derived 是可由其他資料算出來的值，預設不建欄位，除非 data_model 已標 denormalized）；值域 / 基數 / 唯一性 / 業務識別直接沿用 data_model，歧義處回查 spec.md。
+3. WRITE 決定每個 Table 的欄位、型別與精度、主鍵、唯一鍵、可空性（NOT NULL / NULL）、預設值。
+4. WRITE 落地關聯：1:1 / 1:N 用 FK（指定 ON DELETE / ON UPDATE，對齊 data_model 的刪除行為）；N:M 建 junction table。
+5. WRITE 落地 enum 值域（DB enum / code 欄位 / lookup table，依團隊慣例）與必要的 CHECK / UNIQUE / partial unique 約束。
+
+### Phase 2 -- 補持久化機制與索引
+
+6. THINK 判斷是否需要補持久化機制欄位；先讀取 `rules/persistence-allowlist.md`，確認僅限該檔列出的 allowlist 範圍（稽核欄位 / 樂觀鎖 / soft-delete / 代理鍵 / junction 物理落地 / FK 行為），不越界新增 data_model 沒有的業務實體 / 欄位。
+7. WRITE 依 `rules/persistence-allowlist.md` 補齊上述機制欄位與對應約束（例如 soft-delete 須搭配 partial unique，避免「刪掉再建同 key」撞唯一鍵）。
+8. WRITE 依 data_model 的存取樣式與 FK 建索引；複合索引遵守最左前綴原則，避免冗餘索引（細則見 `rules/persistence-allowlist.md` 第 7 節「索引」）。
+
+### Phase 3 -- 撰寫慣例與輸出
+
+9. THINK 讀取 `rules/dbml-style.md` 的撰寫慣例，確認每個 Table 要有業務 Note、不變條件要寫進 Note block、索引要用 `Indexes` block 明寫。
+10. WRITE 依 `rules/dbml-style.md` 的慣例撰寫 erm.dbml：每個 Table 給業務 `Note`，語意不明顯 / 帶約束 / enum 的欄位給 inline note；有狀態 / 衍生的實體把不變條件（來自 data_model 的 derived 計算來源與生命週期）寫進 Table 的 `Note` block，能落成 CHECK 的同時落 CHECK。
+11. WRITE 輸出 `db_table/erm.dbml`；依 `phases/common/rules/handoff-contract.md` 的格式寫 `handoffs/db_table.md`，列關鍵建模決策、假設，以及 PII / 保存政策的處理或延後標注。
+12. READ 回頭依「完成判準」逐項檢查落地忠實度、型別與約束、持久化機制、索引、可讀性 / 語意、自洽 / 可追溯六個面向；不符合立即修正。
 
 ## 完成判準
 
 **落地忠實度（對齊 data_model）**
-- [ ] data_model 每個 stored 實體都有對應 Table；derived 屬性未落欄（除非標 denormalized 並註明維護方式）。
+- [ ] data_model 每個 stored 實體都有對應 Table；derived 屬性沒有被建成實際欄位（除非標 denormalized 並註明一致性維護方式）。
 - [ ] data_model 每個關係都落成 FK 或 junction table，基數一致；N:M 一律建 junction。
 - [ ] 每個 enum 值域已落地（DB enum / code / lookup），值集合與 data_model 一致、無遺漏。
 - [ ] 業務識別落成 PK / UNIQUE；條件式唯一落成 partial unique（或等效約束）。
@@ -68,11 +79,6 @@ description: >
 - [ ] 關聯與外鍵自洽、無孤兒（每個 FK 都指向存在的 PK）。
 - [ ] 每個 Table / 欄位都追得回 data_model 的實體 / 屬性，或 allowlist 的某條機制；無來源不明的欄位。
 - [ ] erm.dbml 語法正確、可被 DBML 工具解析。
-
-## references/
-
-- `references/persistence-allowlist.md` — 持久化機制 allowlist 細則（稽核 / 樂觀鎖 / soft-delete + partial unique / 代理鍵 / junction / FK 行為對照 / 索引 / 多租戶與 PII 邊界）+ 命名慣例。
-- `references/dbml-style.md` — DBML 撰寫慣例（風格指南）：每個 Table 的業務 `Note`、不變條件寫進 Note block、索引 `Indexes` block 宣告、✅/❌ 對照。agent 已內建 DBML **語法**，本檔補的是**團隊撰寫慣例**（語意 Note、不變條件、索引宣告），非語法速查。
 
 ## 非協商規則
 

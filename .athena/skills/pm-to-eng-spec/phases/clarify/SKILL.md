@@ -1,30 +1,34 @@
 ---
 name: clarify
 description: >
-  PM → 工程化流水線的階段 1（硬性 gate，上游為 score 評分）。讀取原始 PM 需求文件，以「拷問式訪談」
+  PM → 工程化流水線的需求釐清（硬性 gate，上游為 score 評分）。讀取原始 PM 需求文件，以「拷問式訪談」
   （grill-with-docs：一次一題、附建議答案、磨利術語、用情境壓測邊界）逐一釐清模糊、
   缺漏、矛盾之處，直到需求「足以開始工程化轉換」為止，才把 STATUS 標記為 RESOLVED；
   否則標記 BLOCKED 並列出缺口。由 pm-to-eng-flow 編排器以全新 agent 觸發，也可獨立使用。
 ---
 
-# clarify · 需求釐清（階段 1 / gate）
+# clarify · 需求釐清（gate）
 
 > 流水線位置：score(gate) → **clarify(gate)** → specify(gate) → 結構層 → 契約層 → 規格層。
 > 這是第二道 gate（score 評分通過後）。在本階段判定 RESOLVED 之前，下游結構層 / 契約層 /
 > 規格層一律不得啟動。釐清需求是後續一切轉換的前提。
 > **本階段前後端共用（target 無關）**；target 只影響上游 score 的 rubric 與下游走哪條 track。
 
-## 先讀
-
-- Read `references/grill-with-docs.md` — 本階段的**訪談引擎**（怎麼問、問到多精確）。
-- （選用）若團隊有 `clarify-loop` 互動規則，套用其提問格式與提問上限。
-
 ## 引擎 vs gate 的分工（重要）
 
-- **grill 引擎**負責「怎麼問」：一次一題、附建議答案、能查 codebase 就查、磨利模糊術語、
-  用具體情境壓測邊界；專案若有既有 codebase / CONTEXT.md，再啟用 glossary 挑戰與程式碼交叉比對。
+- **grill 引擎**（`rules/grill-with-docs.md`）負責「怎麼問」：一次一題、附建議答案、能查 codebase
+  就查、磨利模糊術語、用具體情境壓測邊界；專案若有既有 codebase / CONTEXT.md，再啟用 glossary
+  挑戰與程式碼交叉比對。
 - **clarify（本檔）**負責「輸入/輸出 artifact 與 gate 判定」：吃 `source/requirement.md`、
-  吐 `clarified.md` + `STATUS`。grill 的 CONTEXT.md / ADR 只是**選用增益**，不取代 clarified.md。
+  吐 `clarified.md` + `STATUS`。grill 的 CONTEXT.md / ADR 只是**選用增益**，不取代 `clarified.md`。
+
+## `clarified.md` 的定位
+
+`clarified.md` 是 `specify` phase 的**輸入**，由它收斂成 `specs/<slug>/specify/spec.md`。
+**結構層以後的 phase**（data_model / class_diagram / db_table / screens / api / ui_contract / gherkin）
+一律以 `specify/spec.md` 為需求真源，**不直接讀本檔**。本階段的**輸出格式與完成判準不變**
+——變的只是「誰讀它」；下方「範例資料」與「邊界」兩段仍要寫成可直接落地的形態，
+因為 `specify` 有義務把它們**逐筆無損搬進** `spec.md` 餵給 gherkin。
 
 ## 輸入
 
@@ -42,58 +46,54 @@ description: >
     - **範例資料**：每個核心實體 ≥3 筆真實具體資料（見完成判準「範例資料」）。
     - **邊界**：每條規則把界線寫成**帶具體觸發值**的條目（如「退款金額上限 = 訂單金額；1001 應拒」），而非抽象敘述——讓 gherkin 能直接寫 `例子` 列、不必再猜。
 - `specs/<slug>/clarify/questions.md`（**只在有高影響缺口時**）——追寫（append）給使用者的
-  待澄清問題，格式與題號契約見下方「缺口升級協議」。無高影響缺口時不建立本檔。
-- `specs/<slug>/handoffs/clarify.md`（依 handoff-contract）
+  待澄清問題；題號與標記契約依 pack 根 `rules/questions-共用契約.md` 追寫。無高影響缺口時不建立本檔。
+- `specs/<slug>/handoffs/clarify.md`（依 `phases/common/rules/handoff-contract.md`）
 
-> **本檔的定位（Q3 = B 之後）**：`clarified.md` 是 `specify` phase 的**輸入**，
-> 由它收斂成 `specs/<slug>/specify/spec.md`。**結構層以後的 phase**
-> （data_model / class_diagram / db_table / screens / api / ui_contract / gherkin）
-> 一律以 `specify/spec.md` 為需求真源，**不直接讀本檔**。
-> 本階段的**輸出格式與完成判準不變**——變的只是「誰讀它」；
-> 上面列的「範例資料」與「邊界」兩段仍要寫成可直接落地的形態，
-> 因為 `specify` 有義務把它們**逐筆無損搬進** `spec.md` 餵給 gherkin。
+## SOP
 
-## 缺口升級協議（headless；本 pack 無互動訪談、無 slash 委派）
+### Phase 1 -- 跑澄清迴圈
 
-本 pack 在 spec stage shell 內執行時，本階段的 grill 訪談**無法即時取得使用者回答**
-（獨立使用時才有真人可問）。無法就地解決的缺口一律走既有的檔案協議，
-**不另立第二套協議、不另開新檔**：
+1. READ 讀原始需求 + score-report 的缺口清單，拆成 可確認 / 待釐清 / 缺失 三類
+   （score 已標出的 `<3` 維度先進「待釐清」）。`target ∈ backend / fullstack` 時，另以下方
+   「完成判準 · 資料維度」逐條對照需求，未決或未明的項目（身分 / 基數 / optionality / 值域 /
+   狀態 / 保存 / PII / 量級 / 存取樣式 / 範例資料）一律先進「待釐清」議程；簡單 CRUD 依比例原則
+   只放 ★ 四條。
+2. READ 先讀 `rules/grill-with-docs.md`（本階段的訪談引擎），再依其紀律跑澄清迴圈：一次一題、
+   每題附你建議的答案，等回饋再問下一題；能靠探索專案 / codebase 回答的，先去查（專案裝了
+   graphify，優先用 `graphify query / path / explain`，省 token 且關係更全面），查完了之後，將整理
+   好的資訊跟使用者確認狀況；對模糊或一詞多義的字眼，提出精確的標準術語；**用具體情境壓測概念
+   邊界，逼出精確界線（shift-left）**：對每條規則的可量化維度（值域上下限、字串長度、optionality、
+   enum 封閉集合、狀態機合法 / 非法轉移、唯一性、不存在 / 空集合）主動問「界線在哪、越界要怎樣」，
+   把答案寫成帶觸發值的邊界條目。這批邊界越早釘死，下游 gherkin 越不必回退補問。
+   > 下游回饋（本 pack 的現行流程，與上游原版不同）：`gherkin` 階段若仍掃出**此處未定義的邊界**，
+   > 只會把場景標 `@待釐清` 並寫進 `handoffs/gherkin.md` 的「回饋訊號」段，由編排器收斂進最終 spec
+   > handoff 的 Risks 回報使用者。**不存在**「回頭改寫本檔重跑」或「回退本階段」的路徑——結構層
+   > 之後的需求真源是 `specify/spec.md`，下游不得回讀本檔（依 pack 根 `SKILL.md` 非協商規則
+   > 「依 target 走 track，結構層之後一律以 `specify/spec.md` 為需求真源」）。使用者的補答一律經
+   > `clarify/answers.md` 進入**下一輪** spec stage（重跑 clarify → specify）。本階段把邊界問得越
+   > 完整，該回饋越少。
+3. THINK （選用增益）若專案已有 CONTEXT.md / 程式碼：依 `rules/grill-with-docs.md` 的「用詞彙表
+   挑戰」與「與程式碼交叉比對」兩段，用 glossary 挑戰衝突術語、與程式碼交叉比對矛盾；術語釐清的
+   當下就更新 CONTEXT.md（格式依 `templates/CONTEXT-FORMAT.md`）；符合三條件才提議 ADR（格式依
+   `templates/ADR-FORMAT.md`）。
 
-1. **只升級高影響缺口**——會改變業務目標、角色、主要流程、規則界線或驗收條件的，
-   才算高影響。低影響缺口（次要文案、可安全延後的細節）在 `clarified.md` 就地標
-   「假設：…」或「待釐清」，**不升級**。
-2. 高影響缺口先自行排序，**每輪只取最高影響的 1–3 題**，以 PM-friendly 措辭
-   **追寫（append）**到 `specs/<slug>/clarify/questions.md`
-   （**三支共用此檔**：clarify / specify / ui_prototype；題號 `Q<n>` 全檔連號、標題行標
-   `[clarify]` 來源——**題號與標記契約見 pack 根 `SKILL.md`「`clarify/questions.md` 共用契約」**），
-   附建議選項與影響說明。
-3. 先讀 `specs/<slug>/clarify/answers.md`（若存在）——已被回答的題目不重複追寫；
-   在該題標題行末追加 `（已回答）`，**不刪題、不改號**。
-4. 本階段**是 gate**：仍有高影響缺口未解時，`clarified.md` 首行寫 `STATUS: BLOCKED`
-   並在內文列出缺口，交回編排器。wrapper 會發
-   `FAIL — clarify 待使用者澄清，見 specs/<slug>/clarify/questions.md #spec-gap` 並停止；
-   使用者的回答由 flow 主對話寫入 `answers.md`，重跑 spec stage。
-   **不得**為了讓 STATUS 變成 `RESOLVED` 而自行填值（非協商規則第 1 條）。
+### Phase 2 -- 收斂並判定 STATUS
 
-## 執行步驟
-
-1. 讀原始需求 + score-report 的缺口清單，拆成 可確認 / 待釐清 / 缺失 三類
-   （score 已標出的 `<3` 維度先進「待釐清」）。
-   - **`target ∈ backend / fullstack` 時**：以「完成判準 · 資料維度」逐條對照需求，
-     未決或未明的項目（身分 / 基數 / optionality / 值域 / 狀態 / 保存 / PII / 量級 / 存取樣式 / 範例資料）
-     一律先進「待釐清」議程；簡單 CRUD 依比例原則只放 ★ 四條。
-2. **以 grill 引擎跑澄清迴圈**（見 `references/grill-with-docs.md`）：
-   - 一次一題、每題附你建議的答案，等回饋再問下一題；
-   - 能靠探索專案 / codebase 回答的，先去查（專案裝了 graphify，優先用
-     `graphify query / path / explain`，省 token 且關係更全面），查完了之後，將整理好的資訊跟使用者確認狀況；
-   - 對模糊或一詞多義的字眼，提出精確的標準術語；
-   - **用具體情境壓測概念邊界，逼出精確界線（shift-left）**：對每條規則的可量化維度（值域上下限、字串長度、optionality、enum 封閉集合、狀態機合法 / 非法轉移、唯一性、不存在 / 空集合）主動問「界線在哪、越界要怎樣」，把答案寫成帶觸發值的邊界條目。這批邊界越早釘死，下游 gherkin 越不必回退補問。
-     > 下游回饋（本 pack 的現行流程，與上游原版不同）：`gherkin` 階段若仍掃出**此處未定義的邊界**，只會把場景標 `@待釐清` 並寫進 `handoffs/gherkin.md` 的「回饋訊號」段，由編排器收斂進最終 spec handoff 的 Risks 回報使用者。**不存在**「回頭改寫本檔重跑」或「回退本階段」的路徑——結構層之後的需求真源是 `specify/spec.md`，下游不得回讀本檔（pack 根 `SKILL.md` 非協商規則 4）。使用者的補答一律經 `clarify/answers.md` 進入**下一輪** spec stage（重跑 clarify → specify）。本階段把邊界問得越完整，該回饋越少。
-3. **（選用增益）** 若專案已有 CONTEXT.md / 程式碼：用 glossary 挑戰衝突術語、
-   與程式碼交叉比對矛盾；術語釐清的當下就更新 CONTEXT.md；符合三條件才提議 ADR。
-4. 收斂：把澄清結果回寫成結構化需求。
-5. 對照「完成判準」判定 → 寫 STATUS（RESOLVED 或 BLOCKED + 缺口清單）。
-6. 寫 `handoffs/clarify.md`。
+1. THINK 把澄清結果回寫成結構化需求（業務目標、角色、行為、規則、邊界、驗收條件…），其中
+   「範例資料」與「邊界」兩段務必寫成下游 gherkin 可直接取用的具體形態（見上方「輸出」）。
+2. READ 對照下方「完成判準」逐條檢查，決定首行要寫 `RESOLVED` 還是 `BLOCKED`。某項 PM 當場無法
+   決定時：列為缺口（BLOCKED），或標「延後決策 @負責人 / 截止日」才視為該項過關——**一律不得由
+   clarify 自行填值**（見非協商規則「絕不腦補」）。
+3. WRITE 若仍有未解的高影響缺口（會改變業務目標、角色、主要流程、規則界線或驗收條件的缺口）：
+   先讀 `specs/<slug>/clarify/answers.md`（若存在）——已被回答的題目不重複追寫，在該題標題行末
+   追加「（已回答）」，不刪題、不改號；再把高影響缺口排序，每輪只取最高影響的 1–3 題，以
+   PM-friendly 措辭追寫（append）到 `specs/<slug>/clarify/questions.md`，標題行標 `[clarify]`
+   來源，附建議選項與影響說明；題號與標記的完整共用契約依 pack 根 `rules/questions-共用契約.md`
+   追寫。低影響缺口（次要文案、可安全延後的細節）在 `clarified.md` 就地標「假設：…」或
+   「待釐清」，不升級。
+4. WRITE 把判定結果寫進 `specs/<slug>/clarify/clarified.md`：第一行為 `STATUS: RESOLVED` 或
+   `STATUS: BLOCKED`，`BLOCKED` 時在內文列出尚缺的資訊交由編排器停止回報。
+5. WRITE 依 `phases/common/rules/handoff-contract.md` 寫 `specs/<slug>/handoffs/clarify.md`。
 
 ## 完成判準（RESOLVED 的條件）
 
@@ -138,7 +138,6 @@ description: >
 > soft-delete 機制、索引細節、FK 的 CASCADE / RESTRICT / SET NULL 語法、join table 機制。
 
 > 任一條（通用 + 適用的資料維度）未達成 → 寫 `STATUS: BLOCKED` 並在內文列出尚缺的資訊，交由編排器停止回報。
-> 某項 PM 當場無法決定時：列為缺口（BLOCKED），或標「延後決策 @負責人 / 截止日」才視為該項過關——**一律不得由 clarify 自行填值**（非協商規則第 1 條）。
 
 ## 非協商規則
 

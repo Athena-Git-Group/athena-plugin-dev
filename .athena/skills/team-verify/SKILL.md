@@ -36,7 +36,13 @@ stage: verify
 
 1. THINK 把 point-report 的任務描述與驗收條件拆成清單，逐條對 diff 查證有做且做對。
 2. READ 讀取 `.athena/skills/team-common/rules/smoke-test.md` 的 Rule 4（verify 時重跑規則）。
-3. DELEGATE 依改動類型自己重跑 smoke 指令，記錄每條指令與實際輸出。
+3. DELEGATE 不採信 build handoff 的 smoke 結果，依改動類型**自己重跑**同一套
+   smoke test：執行 `uv run .athena/skills/team-common/scripts/run_smoke.py
+   --base <base>`（base 取 Phase 1 讀 diff 用的同一個 ref；必要時改用
+   `--files` 指定 diff 中的檔案），把 script 輸出的每條指令、exit code 與
+   PASS/FAIL/SKIP 記入 handoff 的 Checks Performed，作為判定依據；SKIP
+   清單照列，不視為通過。依賴已宣告在 script 檔頭 metadata（目前為零第三方
+   依賴）；若 `uv` 不可用，可直接改用 `python3` 執行同一支 script。
 4. THINK 對 point-report Risks 段的每一條風險，設計一個可機械判定的檢查
    （例如「可能漏改其他引用處」→ `grep -rn` 全 repo 查舊字串殘留）。
 5. DELEGATE 執行上述風險檢查指令，記錄輸出。
