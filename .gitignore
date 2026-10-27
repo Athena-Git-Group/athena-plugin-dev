@@ -35,3 +35,6 @@ __pycache__/
 # Per-author Claude Code overrides. settings.json (without .local) is the
 # committed baseline shared by all plugin authors.
 .claude/settings.local.json
+
+# JetBrains IDE per-author state
+.idea/
