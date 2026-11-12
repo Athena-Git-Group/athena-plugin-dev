@@ -251,6 +251,8 @@ Form Skill 的輸入是「我要這一類檔案」。Derive Skill 的輸入是�
 
 同一個 repo 裡另有 `artifact-to-skill-engineering`（產物轉 Skill Engineering），但它不在 CH2（Skill Engineering）逐字稿對應的 8 支工具內，本 README 不解說它。
 
+同一個目錄裡還有 [`clean-code-refactoring`（Clean Code 重構規範）](./clean-code-refactoring/)。它不屬於這 8 支工具，而是用 `skill-engineering`（Skill Engineering）的 create lane 做出來的 Skill：把「重構 100 招」coding 規範拆成 1 份 SOP、5 份 RuleFile 與 1 組 Template，用於依規範撰寫、審查或重構程式碼。
+
 ## 驗證 Skill 的方式
 
 Skill 的驗證不能只看 `SKILL.md` 是否合理，也不能只看引用路徑是否存在。至少要做四件事：
